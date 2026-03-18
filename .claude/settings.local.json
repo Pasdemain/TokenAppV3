@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(command -v railway)",
+      "Bash(railway status:*)",
+      "WebSearch",
+      "Bash(cp -r /c/Python/AppToken /c/Python/AppToken-Supabase)",
+      "Read(//c/Python/**)"
+    ]
+  }
+}

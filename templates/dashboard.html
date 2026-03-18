@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Home - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <h1 class="mb-3">👋 Welcome back, {{ username }}!</h1>
+
+    <!-- Quick Stats Overview -->
+    <div class="grid grid-2 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🛒 Shopping Activity</span>
+            </div>
+            <p class="mb-1">Active lists: <strong>{{ shopping_lists|length }}</strong></p>
+            <a href="{{ url_for('shopping.shopping_lists') }}" class="btn btn-sm btn-primary">Go to Shopping</a>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🎟️ Token Activity</span>
+            </div>
+            <p class="mb-1">Pending tokens: <strong>{{ received_tokens|selectattr('status', 'equalto', 'available')|list|length }}</strong></p>
+            <a href="{{ url_for('tokens.tokens_page') }}" class="btn btn-sm btn-primary">Go to Tokens</a>
+        </div>
+    </div>
+
+    <!-- Recent Shopping Lists -->
+    {% if shopping_lists %}
+    <div class="mb-3">
+        <div class="flex flex-between flex-center mb-2">
+            <h2>🛒 Recent Shopping Lists</h2>
+            <a href="{{ url_for('shopping.shopping_lists') }}" style="color: var(--primary);">View all →</a>
+        </div>
+        <div class="grid grid-2">
+            {% for list in shopping_lists[:4] %}
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">{{ list.name }}</span>
+                    <span class="text-muted">{{ list.created_at|timeago }}</span>
+                </div>
+                <div class="mb-2">
+                    <div class="flex flex-between text-muted">
+                        <span>Progress</span>
+                        <span>{{ list.completed_count or 0 }}/{{ list.item_count or 0 }} items</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" style="width: {% if list.item_count %}{{ (list.completed_count or 0) / list.item_count * 100 }}%{% else %}0%{% endif %}"></div>
+                    </div>
+                </div>
+                <a href="{{ url_for('shopping.shopping_list_detail', list_id=list.id) }}" class="btn btn-sm btn-primary">View List</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Tokens -->
+    {% if received_tokens %}
+    <div class="mb-3">
+        <div class="flex flex-between flex-center mb-2">
+            <h2>🎟️ Recent Tokens</h2>
+            <a href="{{ url_for('tokens.tokens_page') }}" style="color: var(--primary);">View all →</a>
+        </div>
+        <div class="grid grid-2">
+            {% for token in received_tokens[:4] %}
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">{{ token.name }}</span>
+                    {% if token.status == 'available' %}
+                        <span class="badge badge-primary">Available</span>
+                    {% elif token.status == 'in_progress' %}
+                        <span class="badge badge-warning">In Progress</span>
+                    {% else %}
+                        <span class="badge badge-success">Completed</span>
+                    {% endif %}
+                </div>
+                <p class="text-muted mb-1">From: <strong>{{ token.creator_username }}</strong></p>
+                {% if token.description %}
+                    <p class="mb-1">{{ token.description }}</p>
+                {% endif %}
+                <p class="text-muted">
+                    <small>⏱️ {{ token.duration_minutes }} minutes • Received {{ token.created_at|timeago }}</small>
+                </p>
+                {% if token.status == 'available' %}
+                    <form method="POST" action="{{ url_for('tokens.start_token', token_id=token.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-primary">Start</button>
+                    </form>
+                {% elif token.status == 'in_progress' %}
+                    <form method="POST" action="{{ url_for('tokens.complete_token', token_id=token.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-success">Complete</button>
+                    </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

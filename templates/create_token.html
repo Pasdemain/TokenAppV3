@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Create Token - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width: 600px; margin: 2rem auto;">
+    <h1 class="mb-3">🎁 Create a Favor Token</h1>
+    <p class="text-muted mb-3">Create a token for someone to redeem a favor from you</p>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="recipient_id">Recipient</label>
+            <select id="recipient_id" name="recipient_id" required>
+                <option value="">Select a user...</option>
+                {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="name">Token Name</label>
+            <input type="text" id="name" name="name" required maxlength="50" 
+                   placeholder="e.g., Help with moving, Cook dinner, Study session">
+            <small class="text-muted">Max 50 characters</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description (Optional)</label>
+            <textarea id="description" name="description" rows="3" 
+                      placeholder="Provide more details about what this token can be redeemed for..."></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="duration_minutes">Duration (minutes)</label>
+            <input type="number" id="duration_minutes" name="duration_minutes" required min="1" value="60">
+            <small class="text-muted">How long will this favor take?</small>
+        </div>
+        
+        <div class="flex gap-1">
+            <button type="submit" class="btn btn-primary">Create Token</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

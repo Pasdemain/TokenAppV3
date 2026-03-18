@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Tokens - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="flex flex-between flex-center mb-3">
+        <h1>🎟️ Token Management</h1>
+        <a href="{{ url_for('tokens.create_token') }}" class="btn btn-primary">➕ Create Token</a>
+    </div>
+
+    <!-- Token Stats -->
+    <div class="grid grid-3 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🎁 Created</span>
+            </div>
+            <h2 style="color: var(--primary);">{{ created_tokens|length }}</h2>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">📥 Received</span>
+            </div>
+            <h2 style="color: var(--secondary);">{{ received_tokens|length }}</h2>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">✅ Completed</span>
+            </div>
+            <h2 style="color: var(--success);">{{ received_tokens|selectattr('status', 'equalto', 'completed')|list|length }}</h2>
+        </div>
+    </div>
+
+    <!-- Tokens Section -->
+    <div class="grid grid-2">
+        <!-- Created Tokens -->
+        <div>
+            <h2 class="mb-2">🎁 Tokens You Created</h2>
+            {% if created_tokens %}
+                {% for token in created_tokens %}
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">{{ token.name }}</span>
+                        {% if token.status == 'available' %}
+                            <span class="badge badge-primary">Available</span>
+                        {% elif token.status == 'in_progress' %}
+                            <span class="badge badge-warning">In Progress</span>
+                        {% else %}
+                            <span class="badge badge-success">Completed</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-muted mb-1">For: <strong>{{ token.recipient_username }}</strong></p>
+                    {% if token.description %}
+                        <p class="mb-1">{{ token.description }}</p>
+                    {% endif %}
+                    <p class="text-muted">
+                        <small>⏱️ {{ token.duration_minutes }} minutes • Created {{ token.created_at|timeago }}</small>
+                    </p>
+                    {% if token.status == 'available' %}
+                        <form method="POST" action="{{ url_for('tokens.cancel_token', token_id=token.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Cancel this token?')">Cancel</button>
+                        </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="card">
+                    <p class="text-muted text-center">No tokens created yet</p>
+                    <a href="{{ url_for('tokens.create_token') }}" class="btn btn-primary mt-2">Create Your First Token</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Received Tokens -->
+        <div>
+            <h2 class="mb-2">📥 Tokens You Received</h2>
+            {% if received_tokens %}
+                {% for token in received_tokens %}
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">{{ token.name }}</span>
+                        {% if token.status == 'available' %}
+                            <span class="badge badge-primary">Available</span>
+                        {% elif token.status == 'in_progress' %}
+                            <span class="badge badge-warning">In Progress</span>
+                        {% else %}
+                            <span class="badge badge-success">Completed</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-muted mb-1">From: <strong>{{ token.creator_username }}</strong></p>
+                    {% if token.description %}
+                        <p class="mb-1">{{ token.description }}</p>
+                    {% endif %}
+                    <p class="text-muted">
+                        <small>⏱️ {{ token.duration_minutes }} minutes • Received {{ token.created_at|timeago }}</small>
+                    </p>
+                    {% if token.status == 'available' %}
+                        <form method="POST" action="{{ url_for('tokens.start_token', token_id=token.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-primary">Start</button>
+                        </form>
+                    {% elif token.status == 'in_progress' %}
+                        <form method="POST" action="{{ url_for('tokens.complete_token', token_id=token.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-success">Complete</button>
+                        </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="card">
+                    <p class="text-muted text-center">No tokens received yet</p>
+                    <p class="text-muted text-center mt-2">Exchange tokens with your partner!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

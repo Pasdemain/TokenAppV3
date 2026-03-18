@@ -1,0 +1,241 @@
+# TokenApp Recreation Prompt for AI
+
+## Project Overview
+Create a Flask web application called "TokenApp" that manages favor tokens between users and includes a collaborative shopping list feature. The app should be deployable on Railway with PostgreSQL database.
+
+## Core Features Required
+
+### 1. User Authentication System
+- User registration and login with username/password
+- Password hashing with bcrypt
+- Session management
+- Simple profile page
+
+### 2. Token Management System
+- **Create Tokens**: Users can create favor tokens for other users with:
+  - Recipient selection (dropdown of users)
+  - Token name (e.g., "Help with moving")
+  - Description 
+  - Duration in minutes
+  - Status tracking (available, in_progress, completed)
+- **Dashboard**: Show user's tokens (received and created)
+- **Token Usage**: Recipients can mark tokens as "in progress" and "completed"
+
+### 3. Shopping Lists Feature
+- **Create Lists**: Users can create shopping lists with optional sharing
+- **Add Items**: Add items with name, quantity, and unit (kg, pcs, L, etc.)
+- **Collaborative**: Multiple users can add/complete items on shared lists
+- **Progress Tracking**: Visual progress indicators
+- **Delete Lists**: Only list creators can delete lists
+- **Toggle Items**: Mark items as complete/incomplete
+
+### 4. Admin Panel
+- Password-protected admin panel at `/admin`
+- Admin password: `Tom123`
+- Ability to clear all data (users, tokens, shopping lists)
+
+## Technical Requirements
+
+### Database Schema (PostgreSQL)
+```sql
+-- Users table
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(20) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tokens table
+CREATE TABLE tokens (
+    id SERIAL PRIMARY KEY,
+    creator_id INTEGER REFERENCES users(id),
+    recipient_id INTEGER REFERENCES users(id),
+    name VARCHAR(50) NOT NULL,
+    description TEXT,
+    duration_minutes INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    used_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'in_progress', 'completed'))
+);
+
+-- Shopping lists table
+CREATE TABLE shopping_lists (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+-- Shopping items table
+CREATE TABLE shopping_items (
+    id SERIAL PRIMARY KEY,
+    list_id INTEGER REFERENCES shopping_lists(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    quantity VARCHAR(20) DEFAULT '1',
+    category VARCHAR(50) DEFAULT 'pcs',
+    is_completed BOOLEAN DEFAULT FALSE,
+    added_by INTEGER REFERENCES users(id),
+    completed_by INTEGER REFERENCES users(id),
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+-- Shopping list members table (for sharing)
+CREATE TABLE shopping_list_members (
+    id SERIAL PRIMARY KEY,
+    list_id INTEGER REFERENCES shopping_lists(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id),
+    role VARCHAR(10) DEFAULT 'member' CHECK (role IN ('owner', 'member')),
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(list_id, user_id)
+);
+```
+
+### Tech Stack
+- **Backend**: Flask (Python)
+- **Database**: PostgreSQL (Railway managed service)
+- **Frontend**: HTML templates with modern CSS
+- **Authentication**: Flask sessions with bcrypt
+- **Deployment**: Railway with GitHub integration
+
+### File Structure
+```
+TokenApp/
+├── app.py                 # Main Flask application
+├── database.py           # Database connection and operations
+├── auth.py              # Authentication routes and helpers
+├── token_routes.py      # Token management routes
+├── shopping_routes.py   # Shopping list routes
+├── requirements.txt     # Python dependencies
+├── railway.toml        # Railway deployment config
+├── .gitignore          # Git ignore (exclude .db files)
+└── templates/
+    ├── base.html       # Base template with navigation
+    ├── login.html      # Login page
+    ├── register.html   # Registration page
+    ├── dashboard.html  # Main dashboard
+    ├── create_token.html # Token creation form
+    ├── shopping_lists.html # Shopping lists overview
+    ├── create_shopping_list.html # Create list form
+    └── shopping_list_detail.html # List detail with items
+```
+
+## Database Configuration
+Use environment detection for database:
+- **Production (Railway)**: Use `DATABASE_URL` environment variable for PostgreSQL
+- **Local Development**: Use SQLite stored outside project directory
+- **Auto-detection**: Check for `PORT` or `RAILWAY_PROJECT_ID` environment variables
+
+## UI/UX Requirements
+
+### Design Style
+- Modern, clean interface with purple/blue accent colors
+- Mobile-responsive design
+- Card-based layout for tokens and shopping lists
+- Icons for visual clarity (📊 🛒 👤 ➕ etc.)
+- Progress indicators for shopping lists
+- Confirmation dialogs for destructive actions
+
+### Navigation
+- Top navigation bar with:
+  - Dashboard
+  - Shopping (lists)
+  - User profile (dropdown)
+- Mobile-friendly hamburger menu
+- Active page highlighting
+
+### Key User Flows
+1. **New User**: Register → Login → Create first token
+2. **Token Exchange**: Create token for friend → Friend accepts → Friend completes
+3. **Shopping**: Create shared list → Add items → Collaborate → Complete shopping
+
+## Security Features
+- Input sanitization for all user inputs
+- SQL injection prevention (parameterized queries)
+- Session management with secure cookies
+- Password hashing with bcrypt
+- CSRF protection for forms
+
+## Deployment Configuration
+
+### Railway Setup
+1. Create Railway project
+2. Add PostgreSQL service (separate from app)
+3. Connect GitHub repository
+4. Set environment variables:
+   - `DATABASE_URL` (auto-generated by Railway PostgreSQL)
+   - Any other config as needed
+
+### requirements.txt
+```
+Flask==2.3.3
+bcrypt==4.0.1
+gunicorn==21.2.0
+psycopg2-binary==2.9.9
+Werkzeug==2.3.7
+Jinja2==3.1.2
+```
+
+### railway.toml
+```toml
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "python app.py"
+healthcheckPath = "/"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[build.env]
+PYTHON_VERSION = "3.11"
+```
+
+## Important Implementation Notes
+
+### Database Connection
+- Use psycopg2 for PostgreSQL connections
+- Implement connection pooling if needed
+- Always close database connections
+- Use parameterized queries for security
+
+### Error Handling
+- Graceful error handling for database operations
+- User-friendly error messages
+- Logging for debugging
+
+### Time Handling
+- Store timestamps in UTC
+- Display relative times ("2 hours ago")
+- Handle timezone considerations
+
+### Units for Shopping Items
+Available units: pcs, kg, g, L, mL, lbs, oz, box, pack, bottle, bag, jar, can, bunch, dozen, slice
+
+## Success Criteria
+1. ✅ Users can register, login, and manage accounts
+2. ✅ Full token lifecycle (create, accept, complete)
+3. ✅ Collaborative shopping lists with real-time updates
+4. ✅ Mobile-responsive design
+5. ✅ Secure and scalable database (PostgreSQL)
+6. ✅ Easy deployment on Railway
+7. ✅ Data persistence across deployments
+8. ✅ Admin panel for data management
+
+## Additional Features (Nice to Have)
+- Email notifications for token activities
+- Token expiration based on duration
+- Shopping list categories/templates
+- User avatars
+- Activity feed/history
+- Export shopping lists
+
+---
+
+**Note**: This app should be built as a single-page application with server-side rendering. Focus on simplicity, security, and user experience. The database should be completely separate from the application code to ensure data persistence.
+
+database public adress
+postgresql://postgres:WDijmRBOqkpNYHtjoqMYrNJKPpMsrpBc@turntable.proxy.rlwy.net:34430/railway

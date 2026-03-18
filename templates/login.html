@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Login - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width: 400px; margin: 4rem auto;">
+    <h1 class="text-center mb-3">💑 Welcome to CoupleApp!</h1>
+    <p class="text-center text-muted mb-3">Log in to manage your shared activities</p>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus maxlength="20">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Log In</button>
+    </form>
+    
+    <div class="text-center mt-3">
+        <p class="text-muted">Don't have an account? <a href="{{ url_for('auth.register') }}" style="color: var(--primary);">Register here</a></p>
+    </div>
+</div>
+{% endblock %}

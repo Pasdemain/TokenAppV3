@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Profile - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width: 800px; margin: 2rem auto;">
+    <h1 class="mb-3">👤 User Profile</h1>
+    
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">Account Information</span>
+        </div>
+        <div style="padding: 1rem;">
+            <p><strong>Username:</strong> {{ username }}</p>
+            <p><strong>Member Since:</strong> {{ session.created_at|default('Recently joined', true) }}</p>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">📊 Your Statistics</span>
+        </div>
+        <div class="grid grid-2" style="padding: 1rem;">
+            <div class="text-center" style="padding: 1rem; border-right: 1px solid var(--border);">
+                <h2 style="color: var(--primary); margin-bottom: 0.5rem;">{{ stats.tokens_created or 0 }}</h2>
+                <p class="text-muted">Tokens Created</p>
+                <small>Favors you've offered to others</small>
+            </div>
+            <div class="text-center" style="padding: 1rem;">
+                <h2 style="color: var(--secondary); margin-bottom: 0.5rem;">{{ stats.tokens_received or 0 }}</h2>
+                <p class="text-muted">Tokens Received</p>
+                <small>Favors others have offered to you</small>
+            </div>
+            <div class="text-center" style="padding: 1rem; border-right: 1px solid var(--border);">
+                <h2 style="color: var(--success); margin-bottom: 0.5rem;">{{ stats.tokens_completed or 0 }}</h2>
+                <p class="text-muted">Tokens Completed</p>
+                <small>Favors you've successfully redeemed</small>
+            </div>
+            <div class="text-center" style="padding: 1rem;">
+                <h2 style="color: var(--info); margin-bottom: 0.5rem;">{{ stats.lists_created or 0 }}</h2>
+                <p class="text-muted">Shopping Lists</p>
+                <small>Lists you've created</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">🏆 Achievements</span>
+        </div>
+        <div style="padding: 1rem;">
+            <div class="grid grid-3" style="gap: 1rem;">
+                {% if stats.tokens_created >= 1 %}
+                    <div class="text-center">
+                        <div style="font-size: 3rem;">🎁</div>
+                        <p><strong>First Token</strong></p>
+                        <small class="text-muted">Created your first token</small>
+                    </div>
+                {% endif %}
+                {% if stats.tokens_completed >= 1 %}
+                    <div class="text-center">
+                        <div style="font-size: 3rem;">✅</div>
+                        <p><strong>Token Redeemer</strong></p>
+                        <small class="text-muted">Completed your first token</small>
+                    </div>
+                {% endif %}
+                {% if stats.lists_created >= 1 %}
+                    <div class="text-center">
+                        <div style="font-size: 3rem;">🛒</div>
+                        <p><strong>List Maker</strong></p>
+                        <small class="text-muted">Created your first shopping list</small>
+                    </div>
+                {% endif %}
+                {% if stats.tokens_created >= 5 %}
+                    <div class="text-center">
+                        <div style="font-size: 3rem;">⭐</div>
+                        <p><strong>Generous</strong></p>
+                        <small class="text-muted">Created 5+ tokens</small>
+                    </div>
+                {% endif %}
+                {% if stats.tokens_completed >= 5 %}
+                    <div class="text-center">
+                        <div style="font-size: 3rem;">🏅</div>
+                        <p><strong>Reliable</strong></p>
+                        <small class="text-muted">Completed 5+ tokens</small>
+                    </div>
+                {% endif %}
+                {% if stats.tokens_created >= 10 %}
+                    <div class="text-center">
+                        <div style="font-size: 3rem;">👑</div>
+                        <p><strong>Token Master</strong></p>
+                        <small class="text-muted">Created 10+ tokens</small>
+                    </div>
+                {% endif %}
+            </div>
+            
+            {% if stats.tokens_created == 0 and stats.tokens_received == 0 and stats.lists_created == 0 %}
+                <p class="text-center text-muted" style="padding: 2rem;">
+                    Start using CoupleApp to unlock achievements!
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">⚙️ Actions</span>
+        </div>
+        <div style="padding: 1rem;">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">📊 Go to Dashboard</a>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary">🚪 Log Out</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media (max-width: 768px) {
+        .grid-2 > div[style*="border-right"] {
+            border-right: none !important;
+            border-bottom: 1px solid var(--border);
+        }
+        .grid-2 > div:last-child {
+            border-bottom: none;
+        }
+    }
+</style>
+{% endblock %}

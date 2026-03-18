@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width: 600px; margin: 2rem auto;">
+    <h1 class="mb-3">🔐 Admin Panel</h1>
+    <div class="alert alert-warning mb-3">
+        ⚠️ <strong>Warning:</strong> Admin actions are permanent and cannot be undone!
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Database Management</span>
+        </div>
+        <div style="padding: 1.5rem;">
+            <p class="mb-3">This action will permanently delete ALL data from the database including:</p>
+            <ul style="margin-left: 2rem; margin-bottom: 1.5rem;">
+                <li>All user accounts</li>
+                <li>All tokens (created and received)</li>
+                <li>All shopping lists and items</li>
+                <li>All user relationships and data</li>
+            </ul>
+            
+            <form method="POST" onsubmit="return confirmClearAll()">
+                <div class="form-group">
+                    <label for="password">Admin Password</label>
+                    <input type="password" id="password" name="password" required 
+                           placeholder="Enter admin password to proceed">
+                    <small class="text-muted">Contact system administrator if you don't have the password</small>
+                </div>
+                
+                <input type="hidden" name="action" value="clear_all">
+                
+                <div class="flex gap-1">
+                    <button type="submit" class="btn btn-danger">
+                        🗑️ Clear All Data
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header">
+            <span class="card-title">ℹ️ Information</span>
+        </div>
+        <div style="padding: 1.5rem;">
+            <p class="mb-2"><strong>Purpose:</strong> This admin panel is for system maintenance and testing.</p>
+            <p class="mb-2"><strong>Access:</strong> Only authorized administrators should access this page.</p>
+            <p><strong>Security:</strong> All admin actions are logged and monitored.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmClearAll() {
+    const firstConfirm = confirm("⚠️ WARNING: This will delete ALL data from the database!\n\nAre you absolutely sure you want to proceed?");
+    
+    if (firstConfirm) {
+        const secondConfirm = confirm("🚨 FINAL WARNING: This action cannot be undone!\n\nAll users, tokens, and shopping lists will be permanently deleted.\n\nClick OK to proceed with deletion.");
+        return secondConfirm;
+    }
+    
+    return false;
+}
+</script>
+
+<style>
+    .alert-warning {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.8;
+        }
+    }
+</style>
+{% endblock %}
