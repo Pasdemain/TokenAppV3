@@ -1,4 +1,7 @@
 import os
+import threading
+import time
+import urllib.request
 from flask import Flask, render_template, redirect, url_for, session, flash, send_from_directory
 from werkzeug.security import generate_password_hash
 import psycopg2
@@ -159,6 +162,20 @@ def timeago(timestamp):
         return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
     else:
         return "Just now"
+
+# Keep-alive: ping the app every 14 minutes to prevent Render from sleeping
+def keep_alive():
+    app_url = os.environ.get('RENDER_EXTERNAL_URL')
+    if not app_url:
+        return
+    while True:
+        time.sleep(840)  # 14 minutes
+        try:
+            urllib.request.urlopen(app_url)
+        except Exception:
+            pass
+
+threading.Thread(target=keep_alive, daemon=True).start()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
