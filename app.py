@@ -11,6 +11,7 @@ from database import get_db_connection, init_db
 from auth import auth_bp, login_required
 from token_routes import token_bp
 from shopping_routes import shopping_bp
+from scratch_routes import scratch_bp
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -19,6 +20,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-producti
 app.register_blueprint(auth_bp)
 app.register_blueprint(token_bp)
 app.register_blueprint(shopping_bp)
+app.register_blueprint(scratch_bp)
 
 # Initialize database on startup
 with app.app_context():
@@ -79,48 +81,77 @@ def dashboard():
     """, (session['user_id'], session['user_id']))
     shopping_lists = cur.fetchall()
     
+    # Check if scratch ticket is available today
+    from datetime import date as _date
+    cur.execute(
+        "SELECT id FROM scratch_tickets WHERE user_id = %s AND ticket_date = %s",
+        (session['user_id'], _date.today())
+    )
+    ticket_played_today = cur.fetchone() is not None
+
+    # Check if prizes are configured for this user
+    cur.execute("SELECT COUNT(*) as cnt FROM scratch_prizes WHERE user_id = %s", (session['user_id'],))
+    has_scratch_prizes = cur.fetchone()['cnt'] > 0
+
     cur.close()
     conn.close()
-    
-    return render_template('dashboard.html', 
-                         created_tokens=created_tokens,
-                         received_tokens=received_tokens,
-                         shopping_lists=shopping_lists,
-                         username=session.get('username'))
+
+    return render_template('dashboard.html',
+                           created_tokens=created_tokens,
+                           received_tokens=received_tokens,
+                           shopping_lists=shopping_lists,
+                           username=session.get('username'),
+                           ticket_played_today=ticket_played_today,
+                           has_scratch_prizes=has_scratch_prizes)
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     from flask import request
-    
+
     if request.method == 'POST':
         password = request.form.get('password')
         action = request.form.get('action')
-        
+
         if password == 'Tom123':
             if action == 'clear_all':
                 conn = get_db_connection()
                 cur = conn.cursor()
-                
-                # Clear all data
+
+                cur.execute("DELETE FROM scratch_tickets")
+                cur.execute("DELETE FROM scratch_prizes")
                 cur.execute("DELETE FROM shopping_items")
                 cur.execute("DELETE FROM shopping_list_members")
                 cur.execute("DELETE FROM shopping_lists")
                 cur.execute("DELETE FROM tokens")
                 cur.execute("DELETE FROM users")
-                
+
                 conn.commit()
                 cur.close()
                 conn.close()
-                
-                flash('All data has been cleared successfully!', 'success')
+
+                flash('Toutes les données ont été supprimées !', 'success')
                 session.clear()
                 return redirect(url_for('auth.login'))
             else:
-                flash('Invalid action!', 'error')
+                flash('Action invalide !', 'error')
         else:
-            flash('Invalid admin password!', 'error')
-    
-    return render_template('admin.html')
+            flash('Mot de passe admin incorrect !', 'error')
+
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT id, username FROM users ORDER BY username")
+    users = cur.fetchall()
+    cur.execute("""
+        SELECT sp.*, u.username
+        FROM scratch_prizes sp
+        JOIN users u ON sp.user_id = u.id
+        ORDER BY u.username, sp.id
+    """)
+    prizes = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return render_template('admin.html', users=users, prizes=prizes)
 
 @app.route('/profile')
 @login_required
