@@ -1,54 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Ticket à Gratter - CoupleApp{% endblock %}
+{% block title %}Scratch Ticket - CoupleApp{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width: 600px; margin: 2rem auto; text-align: center;">
-    <h1 class="mb-1">🎰 Ticket à Gratter</h1>
-    <p class="text-muted mb-3">Ton ticket quotidien t'attend !</p>
+    <h1 class="mb-1">🎰 Daily Scratch Ticket</h1>
+    <p class="text-muted mb-3">Your daily ticket is waiting for you!</p>
 
     {% if not has_prizes %}
     <div class="alert alert-warning">
-        ⚠️ Aucun prix n'a été configuré pour ton compte. Demande à l'admin de configurer ta liste de prix !
+        ⚠️ No prizes have been configured for your account. Ask the admin to set up your prize list!
     </div>
 
     {% elif ticket and ticket.scratched_at %}
     <!-- Already played today -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">Ticket du jour</span>
-            <span class="badge" style="background:#6b7280;color:#fff;">Déjà gratté</span>
+            <span class="card-title">Today's Ticket</span>
+            <span class="badge" style="background:#6b7280;color:#fff;">Already scratched</span>
         </div>
         {% if ticket.is_loser %}
         <div class="result-panel result-lost">
             <div style="font-size:3.5rem;">😢</div>
-            <h2 class="mt-1">Pas de chance !</h2>
+            <h2 class="mt-1">Better luck next time!</h2>
             <p class="text-muted">{{ ticket.prize_name }}</p>
         </div>
         {% else %}
         <div class="result-panel result-win">
             <div style="font-size:3.5rem;">🎉</div>
-            <h2 class="mt-1">Tu as gagné !</h2>
+            <h2 class="mt-1">You won!</h2>
             <p><strong>{{ ticket.prize_name }}</strong></p>
-            <p class="text-muted">Le token a été ajouté à tes tokens reçus !</p>
+            <p class="text-muted">The token has been added to your received tokens!</p>
         </div>
         {% endif %}
-        <p class="text-muted mt-2" style="font-size:0.9rem;">🕛 Reviens demain pour un nouveau ticket !</p>
+        <p class="text-muted mt-2" style="font-size:0.9rem;">🕛 Come back tomorrow for a new ticket!</p>
     </div>
 
     {% else %}
     <!-- Interactive scratch card -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">🎰 Ticket du jour</span>
-            <span class="badge badge-primary">Disponible !</span>
+            <span class="card-title">🎰 Today's Ticket</span>
+            <span class="badge badge-primary">Available!</span>
         </div>
-        <p class="mb-3 text-muted">Gratte le ticket pour découvrir ton prix !</p>
+        <p class="mb-3 text-muted">Scratch the ticket to discover your prize!</p>
 
         <div id="scratch-container" style="position:relative;display:inline-block;margin:0 auto 1rem;">
             <!-- Prize shown underneath -->
             <div id="prize-reveal" style="width:300px;height:180px;border-radius:16px;background:linear-gradient(135deg,#ffd700,#ff8c00);display:flex;flex-direction:column;align-items:center;justify-content:center;user-select:none;">
                 <div id="prize-icon" style="font-size:3rem;margin-bottom:0.5rem;">🎁</div>
-                <div id="prize-text" style="font-size:1.1rem;font-weight:700;color:#7c3500;padding:0 1rem;">Gratte pour découvrir !</div>
+                <div id="prize-text" style="font-size:1.1rem;font-weight:700;color:#7c3500;padding:0 1rem;">Scratch to reveal!</div>
             </div>
             <!-- Canvas overlay -->
             <canvas id="scratch-canvas" width="300" height="180"
@@ -59,14 +59,14 @@
             <div class="progress">
                 <div id="progress-bar" class="progress-bar" style="width:0%;background:var(--warning);transition:width 0.1s;"></div>
             </div>
-            <small class="text-muted" id="progress-label">Gratte avec ton doigt ou ta souris...</small>
+            <small class="text-muted" id="progress-label">Scratch with your finger or mouse...</small>
         </div>
 
         <div id="result-section" style="display:none;" class="mt-2"></div>
     </div>
     {% endif %}
 
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-2">← Retour au tableau de bord</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-2">← Back to Dashboard</a>
 </div>
 
 {% block scripts %}
@@ -101,10 +101,10 @@
         ctx.fillStyle = '#777';
         ctx.font = 'bold 18px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('🎰 GRATTE ICI 🎰', canvas.width / 2, canvas.height / 2 - 8);
+        ctx.fillText('🎰 SCRATCH HERE 🎰', canvas.width / 2, canvas.height / 2 - 8);
         ctx.font = '13px Arial';
         ctx.fillStyle = '#999';
-        ctx.fillText('Glisse ton doigt sur le ticket', canvas.width / 2, canvas.height / 2 + 18);
+        ctx.fillText('Slide your finger over the ticket', canvas.width / 2, canvas.height / 2 + 18);
     }
 
     function scratchAt(x, y) {
@@ -149,7 +149,7 @@
     function finishReveal() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         canvas.style.pointerEvents = 'none';
-        document.getElementById('progress-label').textContent = 'Révélation en cours...';
+        document.getElementById('progress-label').textContent = 'Revealing...';
 
         fetch('/scratch/play', { method: 'POST' })
             .then(r => r.json())
@@ -165,23 +165,23 @@
                     document.getElementById('prize-reveal').style.background = 'linear-gradient(135deg,#e5e7eb,#d1d5db)';
                     document.getElementById('prize-text').style.color = '#4b5563';
                     showResult(`<div class="result-panel result-lost">
-                        <strong>😢 Pas de chance !</strong><br>
-                        <span class="text-muted">Reviens demain, tu seras peut-être plus chanceux !</span>
+                        <strong>😢 Better luck next time!</strong><br>
+                        <span class="text-muted">Come back tomorrow, maybe you'll be luckier!</span>
                     </div>`);
                 } else {
                     document.getElementById('prize-reveal').style.background = 'linear-gradient(135deg,#a7f3d0,#6ee7b7)';
                     document.getElementById('prize-text').style.color = '#065f46';
                     showResult(`<div class="result-panel result-win">
-                        🎉 <strong>Félicitations !</strong><br>
-                        Tu as gagné le token <strong>"${data.token_name}"</strong> !<br>
-                        <span class="text-muted" style="font-size:0.9rem;">Il a été ajouté à tes tokens reçus.</span>
+                        🎉 <strong>Congratulations!</strong><br>
+                        You won the token <strong>"${data.token_name}"</strong>!<br>
+                        <span class="text-muted" style="font-size:0.9rem;">It has been added to your received tokens.</span>
                     </div>`);
                     launchConfetti();
                 }
                 document.getElementById('scratch-progress').style.display = 'none';
             })
             .catch(() => {
-                showResult('<div class="alert alert-error">❌ Erreur réseau. Recharge la page.</div>');
+                showResult('<div class="alert alert-error">❌ Network error. Please refresh the page.</div>');
             });
     }
 
