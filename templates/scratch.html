@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Ticket à Gratter - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width: 600px; margin: 2rem auto; text-align: center;">
+    <h1 class="mb-1">🎰 Ticket à Gratter</h1>
+    <p class="text-muted mb-3">Ton ticket quotidien t'attend !</p>
+
+    {% if not has_prizes %}
+    <div class="alert alert-warning">
+        ⚠️ Aucun prix n'a été configuré pour ton compte. Demande à l'admin de configurer ta liste de prix !
+    </div>
+
+    {% elif ticket and ticket.scratched_at %}
+    <!-- Already played today -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Ticket du jour</span>
+            <span class="badge" style="background:#6b7280;color:#fff;">Déjà gratté</span>
+        </div>
+        {% if ticket.is_loser %}
+        <div class="result-panel result-lost">
+            <div style="font-size:3.5rem;">😢</div>
+            <h2 class="mt-1">Pas de chance !</h2>
+            <p class="text-muted">{{ ticket.prize_name }}</p>
+        </div>
+        {% else %}
+        <div class="result-panel result-win">
+            <div style="font-size:3.5rem;">🎉</div>
+            <h2 class="mt-1">Tu as gagné !</h2>
+            <p><strong>{{ ticket.prize_name }}</strong></p>
+            <p class="text-muted">Le token a été ajouté à tes tokens reçus !</p>
+        </div>
+        {% endif %}
+        <p class="text-muted mt-2" style="font-size:0.9rem;">🕛 Reviens demain pour un nouveau ticket !</p>
+    </div>
+
+    {% else %}
+    <!-- Interactive scratch card -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">🎰 Ticket du jour</span>
+            <span class="badge badge-primary">Disponible !</span>
+        </div>
+        <p class="mb-3 text-muted">Gratte le ticket pour découvrir ton prix !</p>
+
+        <div id="scratch-container" style="position:relative;display:inline-block;margin:0 auto 1rem;">
+            <!-- Prize shown underneath -->
+            <div id="prize-reveal" style="width:300px;height:180px;border-radius:16px;background:linear-gradient(135deg,#ffd700,#ff8c00);display:flex;flex-direction:column;align-items:center;justify-content:center;user-select:none;">
+                <div id="prize-icon" style="font-size:3rem;margin-bottom:0.5rem;">🎁</div>
+                <div id="prize-text" style="font-size:1.1rem;font-weight:700;color:#7c3500;padding:0 1rem;">Gratte pour découvrir !</div>
+            </div>
+            <!-- Canvas overlay -->
+            <canvas id="scratch-canvas" width="300" height="180"
+                style="position:absolute;top:0;left:0;border-radius:16px;touch-action:none;cursor:crosshair;"></canvas>
+        </div>
+
+        <div id="scratch-progress" class="mt-1 mb-2">
+            <div class="progress">
+                <div id="progress-bar" class="progress-bar" style="width:0%;background:var(--warning);transition:width 0.1s;"></div>
+            </div>
+            <small class="text-muted" id="progress-label">Gratte avec ton doigt ou ta souris...</small>
+        </div>
+
+        <div id="result-section" style="display:none;" class="mt-2"></div>
+    </div>
+    {% endif %}
+
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-2">← Retour au tableau de bord</a>
+</div>
+
+{% block scripts %}
+<script>
+(function () {
+    const canvas = document.getElementById('scratch-canvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    let isScratching = false;
+    let revealed = false;
+
+    // Draw silver/gold overlay
+    function initCanvas() {
+        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        grad.addColorStop(0, '#c8c8c8');
+        grad.addColorStop(0.3, '#e8e8e8');
+        grad.addColorStop(0.5, '#b0b0b0');
+        grad.addColorStop(0.7, '#d4d4d4');
+        grad.addColorStop(1, '#a0a0a0');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Stars pattern
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        for (let i = 0; i < 30; i++) {
+            ctx.beginPath();
+            ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.fillStyle = '#777';
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎰 GRATTE ICI 🎰', canvas.width / 2, canvas.height / 2 - 8);
+        ctx.font = '13px Arial';
+        ctx.fillStyle = '#999';
+        ctx.fillText('Glisse ton doigt sur le ticket', canvas.width / 2, canvas.height / 2 + 18);
+    }
+
+    function scratchAt(x, y) {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(x, y, 28, 0, Math.PI * 2);
+        ctx.fill();
+        checkProgress();
+    }
+
+    function checkProgress() {
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let transparent = 0;
+        for (let i = 3; i < data.length; i += 4) {
+            if (data[i] === 0) transparent++;
+        }
+        const pct = (transparent / (canvas.width * canvas.height)) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        if (pct >= 62 && !revealed) {
+            revealed = true;
+            finishReveal();
+        }
+    }
+
+    function getXY(e) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = canvas.width / rect.width;
+        const sy = canvas.height / rect.height;
+        const src = e.touches ? e.touches[0] : e;
+        return { x: (src.clientX - rect.left) * sx, y: (src.clientY - rect.top) * sy };
+    }
+
+    canvas.addEventListener('mousedown', e => { isScratching = true; const p = getXY(e); scratchAt(p.x, p.y); });
+    canvas.addEventListener('mousemove', e => { if (isScratching) { const p = getXY(e); scratchAt(p.x, p.y); } });
+    canvas.addEventListener('mouseup', () => isScratching = false);
+    canvas.addEventListener('mouseleave', () => isScratching = false);
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); isScratching = true; const p = getXY(e); scratchAt(p.x, p.y); }, { passive: false });
+    canvas.addEventListener('touchmove', e => { e.preventDefault(); if (isScratching) { const p = getXY(e); scratchAt(p.x, p.y); } }, { passive: false });
+    canvas.addEventListener('touchend', () => isScratching = false);
+
+    function finishReveal() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.style.pointerEvents = 'none';
+        document.getElementById('progress-label').textContent = 'Révélation en cours...';
+
+        fetch('/scratch/play', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    showResult(`<div class="alert alert-error">❌ ${data.error}</div>`);
+                    return;
+                }
+                document.getElementById('prize-icon').textContent = data.is_loser ? '😢' : '🎉';
+                document.getElementById('prize-text').textContent = data.prize_name;
+
+                if (data.is_loser) {
+                    document.getElementById('prize-reveal').style.background = 'linear-gradient(135deg,#e5e7eb,#d1d5db)';
+                    document.getElementById('prize-text').style.color = '#4b5563';
+                    showResult(`<div class="result-panel result-lost">
+                        <strong>😢 Pas de chance !</strong><br>
+                        <span class="text-muted">Reviens demain, tu seras peut-être plus chanceux !</span>
+                    </div>`);
+                } else {
+                    document.getElementById('prize-reveal').style.background = 'linear-gradient(135deg,#a7f3d0,#6ee7b7)';
+                    document.getElementById('prize-text').style.color = '#065f46';
+                    showResult(`<div class="result-panel result-win">
+                        🎉 <strong>Félicitations !</strong><br>
+                        Tu as gagné le token <strong>"${data.token_name}"</strong> !<br>
+                        <span class="text-muted" style="font-size:0.9rem;">Il a été ajouté à tes tokens reçus.</span>
+                    </div>`);
+                    launchConfetti();
+                }
+                document.getElementById('scratch-progress').style.display = 'none';
+            })
+            .catch(() => {
+                showResult('<div class="alert alert-error">❌ Erreur réseau. Recharge la page.</div>');
+            });
+    }
+
+    function showResult(html) {
+        const el = document.getElementById('result-section');
+        el.innerHTML = html;
+        el.style.display = 'block';
+    }
+
+    function launchConfetti() {
+        const colors = ['#ff6b6b', '#ffd700', '#6366f1', '#10b981', '#f59e0b', '#ec4899'];
+        for (let i = 0; i < 60; i++) {
+            const el = document.createElement('div');
+            el.style.cssText = `
+                position:fixed;width:10px;height:10px;
+                background:${colors[Math.floor(Math.random() * colors.length)]};
+                left:${Math.random() * 100}vw;top:-10px;
+                border-radius:${Math.random() > 0.5 ? '50%' : '2px'};
+                animation:confetti-fall ${1 + Math.random() * 2}s linear forwards;
+                z-index:9999;opacity:1;
+            `;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+    }
+
+    initCanvas();
+})();
+</script>
+
+<style>
+@keyframes confetti-fall {
+    to { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+.result-panel {
+    padding: 1.25rem 1.5rem;
+    border-radius: 12px;
+    margin: 0.5rem 0;
+    line-height: 1.6;
+}
+.result-win {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    border: 1px solid #6ee7b7;
+    color: #065f46;
+}
+.result-lost {
+    background: var(--light);
+    border: 1px solid var(--border);
+    color: #4b5563;
+}
+</style>
+{% endblock %}
+{% endblock %}

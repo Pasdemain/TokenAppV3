@@ -333,6 +333,11 @@
             color: var(--white);
         }
 
+        @keyframes pulse-badge {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+
         /* Mobile Menu */
         .mobile-menu-toggle {
             display: none;
@@ -396,6 +401,7 @@
                     <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">🏠 Home</a></li>
                     <li><a href="{{ url_for('shopping.shopping_lists') }}" class="{% if 'shopping' in request.endpoint %}active{% endif %}">🛒 Shopping</a></li>
                     <li><a href="{{ url_for('tokens.tokens_page') }}" class="{% if 'token' in request.endpoint %}active{% endif %}">🎟️ Tokens</a></li>
+                    <li><a href="{{ url_for('scratch.scratch_page') }}" class="{% if 'scratch' in request.endpoint %}active{% endif %}">🎰 Ticket</a></li>
                     <li class="dropdown">
                         <a href="#" onclick="event.preventDefault()">👤 {{ session.username }} ▼</a>
                         <div class="dropdown-content">

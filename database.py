@@ -98,6 +98,33 @@ def init_db():
         )
     """)
 
+    # Create scratch prizes table (prize list per user, configured by admin)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS scratch_prizes (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name VARCHAR(100) NOT NULL,
+            token_name VARCHAR(50),
+            token_description TEXT,
+            token_duration_minutes INTEGER DEFAULT 30,
+            probability FLOAT NOT NULL,
+            is_loser BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Create scratch tickets table (one ticket per user per day)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS scratch_tickets (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            ticket_date DATE NOT NULL,
+            scratched_at TIMESTAMP,
+            prize_id INTEGER REFERENCES scratch_prizes(id),
+            UNIQUE(user_id, ticket_date)
+        )
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
