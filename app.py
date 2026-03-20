@@ -12,6 +12,7 @@ from auth import auth_bp, login_required
 from token_routes import token_bp
 from shopping_routes import shopping_bp
 from scratch_routes import scratch_bp
+from wheel_routes import wheel_bp
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -21,6 +22,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(token_bp)
 app.register_blueprint(shopping_bp)
 app.register_blueprint(scratch_bp)
+app.register_blueprint(wheel_bp)
 
 # Initialize database on startup
 with app.app_context():
@@ -123,6 +125,7 @@ def admin():
                 cur.execute("DELETE FROM shopping_list_members")
                 cur.execute("DELETE FROM shopping_lists")
                 cur.execute("DELETE FROM tokens")
+                cur.execute("DELETE FROM wheel_countries")
                 cur.execute("DELETE FROM users")
 
                 conn.commit()
@@ -132,6 +135,36 @@ def admin():
                 flash('Toutes les données ont été supprimées !', 'success')
                 session.clear()
                 return redirect(url_for('auth.login'))
+
+            elif action == 'change_password':
+                from flask import request as _req
+                target_username = _req.form.get('target_username', '').strip()
+                new_password = _req.form.get('new_password', '')
+                if not target_username or not new_password:
+                    flash('Username and new password are required.', 'error')
+                elif len(new_password) < 6:
+                    flash('Password must be at least 6 characters.', 'error')
+                else:
+                    conn = get_db_connection()
+                    cur = conn.cursor()
+                    try:
+                        new_hash = generate_password_hash(new_password)
+                        cur.execute(
+                            "UPDATE users SET password_hash = %s, remember_token = NULL WHERE username = %s",
+                            (new_hash, target_username)
+                        )
+                        if cur.rowcount == 0:
+                            flash(f'User "{target_username}" not found.', 'error')
+                        else:
+                            conn.commit()
+                            flash(f'Password changed for "{target_username}"!', 'success')
+                    except Exception as e:
+                        conn.rollback()
+                        flash('Error changing password.', 'error')
+                        print(f"Change password error: {e}")
+                    finally:
+                        cur.close()
+                        conn.close()
             else:
                 flash('Action invalide !', 'error')
         else:
@@ -148,10 +181,12 @@ def admin():
         ORDER BY u.username, sp.id
     """)
     prizes = cur.fetchall()
+    cur.execute("SELECT id, name, flag_emoji, is_active FROM wheel_countries ORDER BY name")
+    wheel_countries = cur.fetchall()
     cur.close()
     conn.close()
 
-    return render_template('admin.html', users=users, prizes=prizes)
+    return render_template('admin.html', users=users, prizes=prizes, wheel_countries=wheel_countries)
 
 @app.route('/profile')
 @login_required

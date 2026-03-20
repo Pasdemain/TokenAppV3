@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Country Wheel - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width: 600px; margin: 2rem auto; text-align: center;">
+    <h1 class="mb-1">🌍 Country Wheel</h1>
+    <p class="text-muted mb-3">Spin the wheel to discover your next destination!</p>
+
+    {% if not countries %}
+    <div class="alert alert-warning">
+        ⚠️ No countries have been added yet. Ask the admin to add countries!
+    </div>
+    {% else %}
+
+    <!-- Wheel container -->
+    <div style="position: relative; display: inline-block; margin-bottom: 1.5rem;">
+        <!-- Arrow pointer at top -->
+        <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 2rem; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">▼</div>
+        <canvas id="wheelCanvas" width="320" height="320"
+            style="border-radius: 50%; box-shadow: 0 8px 32px rgba(0,0,0,0.25); display: block;"></canvas>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <button id="spinBtn" class="btn btn-primary" style="font-size: 1.2rem; padding: 0.85rem 3rem;">
+            🎰 Spin!
+        </button>
+    </div>
+
+    <!-- Result -->
+    <div id="result" style="display:none;" class="card" style="margin-top: 1rem;">
+        <div id="resultContent"></div>
+    </div>
+
+    {% endif %}
+
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-2">← Back to Dashboard</a>
+</div>
+
+{% block scripts %}
+<script>
+(function() {
+    const countries = {{ countries | tojson }};
+    if (!countries || countries.length === 0) return;
+
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const spinBtn = document.getElementById('spinBtn');
+
+    const size = canvas.width;
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = size / 2 - 4;
+
+    // Color palette for segments
+    const COLORS = [
+        '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+        '#f59e0b', '#10b981', '#3b82f6', '#14b8a6',
+        '#f97316', '#84cc16', '#06b6d4', '#a855f7'
+    ];
+
+    let currentAngle = 0;
+    let spinning = false;
+
+    function drawWheel(angle) {
+        const n = countries.length;
+        const arc = (2 * Math.PI) / n;
+
+        ctx.clearRect(0, 0, size, size);
+
+        // Draw segments
+        for (let i = 0; i < n; i++) {
+            const start = angle + i * arc;
+            const end = start + arc;
+            const mid = start + arc / 2;
+            const color = COLORS[i % COLORS.length];
+
+            // Segment fill
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, radius, start, end);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Text (flag + name) — positioned in middle of segment
+            const textR = radius * 0.62;
+            const tx = cx + textR * Math.cos(mid);
+            const ty = cy + textR * Math.sin(mid);
+
+            ctx.save();
+            ctx.translate(tx, ty);
+            ctx.rotate(mid + Math.PI / 2);
+
+            // Flag emoji
+            ctx.font = n <= 8 ? '20px Arial' : '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fff';
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 3;
+
+            const flag = countries[i].flag_emoji;
+            const name = countries[i].name;
+            const maxLen = n <= 6 ? 10 : n <= 10 ? 7 : 5;
+            const displayName = name.length > maxLen ? name.substring(0, maxLen) + '…' : name;
+
+            ctx.fillText(flag, 0, n <= 8 ? -12 : -8);
+            ctx.font = n <= 8 ? 'bold 11px Arial' : 'bold 9px Arial';
+            ctx.fillText(displayName, 0, n <= 8 ? 8 : 5);
+
+            ctx.restore();
+        }
+
+        // Center circle
+        ctx.beginPath();
+        ctx.arc(cx, cy, 22, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.font = 'bold 18px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#6366f1';
+        ctx.shadowColor = 'transparent';
+        ctx.fillText('🌍', cx, cy);
+    }
+
+    function getSelectedIndex(angle) {
+        // Arrow points to top (angle = -PI/2 in canvas coords, which is 3*PI/2)
+        const n = countries.length;
+        const arc = (2 * Math.PI) / n;
+        // Normalize angle so 0 = top of wheel
+        // Top of canvas is at -PI/2 from standard. The arrow is at the top.
+        // The pointer is at -PI/2 (top). We need to find which segment is at -PI/2.
+        let normalised = ((-Math.PI / 2) - angle % (2 * Math.PI) + 4 * Math.PI) % (2 * Math.PI);
+        const idx = Math.floor(normalised / arc) % n;
+        return idx;
+    }
+
+    function easeOut(t) {
+        return 1 - Math.pow(1 - t, 4);
+    }
+
+    function spin(targetIndex) {
+        const n = countries.length;
+        const arc = (2 * Math.PI) / n;
+
+        // We want segment targetIndex to be at the top (-PI/2)
+        // Center of segment targetIndex starts at: currentAngle + targetIndex * arc + arc/2
+        // We want that center at -PI/2 (top)
+        // So we need to add delta such that:
+        //   currentAngle + delta + targetIndex * arc + arc/2 = -PI/2 (mod 2PI)
+        // Plus a few full rotations for effect
+        const targetMid = -Math.PI / 2 - (targetIndex * arc + arc / 2);
+        let delta = (targetMid - currentAngle) % (2 * Math.PI);
+        if (delta > 0) delta -= 2 * Math.PI;
+        // Add 5-8 full rotations
+        const extraSpins = (5 + Math.floor(Math.random() * 3)) * 2 * Math.PI;
+        const totalDelta = delta - extraSpins;
+
+        const duration = 4000 + Math.random() * 1500;
+        const startAngle = currentAngle;
+        const startTime = performance.now();
+
+        function animate(now) {
+            const elapsed = now - startTime;
+            const t = Math.min(elapsed / duration, 1);
+            currentAngle = startAngle + totalDelta * easeOut(t);
+            drawWheel(currentAngle);
+
+            if (t < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                currentAngle = startAngle + totalDelta;
+                drawWheel(currentAngle);
+                spinning = false;
+                spinBtn.disabled = false;
+                spinBtn.textContent = '🎰 Spin Again!';
+                showResult(targetIndex);
+            }
+        }
+        requestAnimationFrame(animate);
+    }
+
+    function showResult(index) {
+        const c = countries[index];
+        const resultDiv = document.getElementById('result');
+        const contentDiv = document.getElementById('resultContent');
+        contentDiv.innerHTML = `
+            <div style="padding: 1.5rem;">
+                <div style="font-size: 4rem; margin-bottom: 0.5rem;">${c.flag_emoji}</div>
+                <h2 style="color: var(--primary); margin-bottom: 0.25rem;">${c.name}</h2>
+                <p class="text-muted">Your next destination is set! 🎉</p>
+            </div>
+        `;
+        resultDiv.style.display = 'block';
+        resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        launchConfetti();
+    }
+
+    function launchConfetti() {
+        const colors = ['#ff6b6b', '#ffd700', '#6366f1', '#10b981', '#f59e0b', '#ec4899'];
+        for (let i = 0; i < 60; i++) {
+            const el = document.createElement('div');
+            el.style.cssText = `
+                position:fixed;width:10px;height:10px;
+                background:${colors[Math.floor(Math.random() * colors.length)]};
+                left:${Math.random() * 100}vw;top:-10px;
+                border-radius:${Math.random() > 0.5 ? '50%' : '2px'};
+                animation:confetti-fall ${1 + Math.random() * 2}s linear forwards;
+                z-index:9999;
+            `;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+    }
+
+    spinBtn.addEventListener('click', () => {
+        if (spinning) return;
+        spinning = true;
+        spinBtn.disabled = true;
+        spinBtn.textContent = '🌀 Spinning...';
+        document.getElementById('result').style.display = 'none';
+
+        fetch('/wheel/spin', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    spinning = false;
+                    spinBtn.disabled = false;
+                    spinBtn.textContent = '🎰 Spin!';
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                // Find index of returned country
+                const idx = countries.findIndex(c => c.id === data.id);
+                spin(idx >= 0 ? idx : 0);
+            })
+            .catch(() => {
+                spinning = false;
+                spinBtn.disabled = false;
+                spinBtn.textContent = '🎰 Spin!';
+                alert('Network error, please try again.');
+            });
+    });
+
+    // Initial draw
+    drawWheel(currentAngle);
+})();
+</script>
+
+<style>
+@keyframes confetti-fall {
+    to { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+</style>
+{% endblock %}
+{% endblock %}
