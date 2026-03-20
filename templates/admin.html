@@ -5,19 +5,19 @@
 <div class="content-wrapper" style="max-width: 750px; margin: 2rem auto;">
     <h1 class="mb-3">🔐 Admin Panel</h1>
     <div class="alert alert-warning mb-3">
-        ⚠️ <strong>Attention :</strong> Les actions admin sont permanentes et ne peuvent pas être annulées !
+        ⚠️ <strong>Warning:</strong> Admin actions are permanent and cannot be undone!
     </div>
 
     <!-- ── Scratch ticket prizes ─────────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">🎰 Prix du Ticket à Gratter</span>
+            <span class="card-title">🎰 Scratch Ticket Prizes</span>
         </div>
         <div style="padding: 1.5rem;">
             <p class="mb-3 text-muted">
-                Configurez la liste des prix pour chaque utilisateur. La somme des pourcentages
-                peut dépasser 100 % — la sélection est pondérée proportionnellement.
-                N'oubliez pas d'ajouter un prix <strong>"Perdu"</strong> avec ~70 %.
+                Configure the prize list for each user. The sum of percentages
+                can exceed 100% — selection is weighted proportionally.
+                Don't forget to add a <strong>"Lost"</strong> prize with ~70%.
             </p>
 
             {% if users %}
@@ -29,7 +29,7 @@
                     {% set user_prizes = prizes | selectattr('user_id', 'equalto', user.id) | list %}
                     {% set total_pct = user_prizes | sum(attribute='probability') %}
                     <span class="badge {% if total_pct > 0 %}badge-primary{% else %}" style="background:#6b7280;color:#fff;{% endif %}">
-                        Total : {{ total_pct | round(1) }} %
+                        Total: {{ total_pct | round(1) }} %
                     </span>
                 </div>
 
@@ -38,11 +38,11 @@
                     <table style="width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:0.9rem;">
                         <thead>
                             <tr style="border-bottom:2px solid var(--border);">
-                                <th style="text-align:left;padding:0.4rem 0.5rem;">Nom du prix</th>
-                                <th style="text-align:left;padding:0.4rem 0.5rem;">Token généré</th>
-                                <th style="text-align:center;padding:0.4rem 0.5rem;">Durée</th>
+                                <th style="text-align:left;padding:0.4rem 0.5rem;">Prize name</th>
+                                <th style="text-align:left;padding:0.4rem 0.5rem;">Generated token</th>
+                                <th style="text-align:center;padding:0.4rem 0.5rem;">Duration</th>
                                 <th style="text-align:center;padding:0.4rem 0.5rem;">%</th>
-                                <th style="text-align:center;padding:0.4rem 0.5rem;">Perdu ?</th>
+                                <th style="text-align:center;padding:0.4rem 0.5rem;">Loser?</th>
                                 <th style="padding:0.4rem 0.5rem;"></th>
                             </tr>
                         </thead>
@@ -59,11 +59,11 @@
                                 </td>
                                 <td style="padding:0.5rem;text-align:center;font-weight:600;">{{ prize.probability }} %</td>
                                 <td style="padding:0.5rem;text-align:center;">
-                                    {% if prize.is_loser %}<span class="badge" style="background:#ef4444;color:#fff;">Oui</span>{% else %}Non{% endif %}
+                                    {% if prize.is_loser %}<span class="badge" style="background:#ef4444;color:#fff;">Yes</span>{% else %}No{% endif %}
                                 </td>
                                 <td style="padding:0.5rem;text-align:right;">
                                     <form method="POST" action="{{ url_for('scratch.admin_delete_prize', prize_id=prize.id) }}"
-                                          onsubmit="return confirm('Supprimer ce prix ?');" style="display:inline;">
+                                          onsubmit="return confirm('Delete this prize?');" style="display:inline;">
                                         <input type="hidden" name="password" id="del-pw-{{ prize.id }}">
                                         <button type="button" class="btn btn-sm btn-danger"
                                             onclick="promptAndSubmit('del-pw-{{ prize.id }}', this.closest('form'))">
@@ -76,49 +76,49 @@
                         </tbody>
                     </table>
                     {% else %}
-                    <p class="text-muted mb-2" style="font-size:0.9rem;">Aucun prix configuré pour cet utilisateur.</p>
+                    <p class="text-muted mb-2" style="font-size:0.9rem;">No prizes configured for this user.</p>
                     {% endif %}
 
                     <!-- Add prize form for this user -->
                     <details>
                         <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">
-                            ➕ Ajouter un prix pour {{ user.username }}
+                            ➕ Add a prize for {{ user.username }}
                         </summary>
                         <form method="POST" action="{{ url_for('scratch.admin_add_prize') }}" style="margin-top:0.75rem;">
                             <input type="hidden" name="user_id" value="{{ user.id }}">
                             <div class="grid grid-2" style="gap:0.75rem;">
                                 <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Nom affiché *</label>
-                                    <input type="text" name="name" placeholder="ex: Massage, Perdu..." required maxlength="100">
+                                    <label>Display name *</label>
+                                    <input type="text" name="name" placeholder="e.g. Massage, Lost..." required maxlength="100">
                                 </div>
                                 <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Probabilité (%) *</label>
-                                    <input type="number" name="probability" placeholder="ex: 15" min="0.1" step="0.1" required>
+                                    <label>Probability (%) *</label>
+                                    <input type="number" name="probability" placeholder="e.g. 15" min="0.1" step="0.1" required>
                                 </div>
                                 <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Nom du token généré</label>
-                                    <input type="text" name="token_name" placeholder="ex: Massage 30 min" maxlength="50">
+                                    <label>Generated token name</label>
+                                    <input type="text" name="token_name" placeholder="e.g. 30 min Massage" maxlength="50">
                                 </div>
                                 <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Durée du token (minutes)</label>
+                                    <label>Token duration (minutes)</label>
                                     <input type="number" name="token_duration" value="30" min="1">
                                 </div>
                                 <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Description du token</label>
-                                    <input type="text" name="token_description" placeholder="ex: Un massage de 30 minutes">
+                                    <label>Token description</label>
+                                    <input type="text" name="token_description" placeholder="e.g. A 30-minute massage">
                                 </div>
                                 <div class="form-group" style="margin-bottom:0.75rem;">
                                     <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:normal;">
                                         <input type="checkbox" name="is_loser" style="width:auto;">
-                                        C'est un ticket perdant (pas de token)
+                                        This is a losing ticket (no token)
                                     </label>
                                 </div>
                             </div>
                             <div class="form-group" style="margin-bottom:0.75rem;">
-                                <label>Mot de passe admin *</label>
-                                <input type="password" name="password" placeholder="Mot de passe admin" required>
+                                <label>Admin password *</label>
+                                <input type="password" name="password" placeholder="Admin password" required>
                             </div>
-                            <button type="submit" class="btn btn-primary btn-sm">✅ Ajouter ce prix</button>
+                            <button type="submit" class="btn btn-primary btn-sm">✅ Add this prize</button>
                         </form>
                     </details>
                 </div>
@@ -127,7 +127,7 @@
 
             {% else %}
             <div class="alert alert-info">
-                ℹ️ Aucun utilisateur enregistré. Créez des comptes d'abord.
+                ℹ️ No users registered. Create accounts first.
             </div>
             {% endif %}
         </div>
@@ -136,27 +136,27 @@
     <!-- ── Database management ───────────────────────────────────────────── -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">🗄️ Gestion de la Base de Données</span>
+            <span class="card-title">🗄️ Database Management</span>
         </div>
         <div style="padding: 1.5rem;">
-            <p class="mb-3">Cette action supprimera TOUTES les données de la base :</p>
+            <p class="mb-3">This action will delete ALL data from the database:</p>
             <ul style="margin-left: 2rem; margin-bottom: 1.5rem;">
-                <li>Tous les comptes utilisateurs</li>
-                <li>Tous les tokens (créés et reçus)</li>
-                <li>Toutes les listes de courses et articles</li>
-                <li>Tous les prix et tickets à gratter</li>
+                <li>All user accounts</li>
+                <li>All tokens (created and received)</li>
+                <li>All shopping lists and items</li>
+                <li>All prizes and scratch tickets</li>
             </ul>
 
             <form method="POST" onsubmit="return confirmClearAll()">
                 <div class="form-group">
-                    <label for="password">Mot de passe Admin</label>
+                    <label for="password">Admin Password</label>
                     <input type="password" id="password" name="password" required
-                           placeholder="Entrez le mot de passe admin pour continuer">
+                           placeholder="Enter admin password to continue">
                 </div>
                 <input type="hidden" name="action" value="clear_all">
                 <div class="flex gap-1">
-                    <button type="submit" class="btn btn-danger">🗑️ Supprimer Toutes les Données</button>
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Annuler</a>
+                    <button type="submit" class="btn btn-danger">🗑️ Delete All Data</button>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
                 </div>
             </form>
         </div>
@@ -165,15 +165,15 @@
 
 <script>
 function confirmClearAll() {
-    const first = confirm("⚠️ ATTENTION : Ceci supprimera TOUTES les données !\n\nÊtes-vous absolument sûr de vouloir continuer ?");
+    const first = confirm("⚠️ WARNING: This will delete ALL data!\n\nAre you absolutely sure you want to continue?");
     if (first) {
-        return confirm("🚨 DERNIÈRE CONFIRMATION : Cette action est irréversible !\n\nCliquez OK pour procéder à la suppression.");
+        return confirm("🚨 FINAL CONFIRMATION: This action is irreversible!\n\nClick OK to proceed with deletion.");
     }
     return false;
 }
 
 function promptAndSubmit(inputId, form) {
-    const pw = prompt('Entrez le mot de passe admin pour supprimer ce prix :');
+    const pw = prompt('Enter admin password to delete this prize:');
     if (pw === null) return;
     document.getElementById(inputId).value = pw;
     form.submit();

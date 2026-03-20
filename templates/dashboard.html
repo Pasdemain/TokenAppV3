@@ -27,18 +27,18 @@
     {% if has_scratch_prizes %}
     <div class="card mb-3" style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b;">
         <div class="card-header" style="background:transparent;">
-            <span class="card-title">🎰 Ticket à Gratter du Jour</span>
+            <span class="card-title">🎰 Daily Scratch Ticket</span>
             {% if ticket_played_today %}
-                <span class="badge" style="background:#6b7280;color:#fff;">Déjà gratté</span>
+                <span class="badge" style="background:#6b7280;color:#fff;">Already scratched</span>
             {% else %}
-                <span class="badge badge-warning" style="animation: pulse-badge 1.5s infinite;">Disponible !</span>
+                <span class="badge badge-warning" style="animation: pulse-badge 1.5s infinite;">Available!</span>
             {% endif %}
         </div>
         {% if ticket_played_today %}
-            <p class="mb-2" style="color:#92400e;">Tu as déjà grattéton ticket aujourd'hui. Reviens demain !</p>
+            <p class="mb-2" style="color:#92400e;">You already scratched your ticket today. Come back tomorrow!</p>
         {% else %}
-            <p class="mb-2" style="color:#92400e;">Ton ticket du jour t'attend ! Gratte-le pour tenter de gagner un token.</p>
-            <a href="{{ url_for('scratch.scratch_page') }}" class="btn btn-sm" style="background:#f59e0b;color:#fff;">🎰 Gratter mon ticket</a>
+            <p class="mb-2" style="color:#92400e;">Your daily ticket is waiting! Scratch it to try to win a token.</p>
+            <a href="{{ url_for('scratch.scratch_page') }}" class="btn btn-sm" style="background:#f59e0b;color:#fff;">🎰 Scratch my ticket</a>
         {% endif %}
     </div>
     {% endif %}
