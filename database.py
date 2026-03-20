@@ -40,8 +40,21 @@ def init_db():
             id SERIAL PRIMARY KEY,
             username VARCHAR(20) UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
+            remember_token VARCHAR(64) UNIQUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    """)
+    # Add remember_token column if it doesn't exist (for existing DBs)
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='users' AND column_name='remember_token'
+            ) THEN
+                ALTER TABLE users ADD COLUMN remember_token VARCHAR(64) UNIQUE;
+            END IF;
+        END$$;
     """)
 
     # Create tokens table
@@ -122,6 +135,17 @@ def init_db():
             scratched_at TIMESTAMP,
             prize_id INTEGER REFERENCES scratch_prizes(id),
             UNIQUE(user_id, ticket_date)
+        )
+    """)
+
+    # Create wheel countries table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS wheel_countries (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            flag_emoji VARCHAR(10) NOT NULL,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
