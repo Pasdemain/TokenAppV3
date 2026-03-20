@@ -46,15 +46,7 @@ def init_db():
     """)
     # Add remember_token column if it doesn't exist (for existing DBs)
     cur.execute("""
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name='users' AND column_name='remember_token'
-            ) THEN
-                ALTER TABLE users ADD COLUMN remember_token VARCHAR(64) UNIQUE;
-            END IF;
-        END$$;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS remember_token VARCHAR(64) UNIQUE;
     """)
 
     # Create tokens table
