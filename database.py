@@ -157,10 +157,17 @@ def init_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS flashcard_categories (
             id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
+            name VARCHAR(100) NOT NULL UNIQUE,
             description TEXT,
             icon VARCHAR(10)
         )
+    """)
+    # Add unique constraint if missing (for existing DBs)
+    cur.execute("""
+        DO $$ BEGIN
+            ALTER TABLE flashcard_categories ADD CONSTRAINT flashcard_categories_name_key UNIQUE (name);
+        EXCEPTION WHEN duplicate_table THEN NULL;
+        END $$;
     """)
 
     # Flashcards (global pool)

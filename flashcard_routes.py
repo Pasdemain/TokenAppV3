@@ -391,6 +391,38 @@ def admin_import():
     imported = 0
 
     try:
+        # Pre-collect all unique categories and languages to minimize DB round-trips
+        all_categories = set()
+        all_lang_codes = set()
+        for item in cards:
+            cat = item.get('category', '').strip()
+            if cat:
+                all_categories.add(cat)
+            for lang_code in item.get('translations', {}).keys():
+                all_lang_codes.add(lang_code)
+
+        # Bulk ensure languages exist (one UPSERT per unique language)
+        for lang_code in all_lang_codes:
+            cur.execute("""
+                INSERT INTO languages (code, name) VALUES (%s, %s)
+                ON CONFLICT (code) DO NOTHING
+            """, (lang_code, lang_code.upper()))
+
+        # Bulk ensure categories exist and build a name->id map
+        cat_map = {}
+        for cat_name in all_categories:
+            cur.execute("""
+                INSERT INTO flashcard_categories (name) VALUES (%s)
+                ON CONFLICT DO NOTHING
+            """, (cat_name,))
+        # Fetch all category IDs in one query
+        if all_categories:
+            cur.execute("SELECT id, name FROM flashcard_categories WHERE name = ANY(%s)",
+                        (list(all_categories),))
+            for row in cur.fetchall():
+                cat_map[row['name']] = row['id']
+
+        # Now import cards with minimal queries per card
         for item in cards:
             category_name = item.get('category', '').strip()
             translations = item.get('translations', {})
@@ -399,20 +431,10 @@ def admin_import():
             if difficulty not in ('beginner', 'medium', 'confirmed'):
                 difficulty = 'medium'
 
-            if not category_name or not translations:
+            if not category_name or not translations or category_name not in cat_map:
                 continue
 
-            # Get or create category
-            cur.execute("SELECT id FROM flashcard_categories WHERE name = %s", (category_name,))
-            cat = cur.fetchone()
-            if cat:
-                cat_id = cat['id']
-            else:
-                cur.execute(
-                    "INSERT INTO flashcard_categories (name) VALUES (%s) RETURNING id",
-                    (category_name,)
-                )
-                cat_id = cur.fetchone()['id']
+            cat_id = cat_map[category_name]
 
             # Insert flashcard
             cur.execute("""
@@ -428,15 +450,6 @@ def admin_import():
                         INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text)
                         VALUES (%s, %s, %s)
                     """, (flashcard_id, lang_code, d_text))
-
-            # Auto-register languages from translations
-            for lang_code in translations.keys():
-                cur.execute("SELECT id FROM languages WHERE code = %s", (lang_code,))
-                if not cur.fetchone():
-                    cur.execute(
-                        "INSERT INTO languages (code, name) VALUES (%s, %s)",
-                        (lang_code, lang_code.upper())
-                    )
 
             imported += 1
 
