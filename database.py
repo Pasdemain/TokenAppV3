@@ -170,8 +170,14 @@ def init_db():
             category_id INTEGER REFERENCES flashcard_categories(id) ON DELETE CASCADE,
             translations JSONB NOT NULL,
             audio_hint TEXT,
+            difficulty VARCHAR(10) DEFAULT 'medium' CHECK (difficulty IN ('beginner', 'medium', 'confirmed')),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    """)
+    # Add difficulty column if it doesn't exist (for existing DBs)
+    cur.execute("""
+        ALTER TABLE flashcards ADD COLUMN IF NOT EXISTS
+        difficulty VARCHAR(10) DEFAULT 'medium' CHECK (difficulty IN ('beginner', 'medium', 'confirmed'));
     """)
 
     # Flashcard distractors (wrong answers for QCM)

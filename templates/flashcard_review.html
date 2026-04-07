@@ -159,12 +159,19 @@
             <div class="session-progress-bar" style="width:0%" id="progressBar"></div>
         </div>
 
-        <!-- Leitner box indicator -->
-        <div class="text-center mb-2">
+        <!-- Leitner box + difficulty indicator -->
+        <div class="text-center mb-2" style="display:flex;justify-content:center;gap:0.5rem;">
             {% set colors = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'] %}
             <span class="leitner-badge" style="background:{{ colors[card.leitner_box - 1] }}20;color:{{ colors[card.leitner_box - 1] }};">
                 Box {{ card.leitner_box }} / 7
             </span>
+            {% if card.difficulty == 'beginner' %}
+            <span class="leitner-badge" style="background:#d1fae5;color:#065f46;">🟢 Beginner</span>
+            {% elif card.difficulty == 'confirmed' %}
+            <span class="leitner-badge" style="background:#fee2e2;color:#991b1b;">🔴 Confirmed</span>
+            {% else %}
+            <span class="leitner-badge" style="background:#fef3c7;color:#92400e;">🟡 Medium</span>
+            {% endif %}
         </div>
 
         <!-- Flip card -->

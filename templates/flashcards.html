@@ -76,25 +76,36 @@
         {% else %}
         <div class="grid grid-2 mt-2">
             {% for cat in categories %}
-            <div style="border:1px solid var(--border);border-radius:10px;padding:1rem;display:flex;justify-content:space-between;align-items:center;">
-                <div>
+            <div style="border:1px solid var(--border);border-radius:10px;padding:1rem;">
+                <div class="flex flex-between flex-center mb-1">
                     <strong>{{ cat.icon or '📁' }} {{ cat.name }}</strong>
-                    <span class="text-muted" style="margin-left:0.5rem;">{{ cat.card_count }} cards</span>
+                    <span class="text-muted">{{ cat.card_count }} cards</span>
+                </div>
+                <div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;">
+                    <span style="font-size:0.75rem;padding:0.15rem 0.5rem;border-radius:6px;background:#d1fae5;color:#065f46;">🟢 {{ cat.beginner_count or 0 }}</span>
+                    <span style="font-size:0.75rem;padding:0.15rem 0.5rem;border-radius:6px;background:#fef3c7;color:#92400e;">🟡 {{ cat.medium_count or 0 }}</span>
+                    <span style="font-size:0.75rem;padding:0.15rem 0.5rem;border-radius:6px;background:#fee2e2;color:#991b1b;">🔴 {{ cat.confirmed_count or 0 }}</span>
                 </div>
                 {% if languages|length >= 2 %}
-                <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;gap:0.5rem;align-items:center;">
-                    <select name="source_lang" required style="width:auto;padding:0.4rem;">
+                <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
+                    <select name="source_lang" required style="width:auto;padding:0.4rem;flex:1;min-width:70px;">
                         <option value="">From</option>
                         {% for lang in languages %}
                         <option value="{{ lang.code }}">{{ lang.flag_emoji or '' }} {{ lang.code|upper }}</option>
                         {% endfor %}
                     </select>
                     <span>→</span>
-                    <select name="target_lang" required style="width:auto;padding:0.4rem;">
+                    <select name="target_lang" required style="width:auto;padding:0.4rem;flex:1;min-width:70px;">
                         <option value="">To</option>
                         {% for lang in languages %}
                         <option value="{{ lang.code }}">{{ lang.flag_emoji or '' }} {{ lang.code|upper }}</option>
                         {% endfor %}
+                    </select>
+                    <select name="difficulty" style="width:auto;padding:0.4rem;min-width:60px;">
+                        <option value="">All</option>
+                        <option value="beginner">🟢</option>
+                        <option value="medium">🟡</option>
+                        <option value="confirmed">🔴</option>
                     </select>
                     <button type="submit" class="btn btn-sm btn-success">+10</button>
                 </form>
