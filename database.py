@@ -208,7 +208,7 @@ def init_db():
 
     # Seed default Leitner intervals if empty
     cur.execute("SELECT COUNT(*) as cnt FROM leitner_intervals")
-    if cur.fetchone()[0] == 0:
+    if cur.fetchone()['cnt'] == 0:
         for box, days in [(1,1),(2,2),(3,4),(4,7),(5,14),(6,30),(7,90)]:
             cur.execute(
                 "INSERT INTO leitner_intervals (box_number, days_interval) VALUES (%s, %s)",
