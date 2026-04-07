@@ -178,7 +178,7 @@ def review():
     card = cur.fetchone()
 
     if not card:
-        # Count remaining for stats
+        # Count cards in user's collection for this pair
         count_where = "uf.user_id = %s AND uf.source_lang = %s AND uf.target_lang = %s"
         count_params = [session['user_id'], source_lang, target_lang]
         if category_id:
@@ -194,12 +194,37 @@ def review():
             WHERE {count_where}
         """, count_params)
         total_in_pair = cur.fetchone()['cnt']
+
+        # Fetch categories with available (not yet added) card counts for this lang pair
+        avail_where = """f.translations ? %s AND f.translations ? %s
+            AND f.id NOT IN (
+                SELECT flashcard_id FROM user_flashcards
+                WHERE user_id = %s AND source_lang = %s AND target_lang = %s
+            )"""
+        avail_params = [source_lang, target_lang, session['user_id'], source_lang, target_lang]
+        if difficulty:
+            avail_where += " AND f.difficulty = %s"
+            avail_params.append(difficulty)
+
+        cur.execute(f"""
+            SELECT fc.id, fc.name, fc.icon, COUNT(f.id) as available_count
+            FROM flashcard_categories fc
+            JOIN flashcards f ON f.category_id = fc.id
+            WHERE {avail_where}
+            GROUP BY fc.id, fc.name, fc.icon
+            HAVING COUNT(f.id) > 0
+            ORDER BY fc.name
+        """, avail_params)
+        available_categories = cur.fetchall()
+
         cur.close()
         conn.close()
         return render_template('flashcard_review.html',
                                card=None, total_in_pair=total_in_pair,
                                source_lang=source_lang, target_lang=target_lang,
-                               languages=[], options=[])
+                               difficulty=difficulty,
+                               available_categories=available_categories,
+                               options=[])
 
     translations = card['translations'] if isinstance(card['translations'], dict) else json.loads(card['translations'])
     front_word = translations.get(source_lang, '???')
@@ -360,6 +385,10 @@ def add_cards(category_id):
 
     cur.close()
     conn.close()
+
+    # If we came from a session, go back to review; otherwise go to dashboard
+    if session.get('fc_source_lang') and session.get('fc_target_lang'):
+        return redirect(url_for('flashcards.review'))
     return redirect(url_for('flashcards.flashcards_home'))
 
 

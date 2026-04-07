@@ -132,15 +132,46 @@
 
 <div class="content-wrapper" style="max-width:520px;margin:1rem auto;">
     {% if not card %}
-        <!-- Session complete -->
-        <div class="text-center" style="padding:3rem 1rem;">
-            <div style="font-size:4rem;margin-bottom:1rem;">🎉</div>
-            <h2 class="mb-2">Session Complete!</h2>
-            {% if total_in_pair > 0 %}
-                <p class="text-muted mb-3">No more cards due today. You have {{ total_in_pair }} card{{ 's' if total_in_pair > 1 }} in this pair.</p>
+        <!-- Session complete / no cards -->
+        <div style="padding:2rem 0;">
+            <div class="text-center">
+                {% if total_in_pair > 0 %}
+                    <div style="font-size:3.5rem;margin-bottom:0.75rem;">🎉</div>
+                    <h2 class="mb-1">Session Complete!</h2>
+                    <p class="text-muted mb-3">No more cards due today. You have {{ total_in_pair }} card{{ 's' if total_in_pair > 1 }} in {{ source_lang|upper }} → {{ target_lang|upper }}.</p>
+                {% else %}
+                    <div style="font-size:3.5rem;margin-bottom:0.75rem;">📚</div>
+                    <h2 class="mb-1">No cards yet!</h2>
+                    <p class="text-muted mb-3">Add cards to start learning {{ source_lang|upper }} → {{ target_lang|upper }}.</p>
+                {% endif %}
+            </div>
+
+            <!-- Propose adding cards from available categories -->
+            {% if available_categories %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span class="card-title">➕ Add more cards</span>
+                </div>
+                <div style="margin-top:0.75rem;">
+                    {% for cat in available_categories %}
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
+                        <div>
+                            <strong>{{ cat.icon or '📁' }} {{ cat.name }}</strong>
+                            <span class="text-muted" style="margin-left:0.5rem;">{{ cat.available_count }} available</span>
+                        </div>
+                        <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}">
+                            <button type="submit" class="btn btn-sm btn-success">+10 cards</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
             {% else %}
-                <p class="text-muted mb-3">You have no cards for {{ source_lang|upper }} → {{ target_lang|upper }} yet. Add some from the dashboard!</p>
+            <div class="alert alert-info">
+                All available cards for this language pair have been added to your collection.
+            </div>
             {% endif %}
+
             <div class="flex gap-1" style="justify-content:center;">
                 <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-primary">📊 Dashboard</a>
                 <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-secondary">🔄 New Session</a>
