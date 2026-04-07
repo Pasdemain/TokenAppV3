@@ -141,6 +141,80 @@ def init_db():
         )
     """)
 
+    # ── Flashcard Leitner tables ─────────────────────────────────────────────
+
+    # Languages
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS languages (
+            id SERIAL PRIMARY KEY,
+            code VARCHAR(10) UNIQUE NOT NULL,
+            name VARCHAR(50) NOT NULL,
+            flag_emoji VARCHAR(10)
+        )
+    """)
+
+    # Flashcard categories
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS flashcard_categories (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            description TEXT,
+            icon VARCHAR(10)
+        )
+    """)
+
+    # Flashcards (global pool)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS flashcards (
+            id SERIAL PRIMARY KEY,
+            category_id INTEGER REFERENCES flashcard_categories(id) ON DELETE CASCADE,
+            translations JSONB NOT NULL,
+            audio_hint TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Flashcard distractors (wrong answers for QCM)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS flashcard_distractors (
+            id SERIAL PRIMARY KEY,
+            flashcard_id INTEGER REFERENCES flashcards(id) ON DELETE CASCADE,
+            language_code VARCHAR(10) NOT NULL,
+            distractor_text VARCHAR(200) NOT NULL
+        )
+    """)
+
+    # User flashcards (personal collection + Leitner state)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_flashcards (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            flashcard_id INTEGER REFERENCES flashcards(id) ON DELETE CASCADE,
+            source_lang VARCHAR(10) NOT NULL,
+            target_lang VARCHAR(10) NOT NULL,
+            leitner_box INTEGER DEFAULT 1 CHECK (leitner_box BETWEEN 1 AND 7),
+            next_review_date DATE DEFAULT CURRENT_DATE,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Leitner intervals (admin-configurable)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS leitner_intervals (
+            box_number INTEGER PRIMARY KEY CHECK (box_number BETWEEN 1 AND 7),
+            days_interval INTEGER NOT NULL CHECK (days_interval > 0)
+        )
+    """)
+
+    # Seed default Leitner intervals if empty
+    cur.execute("SELECT COUNT(*) as cnt FROM leitner_intervals")
+    if cur.fetchone()[0] == 0:
+        for box, days in [(1,1),(2,2),(3,4),(4,7),(5,14),(6,30),(7,90)]:
+            cur.execute(
+                "INSERT INTO leitner_intervals (box_number, days_interval) VALUES (%s, %s)",
+                (box, days)
+            )
+
     conn.commit()
     cur.close()
     conn.close()
