@@ -43,6 +43,16 @@
             </select>
         </div>
 
+        <div class="form-group">
+            <label>📶 Difficulty (optional)</label>
+            <select name="difficulty">
+                <option value="">All levels</option>
+                <option value="beginner" {% if session.get('fc_difficulty') == 'beginner' %}selected{% endif %}>🟢 Beginner</option>
+                <option value="medium" {% if session.get('fc_difficulty') == 'medium' %}selected{% endif %}>🟡 Medium</option>
+                <option value="confirmed" {% if session.get('fc_difficulty') == 'confirmed' %}selected{% endif %}>🔴 Confirmed</option>
+            </select>
+        </div>
+
         <div class="flex gap-1">
             <button type="submit" class="btn btn-primary">🚀 Start Review</button>
             <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-secondary">Cancel</a>

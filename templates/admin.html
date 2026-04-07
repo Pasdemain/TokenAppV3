@@ -303,6 +303,7 @@
         <div style="padding: 1.5rem;">
             <p class="text-muted mb-2">
                 Import cards as JSON array. Categories are auto-created. Languages in translations are auto-registered.
+                Optional <code>difficulty</code>: <span style="color:#065f46">beginner</span>, <span style="color:#92400e">medium</span> (default), <span style="color:#991b1b">confirmed</span>.
             </p>
             {% if fc_categories %}
             <p class="mb-3" style="font-size:0.9rem;">
@@ -317,6 +318,7 @@
                 <pre style="background:var(--light);padding:1rem;border-radius:8px;font-size:0.8rem;overflow-x:auto;margin-bottom:1rem;">[
   {
     "category": "Animals",
+    "difficulty": "beginner",
     "translations": {"en": "Cat", "fr": "Chat", "es": "Gato"},
     "distractors": {
       "fr": ["Chien", "Oiseau", "Poisson"],

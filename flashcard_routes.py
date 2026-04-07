@@ -50,9 +50,12 @@ def flashcards_home():
                 (session['user_id'],))
     total_cards = cur.fetchone()['cnt']
 
-    # Available categories with card counts
+    # Available categories with card counts per difficulty
     cur.execute("""
-        SELECT fc.id, fc.name, fc.icon, COUNT(f.id) as card_count
+        SELECT fc.id, fc.name, fc.icon, COUNT(f.id) as card_count,
+               SUM(CASE WHEN f.difficulty = 'beginner' THEN 1 ELSE 0 END) as beginner_count,
+               SUM(CASE WHEN f.difficulty = 'medium' THEN 1 ELSE 0 END) as medium_count,
+               SUM(CASE WHEN f.difficulty = 'confirmed' THEN 1 ELSE 0 END) as confirmed_count
         FROM flashcard_categories fc
         LEFT JOIN flashcards f ON f.category_id = fc.id
         GROUP BY fc.id, fc.name, fc.icon
@@ -107,6 +110,7 @@ def flashcard_session():
         source_lang = request.form.get('source_lang', '').strip()
         target_lang = request.form.get('target_lang', '').strip()
         category_id = request.form.get('category_id', type=int)
+        difficulty = request.form.get('difficulty', '').strip()
 
         if not source_lang or not target_lang:
             flash('Please select both languages.', 'error')
@@ -117,6 +121,7 @@ def flashcard_session():
             session['fc_source_lang'] = source_lang
             session['fc_target_lang'] = target_lang
             session['fc_category_id'] = category_id
+            session['fc_difficulty'] = difficulty if difficulty in ('beginner', 'medium', 'confirmed') else ''
             cur.close()
             conn.close()
             return redirect(url_for('flashcards.review'))
@@ -144,51 +149,50 @@ def review():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     today = date.today()
 
-    # Build query — optionally filter by category
+    # Build query — optionally filter by category and difficulty
     category_id = session.get('fc_category_id')
+    difficulty = session.get('fc_difficulty', '')
+
+    base_where = "uf.user_id = %s AND uf.source_lang = %s AND uf.target_lang = %s AND uf.next_review_date <= %s"
+    params = [session['user_id'], source_lang, target_lang, today]
+
     if category_id:
-        cur.execute("""
-            SELECT uf.id as user_flashcard_id, uf.leitner_box, uf.next_review_date,
-                   f.id as flashcard_id, f.translations, f.audio_hint,
-                   fc.name as category_name, fc.icon as category_icon
-            FROM user_flashcards uf
-            JOIN flashcards f ON uf.flashcard_id = f.id
-            LEFT JOIN flashcard_categories fc ON f.category_id = fc.id
-            WHERE uf.user_id = %s AND uf.source_lang = %s AND uf.target_lang = %s
-              AND uf.next_review_date <= %s AND f.category_id = %s
-            ORDER BY uf.leitner_box ASC, uf.next_review_date ASC
-            LIMIT 1
-        """, (session['user_id'], source_lang, target_lang, today, category_id))
-    else:
-        cur.execute("""
-            SELECT uf.id as user_flashcard_id, uf.leitner_box, uf.next_review_date,
-                   f.id as flashcard_id, f.translations, f.audio_hint,
-                   fc.name as category_name, fc.icon as category_icon
-            FROM user_flashcards uf
-            JOIN flashcards f ON uf.flashcard_id = f.id
-            LEFT JOIN flashcard_categories fc ON f.category_id = fc.id
-            WHERE uf.user_id = %s AND uf.source_lang = %s AND uf.target_lang = %s
-              AND uf.next_review_date <= %s
-            ORDER BY uf.leitner_box ASC, uf.next_review_date ASC
-            LIMIT 1
-        """, (session['user_id'], source_lang, target_lang, today))
+        base_where += " AND f.category_id = %s"
+        params.append(category_id)
+    if difficulty:
+        base_where += " AND f.difficulty = %s"
+        params.append(difficulty)
+
+    cur.execute(f"""
+        SELECT uf.id as user_flashcard_id, uf.leitner_box, uf.next_review_date,
+               f.id as flashcard_id, f.translations, f.audio_hint, f.difficulty,
+               fc.name as category_name, fc.icon as category_icon
+        FROM user_flashcards uf
+        JOIN flashcards f ON uf.flashcard_id = f.id
+        LEFT JOIN flashcard_categories fc ON f.category_id = fc.id
+        WHERE {base_where}
+        ORDER BY uf.leitner_box ASC, uf.next_review_date ASC
+        LIMIT 1
+    """, params)
 
     card = cur.fetchone()
 
     if not card:
         # Count remaining for stats
+        count_where = "uf.user_id = %s AND uf.source_lang = %s AND uf.target_lang = %s"
+        count_params = [session['user_id'], source_lang, target_lang]
         if category_id:
-            cur.execute("""
-                SELECT COUNT(*) as cnt FROM user_flashcards uf
-                JOIN flashcards f ON uf.flashcard_id = f.id
-                WHERE uf.user_id = %s AND uf.source_lang = %s AND uf.target_lang = %s
-                  AND f.category_id = %s
-            """, (session['user_id'], source_lang, target_lang, category_id))
-        else:
-            cur.execute("""
-                SELECT COUNT(*) as cnt FROM user_flashcards
-                WHERE user_id = %s AND source_lang = %s AND target_lang = %s
-            """, (session['user_id'], source_lang, target_lang))
+            count_where += " AND f.category_id = %s"
+            count_params.append(category_id)
+        if difficulty:
+            count_where += " AND f.difficulty = %s"
+            count_params.append(difficulty)
+
+        cur.execute(f"""
+            SELECT COUNT(*) as cnt FROM user_flashcards uf
+            JOIN flashcards f ON uf.flashcard_id = f.id
+            WHERE {count_where}
+        """, count_params)
         total_in_pair = cur.fetchone()['cnt']
         cur.close()
         conn.close()
@@ -224,20 +228,12 @@ def review():
     options = [correct_answer] + distractors[:2]
     random.shuffle(options)
 
-    # Count due cards for progress
-    if category_id:
-        cur.execute("""
-            SELECT COUNT(*) as cnt FROM user_flashcards uf
-            JOIN flashcards f ON uf.flashcard_id = f.id
-            WHERE uf.user_id = %s AND uf.source_lang = %s AND uf.target_lang = %s
-              AND uf.next_review_date <= %s AND f.category_id = %s
-        """, (session['user_id'], source_lang, target_lang, today, category_id))
-    else:
-        cur.execute("""
-            SELECT COUNT(*) as cnt FROM user_flashcards
-            WHERE user_id = %s AND source_lang = %s AND target_lang = %s
-              AND next_review_date <= %s
-        """, (session['user_id'], source_lang, target_lang, today))
+    # Count due cards for progress (reuse base_where which includes date filter)
+    cur.execute(f"""
+        SELECT COUNT(*) as cnt FROM user_flashcards uf
+        JOIN flashcards f ON uf.flashcard_id = f.id
+        WHERE {base_where}
+    """, params)
     remaining = cur.fetchone()['cnt']
 
     # Get language info for TTS
@@ -320,6 +316,7 @@ def answer(user_flashcard_id):
 def add_cards(category_id):
     source_lang = request.form.get('source_lang') or session.get('fc_source_lang', '')
     target_lang = request.form.get('target_lang') or session.get('fc_target_lang', '')
+    difficulty = request.form.get('difficulty', '').strip()
 
     if not source_lang or not target_lang:
         flash('Please select languages first.', 'error')
@@ -330,18 +327,24 @@ def add_cards(category_id):
     today = date.today()
 
     # Select up to 10 cards from this category not already in user's collection for this lang pair
-    cur.execute("""
-        SELECT f.id FROM flashcards f
-        WHERE f.category_id = %s
-          AND f.translations ? %s AND f.translations ? %s
+    add_where = """f.category_id = %s AND f.translations ? %s AND f.translations ? %s
           AND f.id NOT IN (
               SELECT flashcard_id FROM user_flashcards
               WHERE user_id = %s AND source_lang = %s AND target_lang = %s
-          )
+          )"""
+    add_params = [category_id, source_lang, target_lang,
+                  session['user_id'], source_lang, target_lang]
+
+    if difficulty in ('beginner', 'medium', 'confirmed'):
+        add_where += " AND f.difficulty = %s"
+        add_params.append(difficulty)
+
+    cur.execute(f"""
+        SELECT f.id FROM flashcards f
+        WHERE {add_where}
         ORDER BY RANDOM()
         LIMIT 10
-    """, (category_id, source_lang, target_lang,
-          session['user_id'], source_lang, target_lang))
+    """, add_params)
     cards = cur.fetchall()
 
     if not cards:
@@ -392,6 +395,9 @@ def admin_import():
             category_name = item.get('category', '').strip()
             translations = item.get('translations', {})
             distractors = item.get('distractors', {})
+            difficulty = item.get('difficulty', 'medium').strip().lower()
+            if difficulty not in ('beginner', 'medium', 'confirmed'):
+                difficulty = 'medium'
 
             if not category_name or not translations:
                 continue
@@ -410,9 +416,9 @@ def admin_import():
 
             # Insert flashcard
             cur.execute("""
-                INSERT INTO flashcards (category_id, translations)
-                VALUES (%s, %s) RETURNING id
-            """, (cat_id, json.dumps(translations)))
+                INSERT INTO flashcards (category_id, translations, difficulty)
+                VALUES (%s, %s, %s) RETURNING id
+            """, (cat_id, json.dumps(translations), difficulty))
             flashcard_id = cur.fetchone()['id']
 
             # Insert distractors
