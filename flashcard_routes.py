@@ -2,7 +2,7 @@ import random
 import json
 from datetime import date, datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, session, flash, request, jsonify
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 from database import get_db_connection
 from auth import login_required
 
@@ -391,7 +391,7 @@ def admin_import():
     imported = 0
 
     try:
-        # Pre-collect all unique categories and languages to minimize DB round-trips
+        # Pre-collect all unique categories and languages
         all_categories = set()
         all_lang_codes = set()
         for item in cards:
@@ -401,57 +401,62 @@ def admin_import():
             for lang_code in item.get('translations', {}).keys():
                 all_lang_codes.add(lang_code)
 
-        # Bulk ensure languages exist (one UPSERT per unique language)
-        for lang_code in all_lang_codes:
-            cur.execute("""
-                INSERT INTO languages (code, name) VALUES (%s, %s)
-                ON CONFLICT (code) DO NOTHING
-            """, (lang_code, lang_code.upper()))
+        # Bulk upsert languages (single query)
+        if all_lang_codes:
+            execute_values(cur,
+                "INSERT INTO languages (code, name) VALUES %s ON CONFLICT (code) DO NOTHING",
+                [(lc, lc.upper()) for lc in all_lang_codes])
 
-        # Bulk ensure categories exist and build a name->id map
-        cat_map = {}
-        for cat_name in all_categories:
-            cur.execute("""
-                INSERT INTO flashcard_categories (name) VALUES (%s)
-                ON CONFLICT DO NOTHING
-            """, (cat_name,))
+        # Bulk upsert categories (single query)
+        if all_categories:
+            execute_values(cur,
+                "INSERT INTO flashcard_categories (name) VALUES %s ON CONFLICT (name) DO NOTHING",
+                [(c,) for c in all_categories])
+
         # Fetch all category IDs in one query
+        cat_map = {}
         if all_categories:
             cur.execute("SELECT id, name FROM flashcard_categories WHERE name = ANY(%s)",
                         (list(all_categories),))
             for row in cur.fetchall():
                 cat_map[row['name']] = row['id']
 
-        # Now import cards with minimal queries per card
+        # Prepare bulk data: flashcards rows and deferred distractors
+        flashcard_rows = []
+        distractor_meta = []  # list of (index_in_batch, distractors_dict)
         for item in cards:
             category_name = item.get('category', '').strip()
             translations = item.get('translations', {})
-            distractors = item.get('distractors', {})
             difficulty = item.get('difficulty', 'medium').strip().lower()
             if difficulty not in ('beginner', 'medium', 'confirmed'):
                 difficulty = 'medium'
-
             if not category_name or not translations or category_name not in cat_map:
                 continue
-
             cat_id = cat_map[category_name]
+            flashcard_rows.append((cat_id, json.dumps(translations), difficulty))
+            distractor_meta.append(item.get('distractors', {}))
 
-            # Insert flashcard
-            cur.execute("""
-                INSERT INTO flashcards (category_id, translations, difficulty)
-                VALUES (%s, %s, %s) RETURNING id
-            """, (cat_id, json.dumps(translations), difficulty))
-            flashcard_id = cur.fetchone()['id']
+        # Bulk insert all flashcards in one query, get back their IDs
+        if flashcard_rows:
+            inserted = execute_values(cur,
+                "INSERT INTO flashcards (category_id, translations, difficulty) VALUES %s RETURNING id",
+                flashcard_rows, fetch=True)
+            flashcard_ids = [row['id'] for row in inserted]
 
-            # Insert distractors
-            for lang_code, distractor_list in distractors.items():
-                for d_text in distractor_list:
-                    cur.execute("""
-                        INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text)
-                        VALUES (%s, %s, %s)
-                    """, (flashcard_id, lang_code, d_text))
+            # Build all distractor rows referencing the new IDs
+            distractor_rows = []
+            for idx, fid in enumerate(flashcard_ids):
+                for lang_code, dlist in distractor_meta[idx].items():
+                    for d_text in dlist:
+                        distractor_rows.append((fid, lang_code, d_text))
 
-            imported += 1
+            # Bulk insert all distractors in one query
+            if distractor_rows:
+                execute_values(cur,
+                    "INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text) VALUES %s",
+                    distractor_rows)
+
+            imported = len(flashcard_ids)
 
         conn.commit()
         flash(f'Successfully imported {imported} flashcards!', 'success')
