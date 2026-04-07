@@ -13,6 +13,7 @@ from token_routes import token_bp
 from shopping_routes import shopping_bp
 from scratch_routes import scratch_bp
 from wheel_routes import wheel_bp
+from flashcard_routes import flashcard_bp
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -23,6 +24,7 @@ app.register_blueprint(token_bp)
 app.register_blueprint(shopping_bp)
 app.register_blueprint(scratch_bp)
 app.register_blueprint(wheel_bp)
+app.register_blueprint(flashcard_bp)
 
 # Initialize database on startup
 with app.app_context():
@@ -95,6 +97,18 @@ def dashboard():
     cur.execute("SELECT COUNT(*) as cnt FROM scratch_prizes WHERE user_id = %s", (session['user_id'],))
     has_scratch_prizes = cur.fetchone()['cnt'] > 0
 
+    # Flashcard stats for dashboard
+    from datetime import date as _date2
+    cur.execute("""
+        SELECT COUNT(*) as cnt FROM user_flashcards
+        WHERE user_id = %s AND next_review_date <= %s
+    """, (session['user_id'], _date2.today()))
+    fc_due_count = cur.fetchone()['cnt']
+
+    cur.execute("SELECT COUNT(*) as cnt FROM user_flashcards WHERE user_id = %s",
+                (session['user_id'],))
+    fc_total = cur.fetchone()['cnt']
+
     cur.close()
     conn.close()
 
@@ -104,7 +118,9 @@ def dashboard():
                            shopping_lists=shopping_lists,
                            username=session.get('username'),
                            ticket_played_today=ticket_played_today,
-                           has_scratch_prizes=has_scratch_prizes)
+                           has_scratch_prizes=has_scratch_prizes,
+                           fc_due_count=fc_due_count,
+                           fc_total=fc_total)
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -119,6 +135,11 @@ def admin():
                 conn = get_db_connection()
                 cur = conn.cursor()
 
+                cur.execute("DELETE FROM user_flashcards")
+                cur.execute("DELETE FROM flashcard_distractors")
+                cur.execute("DELETE FROM flashcards")
+                cur.execute("DELETE FROM flashcard_categories")
+                cur.execute("DELETE FROM languages")
                 cur.execute("DELETE FROM scratch_tickets")
                 cur.execute("DELETE FROM scratch_prizes")
                 cur.execute("DELETE FROM shopping_items")
@@ -183,10 +204,31 @@ def admin():
     prizes = cur.fetchall()
     cur.execute("SELECT id, name, flag_emoji, is_active FROM wheel_countries ORDER BY name")
     wheel_countries = cur.fetchall()
+
+    # Flashcard admin data
+    cur.execute("SELECT id, code, name, flag_emoji FROM languages ORDER BY name")
+    fc_languages = cur.fetchall()
+    cur.execute("""
+        SELECT fc.id, fc.name, fc.icon, COUNT(f.id) as card_count
+        FROM flashcard_categories fc
+        LEFT JOIN flashcards f ON f.category_id = fc.id
+        GROUP BY fc.id, fc.name, fc.icon ORDER BY fc.name
+    """)
+    fc_categories = cur.fetchall()
+    cur.execute("SELECT box_number, days_interval FROM leitner_intervals ORDER BY box_number")
+    leitner_intervals = {r['box_number']: r['days_interval'] for r in cur.fetchall()}
+    # Fill defaults if empty
+    if not leitner_intervals:
+        leitner_intervals = {1:1, 2:2, 3:4, 4:7, 5:14, 6:30, 7:90}
+
     cur.close()
     conn.close()
 
-    return render_template('admin.html', users=users, prizes=prizes, wheel_countries=wheel_countries)
+    return render_template('admin.html', users=users, prizes=prizes,
+                           wheel_countries=wheel_countries,
+                           fc_languages=fc_languages,
+                           fc_categories=fc_categories,
+                           leitner_intervals=leitner_intervals)
 
 @app.route('/profile')
 @login_required

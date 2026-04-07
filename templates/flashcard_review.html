@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block title %}Review - Flashcards{% endblock %}
+
+{% block content %}
+<style>
+    .flip-container {
+        perspective: 1000px;
+        width: 100%;
+        max-width: 420px;
+        height: 280px;
+        margin: 0 auto 2rem;
+        cursor: pointer;
+    }
+    .flip-card {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+    }
+    .flip-card.flipped {
+        transform: rotateY(180deg);
+    }
+    .flip-face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .flip-front {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff;
+    }
+    .flip-back {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: #fff;
+        transform: rotateY(180deg);
+    }
+    .flip-word {
+        font-size: 2.2rem;
+        font-weight: 700;
+        text-align: center;
+        word-break: break-word;
+    }
+    .flip-hint {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-top: 0.5rem;
+    }
+    .tts-btn {
+        background: rgba(255,255,255,0.25);
+        border: none;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        font-size: 1.4rem;
+        cursor: pointer;
+        margin-top: 1rem;
+        transition: background 0.2s;
+    }
+    .tts-btn:hover {
+        background: rgba(255,255,255,0.4);
+    }
+    .options-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        max-width: 420px;
+        margin: 0 auto;
+    }
+    .option-btn {
+        width: 100%;
+        padding: 1rem 1.5rem;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        background: var(--white);
+        font-size: 1.1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+    .option-btn:hover:not(:disabled) {
+        border-color: var(--primary);
+        background: #eef2ff;
+    }
+    .option-btn.correct {
+        border-color: var(--success);
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .option-btn.wrong {
+        border-color: var(--danger);
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    .session-progress {
+        height: 6px;
+        background: var(--light);
+        border-radius: 3px;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    .session-progress-bar {
+        height: 100%;
+        background: var(--primary);
+        transition: width 0.4s ease;
+    }
+    .leitner-badge {
+        display: inline-block;
+        padding: 0.3rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .result-overlay {
+        display: none;
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+    .result-overlay.show {
+        display: block;
+    }
+</style>
+
+<div class="content-wrapper" style="max-width:520px;margin:1rem auto;">
+    {% if not card %}
+        <!-- Session complete -->
+        <div class="text-center" style="padding:3rem 1rem;">
+            <div style="font-size:4rem;margin-bottom:1rem;">🎉</div>
+            <h2 class="mb-2">Session Complete!</h2>
+            {% if total_in_pair > 0 %}
+                <p class="text-muted mb-3">No more cards due today. You have {{ total_in_pair }} card{{ 's' if total_in_pair > 1 }} in this pair.</p>
+            {% else %}
+                <p class="text-muted mb-3">You have no cards for {{ source_lang|upper }} → {{ target_lang|upper }} yet. Add some from the dashboard!</p>
+            {% endif %}
+            <div class="flex gap-1" style="justify-content:center;">
+                <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-primary">📊 Dashboard</a>
+                <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-secondary">🔄 New Session</a>
+            </div>
+        </div>
+    {% else %}
+        <!-- Progress bar -->
+        <div class="flex flex-between flex-center mb-1">
+            <span class="text-muted" style="font-size:0.85rem;">
+                {{ source_lang|upper }} → {{ target_lang|upper }}
+                {% if card.category_name %} · {{ card.category_icon or '📁' }} {{ card.category_name }}{% endif %}
+            </span>
+            <span class="text-muted" style="font-size:0.85rem;" id="remainingCount">{{ remaining }} left</span>
+        </div>
+        <div class="session-progress">
+            <div class="session-progress-bar" style="width:0%" id="progressBar"></div>
+        </div>
+
+        <!-- Leitner box indicator -->
+        <div class="text-center mb-2">
+            {% set colors = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'] %}
+            <span class="leitner-badge" style="background:{{ colors[card.leitner_box - 1] }}20;color:{{ colors[card.leitner_box - 1] }};">
+                Box {{ card.leitner_box }} / 7
+            </span>
+        </div>
+
+        <!-- Flip card -->
+        <div class="flip-container" id="flipContainer" onclick="flipCard()">
+            <div class="flip-card" id="flipCard">
+                <div class="flip-face flip-front">
+                    <div style="font-size:0.85rem;opacity:0.7;margin-bottom:0.5rem;">
+                        {{ lang_info.get(source_lang, {}).get('flag_emoji', '') }} {{ source_lang|upper }}
+                    </div>
+                    <div class="flip-word" id="frontWord">{{ front_word }}</div>
+                    {% if card.audio_hint %}
+                    <div class="flip-hint">{{ card.audio_hint }}</div>
+                    {% endif %}
+                    <button class="tts-btn" onclick="event.stopPropagation(); speak('{{ front_word|e }}', '{{ source_lang }}')">🔊</button>
+                </div>
+                <div class="flip-face flip-back">
+                    <div style="font-size:0.85rem;opacity:0.7;margin-bottom:0.5rem;">
+                        {{ lang_info.get(target_lang, {}).get('flag_emoji', '') }} {{ target_lang|upper }}
+                    </div>
+                    <div class="flip-word" id="backWord">?</div>
+                    <button class="tts-btn" onclick="event.stopPropagation(); speakAnswer()">🔊</button>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-center text-muted mb-2" style="font-size:0.85rem;">Tap the card to flip, then choose your answer:</p>
+
+        <!-- Answer options -->
+        <div class="options-grid" id="optionsGrid">
+            {% for opt in options %}
+            <button class="option-btn" onclick="submitAnswer(this, '{{ opt|e }}')" data-answer="{{ opt }}">
+                {{ opt }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <!-- Result overlay -->
+        <div class="result-overlay" id="resultOverlay">
+            <div id="resultIcon" style="font-size:3rem;margin-bottom:0.5rem;"></div>
+            <div id="resultText" style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;"></div>
+            <div id="resultDetail" class="text-muted" style="font-size:0.9rem;margin-bottom:1rem;"></div>
+            <button class="btn btn-primary" onclick="nextCard()">Next Card →</button>
+        </div>
+
+        <input type="hidden" id="userFlashcardId" value="{{ card.user_flashcard_id }}">
+        <input type="hidden" id="correctAnswer" value="{{ correct_answer }}">
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if card %}
+<script>
+    const LANG_MAP = {
+        'en': 'en-US', 'fr': 'fr-FR', 'es': 'es-ES', 'de': 'de-DE',
+        'it': 'it-IT', 'pt': 'pt-BR', 'nl': 'nl-NL', 'ja': 'ja-JP',
+        'ko': 'ko-KR', 'zh': 'zh-CN', 'ru': 'ru-RU', 'ar': 'ar-SA',
+        'tr': 'tr-TR', 'pl': 'pl-PL', 'sv': 'sv-SE', 'da': 'da-DK',
+        'no': 'nb-NO', 'fi': 'fi-FI', 'el': 'el-GR', 'cs': 'cs-CZ',
+        'ro': 'ro-RO', 'hu': 'hu-HU', 'uk': 'uk-UA', 'hi': 'hi-IN'
+    };
+
+    let answered = false;
+    let correctAnswerText = document.getElementById('correctAnswer').value;
+
+    function flipCard() {
+        document.getElementById('flipCard').classList.toggle('flipped');
+    }
+
+    function speak(text, langCode) {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = LANG_MAP[langCode] || langCode;
+        utter.rate = 0.85;
+        window.speechSynthesis.speak(utter);
+    }
+
+    function speakAnswer() {
+        if (answered) {
+            speak(correctAnswerText, '{{ target_lang }}');
+        }
+    }
+
+    function submitAnswer(btn, chosen) {
+        if (answered) return;
+        answered = true;
+
+        const ufId = document.getElementById('userFlashcardId').value;
+        const buttons = document.querySelectorAll('.option-btn');
+
+        // Disable all buttons
+        buttons.forEach(b => b.disabled = true);
+
+        // Visual feedback
+        const isCorrect = chosen === correctAnswerText;
+        btn.classList.add(isCorrect ? 'correct' : 'wrong');
+        if (!isCorrect) {
+            buttons.forEach(b => {
+                if (b.dataset.answer === correctAnswerText) b.classList.add('correct');
+            });
+        }
+
+        // Show answer on back of card
+        document.getElementById('backWord').textContent = correctAnswerText;
+        // Auto-flip to back
+        document.getElementById('flipCard').classList.add('flipped');
+
+        // Speak correct answer
+        setTimeout(() => speak(correctAnswerText, '{{ target_lang }}'), 400);
+
+        // POST answer
+        const formData = new FormData();
+        formData.append('answer', chosen);
+
+        fetch(`/flashcards/review/${ufId}/answer`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            const overlay = document.getElementById('resultOverlay');
+            const icon = document.getElementById('resultIcon');
+            const text = document.getElementById('resultText');
+            const detail = document.getElementById('resultDetail');
+
+            if (data.correct) {
+                icon.textContent = '✅';
+                text.textContent = 'Correct!';
+                text.style.color = 'var(--success)';
+                detail.textContent = `Moved to Box ${data.new_box}. Next review: ${data.next_review}`;
+            } else {
+                icon.textContent = '❌';
+                text.textContent = `The answer was: ${data.correct_answer}`;
+                text.style.color = 'var(--danger)';
+                detail.textContent = `Back to Box 1. Next review: ${data.next_review}`;
+            }
+
+            overlay.classList.add('show');
+        })
+        .catch(err => {
+            console.error('Answer error:', err);
+        });
+    }
+
+    function nextCard() {
+        window.location.href = '{{ url_for("flashcards.review") }}';
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.key === ' ') {
+            e.preventDefault();
+            flipCard();
+        } else if (e.key >= '1' && e.key <= '3' && !answered) {
+            const idx = parseInt(e.key) - 1;
+            const btns = document.querySelectorAll('.option-btn');
+            if (btns[idx]) btns[idx].click();
+        } else if (e.key === 'Enter' && answered) {
+            nextCard();
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

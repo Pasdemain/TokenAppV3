@@ -231,6 +231,142 @@
         </div>
     </div>
 
+    <!-- ── Flashcard Languages ────────────────────────────────────────────── -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">🧠 Flashcard Languages</span>
+        </div>
+        <div style="padding: 1.5rem;">
+            {% if fc_languages %}
+            <table style="width:100%;border-collapse:collapse;margin-bottom:1.5rem;font-size:0.9rem;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border);">
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">Flag</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">Code</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">Name</th>
+                        <th style="padding:0.4rem 0.5rem;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lang in fc_languages %}
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.5rem;font-size:1.5rem;">{{ lang.flag_emoji or '🏳️' }}</td>
+                        <td style="padding:0.5rem;font-weight:600;">{{ lang.code }}</td>
+                        <td style="padding:0.5rem;">{{ lang.name }}</td>
+                        <td style="padding:0.5rem;text-align:right;">
+                            <form method="POST" action="{{ url_for('flashcards.admin_delete_language', lang_id=lang.id) }}" style="display:inline;">
+                                <input type="hidden" name="password" id="del-lang-pw-{{ lang.id }}">
+                                <button type="button" class="btn btn-sm btn-danger"
+                                    onclick="promptAndSubmit('del-lang-pw-{{ lang.id }}', this.closest('form'))">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted mb-3">No languages added yet.</p>
+            {% endif %}
+
+            <details>
+                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">➕ Add a language</summary>
+                <form method="POST" action="{{ url_for('flashcards.admin_add_language') }}" style="margin-top:0.75rem;">
+                    <div class="grid grid-3" style="gap:0.75rem;">
+                        <div class="form-group" style="margin-bottom:0.75rem;">
+                            <label>Code * (e.g. fr)</label>
+                            <input type="text" name="code" placeholder="fr" required maxlength="10">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0.75rem;">
+                            <label>Name *</label>
+                            <input type="text" name="name" placeholder="French" required maxlength="50">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0.75rem;">
+                            <label>Flag emoji</label>
+                            <input type="text" name="flag_emoji" placeholder="🇫🇷" maxlength="10">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label>Admin Password *</label>
+                        <input type="password" name="password" required placeholder="Admin password">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">✅ Add Language</button>
+                </form>
+            </details>
+        </div>
+    </div>
+
+    <!-- ── Flashcard Import ──────────────────────────────────────────────── -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">📥 Import Flashcards (JSON)</span>
+        </div>
+        <div style="padding: 1.5rem;">
+            <p class="text-muted mb-2">
+                Import cards as JSON array. Categories are auto-created. Languages in translations are auto-registered.
+            </p>
+            {% if fc_categories %}
+            <p class="mb-3" style="font-size:0.9rem;">
+                <strong>Existing categories:</strong>
+                {% for cat in fc_categories %}
+                <span class="badge badge-primary" style="margin-right:0.25rem;">{{ cat.icon or '📁' }} {{ cat.name }} ({{ cat.card_count }})</span>
+                {% endfor %}
+            </p>
+            {% endif %}
+            <details>
+                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">📋 Show JSON format</summary>
+                <pre style="background:var(--light);padding:1rem;border-radius:8px;font-size:0.8rem;overflow-x:auto;margin-bottom:1rem;">[
+  {
+    "category": "Animals",
+    "translations": {"en": "Cat", "fr": "Chat", "es": "Gato"},
+    "distractors": {
+      "fr": ["Chien", "Oiseau", "Poisson"],
+      "es": ["Perro", "Pájaro", "Pez"]
+    }
+  }
+]</pre>
+            </details>
+            <form method="POST" action="{{ url_for('flashcards.admin_import') }}">
+                <div class="form-group" style="margin-bottom:0.75rem;">
+                    <label>JSON Data *</label>
+                    <textarea name="json_data" rows="8" required placeholder='[{"category":"...","translations":{...},"distractors":{...}}]' style="font-family:monospace;font-size:0.85rem;"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:0.75rem;">
+                    <label>Admin Password *</label>
+                    <input type="password" name="password" required placeholder="Admin password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">📥 Import Cards</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Leitner Intervals ─────────────────────────────────────────────── -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">⏱️ Leitner Intervals</span>
+        </div>
+        <div style="padding: 1.5rem;">
+            <p class="text-muted mb-3">Configure the number of days before a card in each box is shown again.</p>
+            <form method="POST" action="{{ url_for('flashcards.admin_intervals') }}">
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+                    {% for box in range(1, 8) %}
+                    {% set colors = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'] %}
+                    <div style="flex:1;min-width:75px;text-align:center;">
+                        <label style="font-size:0.8rem;color:{{ colors[box-1] }};font-weight:600;">Box {{ box }}</label>
+                        <input type="number" name="box_{{ box }}" value="{{ leitner_intervals.get(box, '') }}"
+                               min="1" required style="text-align:center;padding:0.5rem;">
+                        <div style="font-size:0.75rem;color:#6b7280;">days</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="form-group" style="margin-bottom:0.75rem;">
+                    <label>Admin Password *</label>
+                    <input type="password" name="password" required placeholder="Admin password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">💾 Save Intervals</button>
+            </form>
+        </div>
+    </div>
+
     <!-- ── Database management ───────────────────────────────────────────── -->
     <div class="card">
         <div class="card-header">

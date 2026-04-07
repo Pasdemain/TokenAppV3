@@ -403,6 +403,7 @@
                     <li><a href="{{ url_for('tokens.tokens_page') }}" class="{% if 'token' in request.endpoint %}active{% endif %}">🎟️ Tokens</a></li>
                     <li><a href="{{ url_for('scratch.scratch_page') }}" class="{% if 'scratch' in request.endpoint %}active{% endif %}">🎰 Ticket</a></li>
                     <li><a href="{{ url_for('wheel.wheel_page') }}" class="{% if 'wheel' in request.endpoint %}active{% endif %}">🌍 Wheel</a></li>
+                    <li><a href="{{ url_for('flashcards.flashcards_home') }}" class="{% if 'flashcard' in request.endpoint %}active{% endif %}">🧠 Cards</a></li>
                     <li class="dropdown">
                         <a href="#" onclick="event.preventDefault()">👤 {{ session.username }} ▼</a>
                         <div class="dropdown-content">

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Flashcards - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="flex flex-between flex-center mb-3">
+        <h1>🧠 Flashcards</h1>
+        <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-primary">▶️ Start Session</a>
+    </div>
+
+    <!-- Due today banner -->
+    {% if due_count > 0 %}
+    <div class="card mb-3" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); border: 2px solid var(--info);">
+        <div class="flex flex-between flex-center">
+            <div>
+                <h3 style="color: var(--info);">📚 {{ due_count }} card{{ 's' if due_count > 1 }} due today!</h3>
+                <p class="text-muted mt-1">Time to review and strengthen your memory.</p>
+            </div>
+            <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-sm" style="background:var(--info);color:#fff;">Review Now</a>
+        </div>
+    </div>
+    {% elif total_cards > 0 %}
+    <div class="alert alert-success mb-3">
+        ✅ All caught up! No cards due for review today.
+    </div>
+    {% endif %}
+
+    <!-- Leitner Box Stats -->
+    {% if total_cards > 0 %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">📊 Leitner Boxes</span>
+            <span class="badge badge-primary">{{ total_cards }} total</span>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1rem;">
+            {% set box_map = {} %}
+            {% for bs in box_stats %}
+                {% set _ = box_map.update({bs.leitner_box: bs.cnt}) %}
+            {% endfor %}
+            {% for box in range(1, 8) %}
+                {% set cnt = box_map.get(box, 0) %}
+                {% set colors = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'] %}
+                <div style="flex:1;min-width:80px;text-align:center;padding:1rem 0.5rem;border-radius:12px;background:{{ colors[box-1] }}15;border:2px solid {{ colors[box-1] }}40;">
+                    <div style="font-size:1.5rem;font-weight:700;color:{{ colors[box-1] }};">{{ cnt }}</div>
+                    <div style="font-size:0.75rem;color:#6b7280;margin-top:0.25rem;">Box {{ box }}</div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Language Pairs -->
+    {% if lang_pairs %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">🌐 Your Language Pairs</span>
+        </div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem;">
+            {% for pair in lang_pairs %}
+            <span class="badge badge-primary" style="font-size:1rem;padding:0.5rem 1rem;">
+                {{ pair.source_lang|upper }} → {{ pair.target_lang|upper }}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Categories & Add Cards -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">📂 Categories</span>
+        </div>
+
+        {% if not categories %}
+        <p class="text-muted mt-2">No categories available yet. Ask an admin to import flashcards.</p>
+        {% else %}
+        <div class="grid grid-2 mt-2">
+            {% for cat in categories %}
+            <div style="border:1px solid var(--border);border-radius:10px;padding:1rem;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <strong>{{ cat.icon or '📁' }} {{ cat.name }}</strong>
+                    <span class="text-muted" style="margin-left:0.5rem;">{{ cat.card_count }} cards</span>
+                </div>
+                {% if languages|length >= 2 %}
+                <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;gap:0.5rem;align-items:center;">
+                    <select name="source_lang" required style="width:auto;padding:0.4rem;">
+                        <option value="">From</option>
+                        {% for lang in languages %}
+                        <option value="{{ lang.code }}">{{ lang.flag_emoji or '' }} {{ lang.code|upper }}</option>
+                        {% endfor %}
+                    </select>
+                    <span>→</span>
+                    <select name="target_lang" required style="width:auto;padding:0.4rem;">
+                        <option value="">To</option>
+                        {% for lang in languages %}
+                        <option value="{{ lang.code }}">{{ lang.flag_emoji or '' }} {{ lang.code|upper }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-success">+10</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

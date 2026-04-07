@@ -23,6 +23,27 @@
         </div>
     </div>
 
+    <!-- Flashcards Widget -->
+    {% if fc_total > 0 or fc_due_count > 0 %}
+    <div class="card mb-3" style="background: linear-gradient(135deg, #ede9fe, #ddd6fe); border: 2px solid #8b5cf6;">
+        <div class="card-header" style="background:transparent;">
+            <span class="card-title">🧠 Flashcards</span>
+            {% if fc_due_count > 0 %}
+                <span class="badge" style="background:#8b5cf6;color:#fff;animation: pulse-badge 1.5s infinite;">{{ fc_due_count }} due</span>
+            {% else %}
+                <span class="badge badge-success">All done!</span>
+            {% endif %}
+        </div>
+        {% if fc_due_count > 0 %}
+            <p class="mb-2" style="color:#5b21b6;">You have {{ fc_due_count }} card{{ 's' if fc_due_count > 1 }} to review today.</p>
+            <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-sm" style="background:#8b5cf6;color:#fff;">▶️ Start Review</a>
+        {% else %}
+            <p class="mb-2" style="color:#5b21b6;">No cards due today. {{ fc_total }} card{{ 's' if fc_total > 1 }} in your collection.</p>
+            <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-sm" style="background:#8b5cf6;color:#fff;">📊 View Dashboard</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Daily Scratch Ticket -->
     {% if has_scratch_prizes %}
     <div class="card mb-3" style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b;">
