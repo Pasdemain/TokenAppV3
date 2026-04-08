@@ -135,6 +135,7 @@ def admin():
                 conn = get_db_connection()
                 cur = conn.cursor()
 
+                cur.execute("DELETE FROM flashcard_reports")
                 cur.execute("DELETE FROM user_flashcards")
                 cur.execute("DELETE FROM flashcard_distractors")
                 cur.execute("DELETE FROM flashcards")
@@ -221,6 +222,18 @@ def admin():
     if not leitner_intervals:
         leitner_intervals = {1:1, 2:2, 3:4, 4:7, 5:14, 6:30, 7:90}
 
+    # Flashcard reports
+    cur.execute("""
+        SELECT fr.id, fr.comment, fr.source_lang, fr.target_lang, fr.created_at,
+               u.username, f.translations
+        FROM flashcard_reports fr
+        JOIN users u ON fr.user_id = u.id
+        JOIN flashcards f ON fr.flashcard_id = f.id
+        ORDER BY fr.created_at DESC
+        LIMIT 50
+    """)
+    fc_reports = cur.fetchall()
+
     cur.close()
     conn.close()
 
@@ -228,7 +241,8 @@ def admin():
                            wheel_countries=wheel_countries,
                            fc_languages=fc_languages,
                            fc_categories=fc_categories,
-                           leitner_intervals=leitner_intervals)
+                           leitner_intervals=leitner_intervals,
+                           fc_reports=fc_reports)
 
 @app.route('/profile')
 @login_required

@@ -369,6 +369,60 @@
         </div>
     </div>
 
+    <!-- ── Flashcard Reports ────────────────────────────────────────────── -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">🚩 Flashcard Reports</span>
+            {% if fc_reports %}
+            <span class="badge badge-primary">{{ fc_reports|length }}</span>
+            {% endif %}
+        </div>
+        <div style="padding: 1.5rem;">
+            {% if fc_reports %}
+            <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border);">
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">User</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">Card</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">Comment</th>
+                        <th style="text-align:center;padding:0.4rem 0.5rem;">Pair</th>
+                        <th style="text-align:right;padding:0.4rem 0.5rem;">Date</th>
+                        <th style="padding:0.4rem 0.5rem;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in fc_reports %}
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:0.5rem;font-weight:600;">{{ report.username }}</td>
+                        <td style="padding:0.5rem;font-size:0.85rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            {% if report.translations is mapping %}
+                                {{ report.translations.values()|list|first }}
+                            {% else %}
+                                #{{ report.id }}
+                            {% endif %}
+                        </td>
+                        <td style="padding:0.5rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ report.comment }}</td>
+                        <td style="padding:0.5rem;text-align:center;">
+                            <span class="badge" style="background:var(--light);font-size:0.75rem;">{{ report.source_lang|upper }} → {{ report.target_lang|upper }}</span>
+                        </td>
+                        <td style="padding:0.5rem;text-align:right;font-size:0.8rem;color:#6b7280;">{{ report.created_at.strftime('%Y-%m-%d') if report.created_at else '' }}</td>
+                        <td style="padding:0.5rem;text-align:right;">
+                            <form method="POST" action="{{ url_for('flashcards.admin_delete_report', report_id=report.id) }}" style="display:inline;">
+                                <input type="hidden" name="password" id="del-report-pw-{{ report.id }}">
+                                <button type="button" class="btn btn-sm btn-danger"
+                                    onclick="promptAndSubmit('del-report-pw-{{ report.id }}', this.closest('form'))">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">No reports submitted yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- ── Database management ───────────────────────────────────────────── -->
     <div class="card">
         <div class="card-header">
