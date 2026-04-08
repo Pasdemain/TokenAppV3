@@ -1,5 +1,6 @@
+import os
 import secrets
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, make_response, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from database import get_db_connection
@@ -9,6 +10,7 @@ auth_bp = Blueprint('auth', __name__)
 
 REMEMBER_COOKIE = 'remember_token'
 REMEMBER_DAYS = 30
+IS_HTTPS = os.environ.get('RENDER_EXTERNAL_URL', '').startswith('https')
 
 
 def login_required(f):
@@ -28,6 +30,7 @@ def login_required(f):
                     )
                     user = cur.fetchone()
                     if user:
+                        session.permanent = True
                         session['user_id'] = user['id']
                         session['username'] = user['username']
                         return f(*args, **kwargs)
@@ -118,6 +121,7 @@ def login():
             user = cur.fetchone()
 
             if user and check_password_hash(user['password_hash'], password):
+                session.permanent = True
                 session['user_id'] = user['id']
                 session['username'] = user['username']
 
@@ -133,7 +137,8 @@ def login():
                     response.set_cookie(
                         REMEMBER_COOKIE, token,
                         max_age=REMEMBER_DAYS * 24 * 3600,
-                        httponly=True, samesite='Lax'
+                        httponly=True, samesite='Lax',
+                        secure=IS_HTTPS
                     )
 
                 flash(f'Welcome back, {username}!', 'success')
