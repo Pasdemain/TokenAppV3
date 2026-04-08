@@ -207,8 +207,20 @@ def init_db():
             target_lang VARCHAR(10) NOT NULL,
             leitner_box INTEGER DEFAULT 1 CHECK (leitner_box BETWEEN 1 AND 7),
             next_review_date DATE DEFAULT CURRENT_DATE,
+            difficulty VARCHAR(10),
+            translations JSONB,
             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    """)
+    # Add columns if missing (for existing DBs)
+    cur.execute("ALTER TABLE user_flashcards ADD COLUMN IF NOT EXISTS difficulty VARCHAR(10)")
+    cur.execute("ALTER TABLE user_flashcards ADD COLUMN IF NOT EXISTS translations JSONB")
+    # Backfill existing rows from flashcards table
+    cur.execute("""
+        UPDATE user_flashcards uf
+        SET difficulty = f.difficulty, translations = f.translations
+        FROM flashcards f
+        WHERE uf.flashcard_id = f.id AND (uf.difficulty IS NULL OR uf.translations IS NULL)
     """)
 
     # Leitner intervals (admin-configurable)
