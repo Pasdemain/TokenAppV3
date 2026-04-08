@@ -243,6 +243,92 @@ def review():
                            lang_info=lang_info)
 
 
+# ── Next card (JSON for SPA-style transitions) ──────────────────────────────
+
+@flashcard_bp.route('/flashcards/review/next')
+@login_required
+def review_next():
+    source_lang = session.get('fc_source_lang')
+    target_lang = session.get('fc_target_lang')
+
+    if not source_lang or not target_lang:
+        return jsonify({'done': True, 'no_session': True})
+
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    today = date.today()
+
+    cur.execute("""
+        SELECT uf.id as user_flashcard_id, uf.leitner_box,
+               f.id as flashcard_id, f.translations, f.audio_hint, f.difficulty,
+               fc.name as category_name, fc.icon as category_icon
+        FROM user_flashcards uf
+        JOIN flashcards f ON uf.flashcard_id = f.id
+        LEFT JOIN flashcard_categories fc ON f.category_id = fc.id
+        WHERE uf.user_id = %s AND uf.source_lang = %s AND uf.target_lang = %s
+          AND uf.next_review_date <= %s
+        ORDER BY uf.leitner_box ASC, uf.next_review_date ASC
+        LIMIT 1
+    """, (session['user_id'], source_lang, target_lang, today))
+    card = cur.fetchone()
+
+    if not card:
+        cur.close()
+        conn.close()
+        return jsonify({'done': True})
+
+    translations = card['translations'] if isinstance(card['translations'], dict) else json.loads(card['translations'])
+    front_word = translations.get(source_lang, '???')
+    correct_answer = translations.get(target_lang, '???')
+
+    # Distractors
+    cur.execute("""
+        SELECT distractor_text FROM flashcard_distractors
+        WHERE flashcard_id = %s AND language_code = %s
+        ORDER BY RANDOM() LIMIT 2
+    """, (card['flashcard_id'], target_lang))
+    distractors = [r['distractor_text'] for r in cur.fetchall()]
+
+    if len(distractors) < 2:
+        cur.execute("""
+            SELECT DISTINCT translations->>%s as word
+            FROM flashcards
+            WHERE id != %s AND translations ? %s
+            ORDER BY RANDOM() LIMIT %s
+        """, (target_lang, card['flashcard_id'], target_lang, 2 - len(distractors)))
+        for r in cur.fetchall():
+            if r['word'] and r['word'] != correct_answer:
+                distractors.append(r['word'])
+
+    options = [correct_answer] + distractors[:2]
+    random.shuffle(options)
+
+    # Remaining count
+    cur.execute("""
+        SELECT COUNT(*) as cnt FROM user_flashcards
+        WHERE user_id = %s AND source_lang = %s AND target_lang = %s
+          AND next_review_date <= %s
+    """, (session['user_id'], source_lang, target_lang, today))
+    remaining = cur.fetchone()['cnt']
+
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        'done': False,
+        'user_flashcard_id': card['user_flashcard_id'],
+        'front_word': front_word,
+        'correct_answer': correct_answer,
+        'options': options,
+        'leitner_box': card['leitner_box'],
+        'difficulty': card['difficulty'] or 'medium',
+        'category_name': card['category_name'],
+        'category_icon': card['category_icon'],
+        'audio_hint': card['audio_hint'],
+        'remaining': remaining
+    })
+
+
 # ── Answer ───────────────────────────────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards/review/<int:user_flashcard_id>/answer', methods=['POST'])

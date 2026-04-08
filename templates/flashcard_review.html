@@ -198,8 +198,7 @@
         <!-- Progress bar -->
         <div class="flex flex-between flex-center mb-1">
             <span class="text-muted" style="font-size:0.85rem;">
-                {{ source_lang|upper }} → {{ target_lang|upper }}
-                {% if card.category_name %} · {{ card.category_icon or '📁' }} {{ card.category_name }}{% endif %}
+                {{ source_lang|upper }} → {{ target_lang|upper }}<span id="catInfo">{% if card.category_name %} · {{ card.category_icon or '📁' }} {{ card.category_name }}{% endif %}</span>
             </span>
             <span class="text-muted" style="font-size:0.85rem;" id="remainingCount">{{ remaining }} left</span>
         </div>
@@ -210,15 +209,15 @@
         <!-- Leitner box + difficulty indicator -->
         <div class="text-center mb-2" style="display:flex;justify-content:center;gap:0.5rem;">
             {% set colors = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'] %}
-            <span class="leitner-badge" style="background:{{ colors[card.leitner_box - 1] }}20;color:{{ colors[card.leitner_box - 1] }};">
+            <span class="leitner-badge" id="boxBadge" style="background:{{ colors[card.leitner_box - 1] }}20;color:{{ colors[card.leitner_box - 1] }};">
                 Box {{ card.leitner_box }} / 7
             </span>
             {% if card.difficulty == 'beginner' %}
-            <span class="leitner-badge" style="background:#d1fae5;color:#065f46;">🟢 Beginner</span>
+            <span class="leitner-badge" id="diffBadge" style="background:#d1fae5;color:#065f46;">🟢 Beginner</span>
             {% elif card.difficulty == 'confirmed' %}
-            <span class="leitner-badge" style="background:#fee2e2;color:#991b1b;">🔴 Confirmed</span>
+            <span class="leitner-badge" id="diffBadge" style="background:#fee2e2;color:#991b1b;">🔴 Confirmed</span>
             {% else %}
-            <span class="leitner-badge" style="background:#fef3c7;color:#92400e;">🟡 Medium</span>
+            <span class="leitner-badge" id="diffBadge" style="background:#fef3c7;color:#92400e;">🟡 Medium</span>
             {% endif %}
         </div>
 
@@ -282,8 +281,19 @@
         'ro': 'ro-RO', 'hu': 'hu-HU', 'uk': 'uk-UA', 'hi': 'hi-IN'
     };
 
+    const SOURCE_LANG = '{{ source_lang }}';
+    const TARGET_LANG = '{{ target_lang }}';
+    const BOX_COLORS = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'];
+    const DIFF_MAP = {
+        'beginner':  {label: '🟢 Beginner',  bg: '#d1fae5', color: '#065f46'},
+        'medium':    {label: '🟡 Medium',     bg: '#fef3c7', color: '#92400e'},
+        'confirmed': {label: '🔴 Confirmed',  bg: '#fee2e2', color: '#991b1b'}
+    };
+
     let answered = false;
+    let currentUfId = document.getElementById('userFlashcardId').value;
     let correctAnswerText = document.getElementById('correctAnswer').value;
+    let totalReviewed = 0;
 
     function flipCard() {
         document.getElementById('flipCard').classList.toggle('flipped');
@@ -299,22 +309,16 @@
     }
 
     function speakAnswer() {
-        if (answered) {
-            speak(correctAnswerText, '{{ target_lang }}');
-        }
+        if (answered) speak(correctAnswerText, TARGET_LANG);
     }
 
     function submitAnswer(btn, chosen) {
         if (answered) return;
         answered = true;
 
-        const ufId = document.getElementById('userFlashcardId').value;
         const buttons = document.querySelectorAll('.option-btn');
-
-        // Disable all buttons
         buttons.forEach(b => b.disabled = true);
 
-        // Visual feedback
         const isCorrect = chosen === correctAnswerText;
         btn.classList.add(isCorrect ? 'correct' : 'wrong');
         if (!isCorrect) {
@@ -323,24 +327,20 @@
             });
         }
 
-        // Show answer on back of card
         document.getElementById('backWord').textContent = correctAnswerText;
-        // Auto-flip to back
         document.getElementById('flipCard').classList.add('flipped');
+        setTimeout(() => speak(correctAnswerText, TARGET_LANG), 400);
 
-        // Speak correct answer
-        setTimeout(() => speak(correctAnswerText, '{{ target_lang }}'), 400);
-
-        // POST answer
         const formData = new FormData();
         formData.append('answer', chosen);
 
-        fetch(`/flashcards/review/${ufId}/answer`, {
+        fetch(`/flashcards/review/${currentUfId}/answer`, {
             method: 'POST',
             body: formData
         })
         .then(r => r.json())
         .then(data => {
+            totalReviewed++;
             const overlay = document.getElementById('resultOverlay');
             const icon = document.getElementById('resultIcon');
             const text = document.getElementById('resultText');
@@ -357,16 +357,92 @@
                 text.style.color = 'var(--danger)';
                 detail.textContent = `Back to Box 1. Next review: ${data.next_review}`;
             }
-
             overlay.classList.add('show');
-        })
-        .catch(err => {
-            console.error('Answer error:', err);
         });
     }
 
     function nextCard() {
-        window.location.href = '{{ url_for("flashcards.review") }}';
+        // Fetch next card via JSON — no page reload
+        const reviewArea = document.getElementById('reviewArea');
+        const overlay = document.getElementById('resultOverlay');
+        overlay.classList.remove('show');
+
+        fetch('/flashcards/review/next')
+        .then(r => r.json())
+        .then(data => {
+            if (data.done) {
+                // No more cards — redirect to review page which shows "+10" UI
+                window.location.href = '{{ url_for("flashcards.review") }}';
+                return;
+            }
+
+            // Reset state
+            answered = false;
+            currentUfId = data.user_flashcard_id;
+            correctAnswerText = data.correct_answer;
+
+            // Update card front
+            document.getElementById('frontWord').textContent = data.front_word;
+            document.getElementById('backWord').textContent = '?';
+            document.getElementById('flipCard').classList.remove('flipped');
+
+            // Update audio hint
+            const hintEl = document.querySelector('.flip-hint');
+            if (hintEl) {
+                hintEl.textContent = data.audio_hint || '';
+                hintEl.style.display = data.audio_hint ? '' : 'none';
+            }
+
+            // Update TTS buttons
+            const frontTts = document.querySelector('.flip-front .tts-btn');
+            if (frontTts) {
+                frontTts.onclick = (e) => { e.stopPropagation(); speak(data.front_word, SOURCE_LANG); };
+            }
+
+            // Update Leitner box badge
+            const boxBadge = document.getElementById('boxBadge');
+            if (boxBadge) {
+                const c = BOX_COLORS[data.leitner_box - 1];
+                boxBadge.style.background = c + '20';
+                boxBadge.style.color = c;
+                boxBadge.textContent = `Box ${data.leitner_box} / 7`;
+            }
+
+            // Update difficulty badge
+            const diffBadge = document.getElementById('diffBadge');
+            if (diffBadge) {
+                const d = DIFF_MAP[data.difficulty] || DIFF_MAP['medium'];
+                diffBadge.style.background = d.bg;
+                diffBadge.style.color = d.color;
+                diffBadge.textContent = d.label;
+            }
+
+            // Update category info
+            const catInfo = document.getElementById('catInfo');
+            if (catInfo) {
+                catInfo.textContent = data.category_name
+                    ? ` · ${data.category_icon || '📁'} ${data.category_name}` : '';
+            }
+
+            // Update remaining count
+            document.getElementById('remainingCount').textContent = `${data.remaining} left`;
+
+            // Update options
+            const grid = document.getElementById('optionsGrid');
+            grid.innerHTML = '';
+            data.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt;
+                btn.dataset.answer = opt;
+                btn.onclick = () => submitAnswer(btn, opt);
+                grid.appendChild(btn);
+            });
+
+            // Update hidden fields
+            document.getElementById('userFlashcardId').value = data.user_flashcard_id;
+            document.getElementById('correctAnswer').value = data.correct_answer;
+        });
     }
 
     // Keyboard shortcuts
