@@ -465,7 +465,7 @@ def add_cards(category_id):
         add_params.append(difficulty)
 
     cur.execute(f"""
-        SELECT f.id FROM flashcards f
+        SELECT f.id, f.difficulty, f.translations FROM flashcards f
         WHERE {add_where}
         ORDER BY RANDOM()
         LIMIT 10
@@ -477,9 +477,10 @@ def add_cards(category_id):
     else:
         for card in cards:
             cur.execute("""
-                INSERT INTO user_flashcards (user_id, flashcard_id, source_lang, target_lang, leitner_box, next_review_date)
-                VALUES (%s, %s, %s, %s, 1, %s)
-            """, (session['user_id'], card['id'], source_lang, target_lang, today))
+                INSERT INTO user_flashcards (user_id, flashcard_id, source_lang, target_lang, leitner_box, next_review_date, difficulty, translations)
+                VALUES (%s, %s, %s, %s, 1, %s, %s, %s)
+            """, (session['user_id'], card['id'], source_lang, target_lang, today,
+                  card['difficulty'], json.dumps(card['translations']) if isinstance(card['translations'], dict) else card['translations']))
         conn.commit()
         flash(f'{len(cards)} cards added to your collection!', 'success')
 
