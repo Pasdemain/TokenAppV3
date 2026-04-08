@@ -423,6 +423,54 @@
         </div>
     </div>
 
+    <!-- ── Competency Test Import ────────────────────────────────────────── -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">📝 Import Competency Questions (JSON)</span>
+        </div>
+        <div style="padding: 1.5rem;">
+            <p class="text-muted mb-2">
+                Import reading &amp; listening questions as JSON array. Duplicate IDs are updated.
+            </p>
+            {% if cq_stats %}
+            <p class="mb-3" style="font-size:0.9rem;">
+                <strong>Current pool:</strong>
+                {% for s in cq_stats %}
+                <span class="badge" style="{% if s.skill == 'reading' %}background:#dbeafe;color:#1e40af{% else %}background:#ede9fe;color:#5b21b6{% endif %};margin-right:0.25rem;font-size:0.8rem;">
+                    {% if s.skill == 'reading' %}📖{% else %}🎧{% endif %} {{ s.level_hint }} ({{ s.cnt }})
+                </span>
+                {% endfor %}
+            </p>
+            {% endif %}
+            <details>
+                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">📋 Show JSON format</summary>
+                <pre style="background:var(--light);padding:1rem;border-radius:8px;font-size:0.75rem;overflow-x:auto;margin-bottom:1rem;">[
+  {"id":"READ_A1_001","skill":"reading","level_hint":"A1","difficulty_score":20,
+   "text":{"en":"I eat bread.","fr":"Je mange du pain."},
+   "question":{"en":"What does the person eat?","fr":"Que mange la personne ?"},
+   "options":{"en":["Bread","Apple","Rice","Soup"],"fr":["Pain","Pomme","Riz","Soupe"]},
+   "answer":{"en":"Bread","fr":"Pain"}},
+  {"id":"LIST_A1_001","skill":"listening","level_hint":"A1","difficulty_score":25,
+   "audio":{"en":{"text":"I eat bread.","tts_voice":"en-US"},"fr":{"text":"Je mange du pain."}},
+   "question":{"en":"What does the person eat?","fr":"Que mange la personne ?"},
+   "options":{"en":["Bread","Apple","Rice","Soup"],"fr":["Pain","Pomme","Riz","Soupe"]},
+   "answer":{"en":"Bread","fr":"Pain"}}
+]</pre>
+            </details>
+            <form method="POST" action="{{ url_for('competency.admin_import') }}">
+                <div class="form-group" style="margin-bottom:0.75rem;">
+                    <label>JSON Data *</label>
+                    <textarea name="json_data" rows="8" required placeholder='[{"id":"READ_A1_001","skill":"reading",...}]' style="font-family:monospace;font-size:0.85rem;"></textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:0.75rem;">
+                    <label>Admin Password *</label>
+                    <input type="password" name="password" required placeholder="Admin password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">📥 Import Questions</button>
+            </form>
+        </div>
+    </div>
+
     <!-- ── Database management ───────────────────────────────────────────── -->
     <div class="card">
         <div class="card-header">

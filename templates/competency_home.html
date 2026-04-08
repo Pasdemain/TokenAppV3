@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Competency Test - CoupleApp{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width:620px;margin:1rem auto;">
+    <div class="text-center mb-3">
+        <div style="font-size:3rem;margin-bottom:0.5rem;">📝</div>
+        <h1 class="mb-1">Competency Test</h1>
+        <p class="text-muted">Adaptive placement test to estimate your level from A1 to B2</p>
+    </div>
+
+    {% if active_test %}
+    <!-- Resume in-progress test -->
+    <div class="card mb-3" style="border:2px solid var(--warning);background:#fffbeb;">
+        <div class="card-header" style="background:transparent;">
+            <span class="card-title">⏸️ Test in progress</span>
+            <span class="badge badge-warning">{{ active_test.target_lang|upper }}</span>
+        </div>
+        <p class="mb-2">You have an unfinished test. Resume or start a new one (the current test will be abandoned).</p>
+        <a href="{{ url_for('competency.test_page', test_id=active_test.id) }}" class="btn btn-sm btn-primary">▶️ Resume Test</a>
+    </div>
+    {% endif %}
+
+    <!-- Start new test -->
+    {% if available_langs %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">🚀 Start a New Test</span>
+        </div>
+        <p class="text-muted mb-2" style="font-size:0.9rem;">
+            The test adapts to your level in real time. It takes approximately 25–50 questions
+            covering <strong>Reading</strong> and <strong>Listening</strong>.
+        </p>
+        <form method="POST" action="{{ url_for('competency.start_test') }}">
+            <div class="form-group" style="margin-bottom:1rem;">
+                <label>Test language</label>
+                <select name="target_lang" required>
+                    <option value="">-- Select --</option>
+                    {% for lang in available_langs %}
+                    <option value="{{ lang }}">{{ lang|upper }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">📝 Start Test</button>
+        </form>
+    </div>
+    {% else %}
+    <div class="alert alert-info mb-3">
+        No questions have been imported yet. Ask an admin to import questions via the Admin panel.
+    </div>
+    {% endif %}
+
+    <!-- Question pool info -->
+    {% if pool_stats %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">📊 Question Pool</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+            {% for s in pool_stats %}
+            <span class="badge" style="background:{% if s.skill == 'reading' %}#dbeafe;color:#1e40af{% else %}#ede9fe;color:#5b21b6{% endif %};font-size:0.8rem;">
+                {% if s.skill == 'reading' %}📖{% else %}🎧{% endif %}
+                {{ s.level_hint }} — {{ s.cnt }}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Past results -->
+    {% if past_tests %}
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">📋 Past Results</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+            <thead>
+                <tr style="border-bottom:2px solid var(--border);">
+                    <th style="text-align:left;padding:0.4rem 0.5rem;">Date</th>
+                    <th style="text-align:center;padding:0.4rem 0.5rem;">Lang</th>
+                    <th style="text-align:center;padding:0.4rem 0.5rem;">Level</th>
+                    <th style="text-align:center;padding:0.4rem 0.5rem;">Score</th>
+                    <th style="text-align:center;padding:0.4rem 0.5rem;">Q</th>
+                    <th style="padding:0.4rem 0.5rem;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set level_colors = {'A1':'#10b981','A2':'#3b82f6','B1':'#8b5cf6','B2':'#f59e0b'} %}
+                {% for t in past_tests %}
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.5rem;font-size:0.8rem;color:#6b7280;">{{ t.started_at.strftime('%Y-%m-%d') if t.started_at else '' }}</td>
+                    <td style="padding:0.5rem;text-align:center;font-weight:600;">{{ t.target_lang|upper }}</td>
+                    <td style="padding:0.5rem;text-align:center;">
+                        {% if t.final_level %}
+                        <span class="badge" style="background:{{ level_colors.get(t.final_level, '#6b7280') }};color:#fff;">{{ t.final_level }}</span>
+                        {% elif t.status == 'in_progress' %}
+                        <span class="badge" style="background:#fef3c7;color:#92400e;">In progress</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:0.5rem;text-align:center;">{{ t.estimated_score|int }}</td>
+                    <td style="padding:0.5rem;text-align:center;">{{ t.questions_count }}</td>
+                    <td style="padding:0.5rem;text-align:right;">
+                        {% if t.status == 'completed' %}
+                        <a href="{{ url_for('competency.result_page', test_id=t.id) }}" class="btn btn-sm btn-secondary" style="padding:0.25rem 0.5rem;font-size:0.75rem;">View</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

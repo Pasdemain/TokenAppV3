@@ -14,6 +14,7 @@ from shopping_routes import shopping_bp
 from scratch_routes import scratch_bp
 from wheel_routes import wheel_bp
 from flashcard_routes import flashcard_bp
+from competency_routes import competency_bp
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -31,6 +32,7 @@ app.register_blueprint(shopping_bp)
 app.register_blueprint(scratch_bp)
 app.register_blueprint(wheel_bp)
 app.register_blueprint(flashcard_bp)
+app.register_blueprint(competency_bp)
 
 # Initialize database on startup
 with app.app_context():
@@ -115,6 +117,15 @@ def dashboard():
                 (session['user_id'],))
     fc_total = cur.fetchone()['cnt']
 
+    # Latest competency test result
+    cur.execute("""
+        SELECT final_level, estimated_score, target_lang, completed_at
+        FROM competency_tests
+        WHERE user_id = %s AND status = 'completed'
+        ORDER BY completed_at DESC LIMIT 1
+    """, (session['user_id'],))
+    last_competency = cur.fetchone()
+
     cur.close()
     conn.close()
 
@@ -126,7 +137,8 @@ def dashboard():
                            ticket_played_today=ticket_played_today,
                            has_scratch_prizes=has_scratch_prizes,
                            fc_due_count=fc_due_count,
-                           fc_total=fc_total)
+                           fc_total=fc_total,
+                           last_competency=last_competency)
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -141,6 +153,9 @@ def admin():
                 conn = get_db_connection()
                 cur = conn.cursor()
 
+                cur.execute("DELETE FROM competency_answers")
+                cur.execute("DELETE FROM competency_tests")
+                cur.execute("DELETE FROM competency_questions")
                 cur.execute("DELETE FROM flashcard_reports")
                 cur.execute("DELETE FROM user_flashcards")
                 cur.execute("DELETE FROM flashcard_distractors")
@@ -240,6 +255,14 @@ def admin():
     """)
     fc_reports = cur.fetchall()
 
+    # Competency question stats
+    cur.execute("""
+        SELECT skill, level_hint, COUNT(*) as cnt
+        FROM competency_questions
+        GROUP BY skill, level_hint ORDER BY skill, level_hint
+    """)
+    cq_stats = cur.fetchall()
+
     cur.close()
     conn.close()
 
@@ -248,7 +271,8 @@ def admin():
                            fc_languages=fc_languages,
                            fc_categories=fc_categories,
                            leitner_intervals=leitner_intervals,
-                           fc_reports=fc_reports)
+                           fc_reports=fc_reports,
+                           cq_stats=cq_stats)
 
 @app.route('/profile')
 @login_required

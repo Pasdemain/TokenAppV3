@@ -232,6 +232,50 @@ def init_db():
         )
     """)
 
+    # ── Competency Test tables ────────────────────────────────────────────────
+
+    # Question pool (imported via JSON)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS competency_questions (
+            id SERIAL PRIMARY KEY,
+            question_id VARCHAR(30) UNIQUE NOT NULL,
+            skill VARCHAR(20) NOT NULL,
+            level_hint VARCHAR(5) NOT NULL,
+            difficulty_score INTEGER NOT NULL,
+            content JSONB NOT NULL
+        )
+    """)
+
+    # Test sessions
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS competency_tests (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            target_lang VARCHAR(10) NOT NULL,
+            status VARCHAR(20) DEFAULT 'in_progress',
+            estimated_score REAL DEFAULT 400,
+            step_size REAL DEFAULT 100,
+            final_level VARCHAR(5),
+            questions_count INTEGER DEFAULT 0,
+            correct_count INTEGER DEFAULT 0,
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP
+        )
+    """)
+
+    # Individual answers within a test
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS competency_answers (
+            id SERIAL PRIMARY KEY,
+            test_id INTEGER REFERENCES competency_tests(id) ON DELETE CASCADE,
+            question_id INTEGER REFERENCES competency_questions(id) ON DELETE CASCADE,
+            chosen_answer TEXT NOT NULL,
+            is_correct BOOLEAN NOT NULL,
+            score_after REAL NOT NULL,
+            answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # Seed default Leitner intervals if empty
     cur.execute("SELECT COUNT(*) as cnt FROM leitner_intervals")
     if cur.fetchone()['cnt'] == 0:
