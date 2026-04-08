@@ -44,6 +44,23 @@
     </div>
     {% endif %}
 
+    <!-- Competency Test Widget -->
+    <div class="card mb-3" style="background: linear-gradient(135deg, #dbeafe, #c7d2fe); border: 2px solid #6366f1;">
+        <div class="card-header" style="background:transparent;">
+            <span class="card-title">📝 Competency Test</span>
+            {% if last_competency %}
+                {% set lc_colors = {'A1':'#10b981','A2':'#3b82f6','B1':'#8b5cf6','B2':'#f59e0b'} %}
+                <span class="badge" style="background:{{ lc_colors.get(last_competency.final_level, '#6b7280') }};color:#fff;">{{ last_competency.final_level }}</span>
+            {% endif %}
+        </div>
+        {% if last_competency %}
+            <p class="mb-2" style="color:#312e81;">Last result: <strong>{{ last_competency.final_level }}</strong> ({{ last_competency.estimated_score|int }}) in {{ last_competency.target_lang|upper }}</p>
+        {% else %}
+            <p class="mb-2" style="color:#312e81;">Test your language level from A1 to B2.</p>
+        {% endif %}
+        <a href="{{ url_for('competency.competency_home') }}" class="btn btn-sm" style="background:#6366f1;color:#fff;">📝 Take a Test</a>
+    </div>
+
     <!-- Daily Scratch Ticket -->
     {% if has_scratch_prizes %}
     <div class="card mb-3" style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b;">

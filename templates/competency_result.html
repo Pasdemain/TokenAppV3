@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Test Result{% endblock %}
+
+{% block content %}
+<style>
+    .result-container { max-width: 520px; margin: 1rem auto; }
+    .level-circle {
+        width: 160px; height: 160px;
+        border-radius: 50%;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        margin: 0 auto 1.5rem;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    .level-circle .level-label {
+        font-size: 2.8rem; font-weight: 800; line-height: 1;
+    }
+    .level-circle .level-score {
+        font-size: 0.9rem; opacity: 0.85; margin-top: 0.3rem;
+    }
+    .stat-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--border);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: #6b7280; font-size: 0.9rem; }
+    .stat-value { font-weight: 600; font-size: 1rem; }
+    .skill-bar-bg {
+        height: 8px; background: var(--light); border-radius: 4px;
+        overflow: hidden; margin-top: 0.3rem;
+    }
+    .skill-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s; }
+    .progression-canvas { width: 100%; height: 180px; }
+</style>
+
+{% set level_styles = {
+    'A1': {'bg': 'linear-gradient(135deg, #10b981, #059669)', 'color': '#fff'},
+    'A2': {'bg': 'linear-gradient(135deg, #3b82f6, #2563eb)', 'color': '#fff'},
+    'B1': {'bg': 'linear-gradient(135deg, #8b5cf6, #7c3aed)', 'color': '#fff'},
+    'B2': {'bg': 'linear-gradient(135deg, #f59e0b, #d97706)', 'color': '#fff'}
+} %}
+{% set ls = level_styles.get(test.final_level, level_styles['A1']) %}
+
+<div class="result-container">
+    <div class="text-center mb-2">
+        <div style="font-size:2.5rem;margin-bottom:0.25rem;">🎓</div>
+        <h1 class="mb-1">Test Complete!</h1>
+        <p class="text-muted">{{ test.target_lang|upper }} Competency — {{ test.questions_count }} questions</p>
+    </div>
+
+    <!-- Level circle -->
+    <div class="level-circle" style="background:{{ ls.bg }};color:{{ ls.color }};">
+        <div class="level-label">{{ test.final_level or '?' }}</div>
+        <div class="level-score">Score: {{ test.estimated_score|int }} / 799</div>
+    </div>
+
+    <!-- Level description -->
+    <div class="text-center mb-3" style="font-size:0.95rem;color:#374151;">
+        {% if test.final_level == 'A1' %}
+            Beginner — You understand simple, familiar words and basic phrases.
+        {% elif test.final_level == 'A2' %}
+            Elementary — You can understand sentences about everyday topics.
+        {% elif test.final_level == 'B1' %}
+            Intermediate — You understand the main points of clear standard language.
+        {% elif test.final_level == 'B2' %}
+            Upper Intermediate — You can understand complex texts and abstract topics.
+        {% endif %}
+    </div>
+
+    <!-- Stats -->
+    <div class="card mb-3">
+        <div class="card-header"><span class="card-title">📊 Summary</span></div>
+        <div class="stat-row">
+            <span class="stat-label">Questions answered</span>
+            <span class="stat-value">{{ test.questions_count }}</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Correct answers</span>
+            <span class="stat-value" style="color:var(--success);">{{ test.correct_count }} ({{ ((test.correct_count / test.questions_count * 100) if test.questions_count else 0)|int }}%)</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Final score</span>
+            <span class="stat-value">{{ test.estimated_score|int }}</span>
+        </div>
+    </div>
+
+    <!-- Per-skill breakdown -->
+    <div class="card mb-3">
+        <div class="card-header"><span class="card-title">📖🎧 Skill Breakdown</span></div>
+        {% for skill_name, label, icon, bar_color in [('reading', 'Reading', '📖', '#3b82f6'), ('listening', 'Listening', '🎧', '#8b5cf6')] %}
+        {% set s = skill_stats.get(skill_name, {}) %}
+        {% set total = s.get('total', s.get('cnt', 0)) if s else 0 %}
+        {% set correct = s.get('correct', 0) if s else 0 %}
+        {% set pct = ((correct / total * 100) if total else 0)|int %}
+        <div style="padding:0.75rem 0;{% if skill_name == 'reading' %}border-bottom:1px solid var(--border);{% endif %}">
+            <div class="flex flex-between flex-center">
+                <span style="font-weight:600;">{{ icon }} {{ label }}</span>
+                <span style="font-size:0.9rem;color:{{ bar_color }};font-weight:600;">{{ correct }}/{{ total }} ({{ pct }}%)</span>
+            </div>
+            <div class="skill-bar-bg">
+                <div class="skill-bar-fill" style="width:{{ pct }}%;background:{{ bar_color }};"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Score progression chart -->
+    {% if progression %}
+    <div class="card mb-3">
+        <div class="card-header"><span class="card-title">📈 Score Progression</span></div>
+        <canvas id="progressionChart" class="progression-canvas"></canvas>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="flex gap-1" style="justify-content:center;">
+        <a href="{{ url_for('competency.competency_home') }}" class="btn btn-primary">📝 New Test</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">🏠 Dashboard</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if progression %}
+<script>
+(function() {
+    const canvas = document.getElementById('progressionChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const W = rect.width;
+    const H = rect.height;
+    const PAD_L = 35, PAD_R = 10, PAD_T = 10, PAD_B = 25;
+    const plotW = W - PAD_L - PAD_R;
+    const plotH = H - PAD_T - PAD_B;
+
+    const data = {{ progression | map(attribute='score_after') | list | tojson }};
+    const skills = {{ progression | map(attribute='skill') | list | tojson }};
+    const n = data.length;
+    if (n === 0) return;
+
+    // Level bands
+    const bands = [
+        {label: 'A1', y0: 0, y1: 200, color: 'rgba(16,185,129,0.1)'},
+        {label: 'A2', y0: 200, y1: 400, color: 'rgba(59,130,246,0.1)'},
+        {label: 'B1', y0: 400, y1: 600, color: 'rgba(139,92,246,0.1)'},
+        {label: 'B2', y0: 600, y1: 800, color: 'rgba(245,158,11,0.1)'}
+    ];
+
+    function yToCanvas(val) { return PAD_T + plotH - (val / 800 * plotH); }
+    function xToCanvas(i) { return PAD_L + (n > 1 ? i / (n - 1) * plotW : plotW / 2); }
+
+    // Draw bands
+    bands.forEach(b => {
+        ctx.fillStyle = b.color;
+        const top = yToCanvas(b.y1);
+        const bot = yToCanvas(b.y0);
+        ctx.fillRect(PAD_L, top, plotW, bot - top);
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '10px sans-serif';
+        ctx.fillText(b.label, 4, (top + bot) / 2 + 3);
+    });
+
+    // Grid lines
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 0.5;
+    [0, 200, 400, 600, 800].forEach(v => {
+        const y = yToCanvas(v);
+        ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(W - PAD_R, y); ctx.stroke();
+    });
+
+    // Score line
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    data.forEach((val, i) => {
+        const x = xToCanvas(i);
+        const y = yToCanvas(val);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Dots
+    data.forEach((val, i) => {
+        const x = xToCanvas(i);
+        const y = yToCanvas(val);
+        ctx.fillStyle = skills[i] === 'reading' ? '#3b82f6' : '#8b5cf6';
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // X-axis label
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Questions', W / 2, H - 2);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+{% block title %}Test in Progress{% endblock %}
+
+{% block content %}
+<style>
+    .ct-container {
+        max-width: 520px;
+        margin: 1rem auto;
+    }
+    .ct-progress {
+        height: 6px;
+        background: var(--light);
+        border-radius: 3px;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    .ct-progress-bar {
+        height: 100%;
+        background: var(--primary);
+        transition: width 0.4s ease;
+    }
+    .ct-skill-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    .ct-skill-reading {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    .ct-skill-listening {
+        background: #ede9fe;
+        color: #5b21b6;
+    }
+    .ct-content-card {
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    .ct-reading-card {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: #fff;
+    }
+    .ct-listening-card {
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        color: #fff;
+    }
+    .ct-content-text {
+        font-size: 1.4rem;
+        font-weight: 600;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+    .ct-listen-btn {
+        background: rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.4);
+        border-radius: 50%;
+        width: 80px;
+        height: 80px;
+        font-size: 2.2rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: #fff;
+    }
+    .ct-listen-btn:hover {
+        background: rgba(255,255,255,0.35);
+        transform: scale(1.05);
+    }
+    .ct-listen-hint {
+        font-size: 0.85rem;
+        opacity: 0.8;
+        margin-top: 0.75rem;
+    }
+    .ct-question {
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-align: center;
+        margin-bottom: 1rem;
+        color: var(--dark);
+    }
+    .ct-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    .ct-option {
+        width: 100%;
+        padding: 0.9rem 1.2rem;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        background: var(--white);
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+    .ct-option:hover:not(:disabled) {
+        border-color: var(--primary);
+        background: #eef2ff;
+    }
+    .ct-option.correct {
+        border-color: var(--success);
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .ct-option.wrong {
+        border-color: var(--danger);
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    .ct-option:disabled {
+        cursor: default;
+        opacity: 0.7;
+    }
+    .ct-loading {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+    .ct-loading .spinner {
+        display: inline-block;
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--light);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: ct-spin 0.8s linear infinite;
+    }
+    @keyframes ct-spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="ct-container">
+    <!-- Header -->
+    <div class="flex flex-between flex-center mb-1">
+        <span class="text-muted" style="font-size:0.85rem;">{{ test.target_lang|upper }} Competency Test</span>
+        <span class="text-muted" style="font-size:0.85rem;" id="questionCount">0 / 50</span>
+    </div>
+    <div class="ct-progress">
+        <div class="ct-progress-bar" id="progressBar" style="width:0%"></div>
+    </div>
+
+    <!-- Skill badge -->
+    <div class="text-center mb-2">
+        <span class="ct-skill-badge ct-skill-reading" id="skillBadge">📖 Reading</span>
+    </div>
+
+    <!-- Content area (text or audio) -->
+    <div id="contentCard" class="ct-content-card ct-reading-card">
+        <div class="ct-loading">
+            <div class="spinner"></div>
+            <p style="margin-top:0.75rem;">Loading first question...</p>
+        </div>
+    </div>
+
+    <!-- Question -->
+    <div class="ct-question" id="questionText"></div>
+
+    <!-- Options -->
+    <div class="ct-options" id="optionsGrid"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const TEST_ID = {{ test.test_id if test.test_id is defined else test.id }};
+    const MAX_Q = 50;
+
+    const LANG_MAP = {
+        'en': 'en-US', 'fr': 'fr-FR', 'es': 'es-ES', 'de': 'de-DE',
+        'it': 'it-IT', 'pt': 'pt-BR', 'nl': 'nl-NL', 'ja': 'ja-JP',
+        'ko': 'ko-KR', 'zh': 'zh-CN', 'ru': 'ru-RU', 'ar': 'ar-SA',
+        'tr': 'tr-TR', 'pl': 'pl-PL', 'sv': 'sv-SE', 'da': 'da-DK',
+        'no': 'nb-NO', 'fi': 'fi-FI', 'el': 'el-GR', 'cs': 'cs-CZ'
+    };
+    const TARGET_LANG = '{{ test.target_lang }}';
+
+    let currentQuestion = null;
+    let answering = false;
+
+    function speak(text, voice) {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = voice || LANG_MAP[TARGET_LANG] || TARGET_LANG;
+        utter.rate = 0.85;
+        window.speechSynthesis.speak(utter);
+    }
+
+    function fetchNext() {
+        fetch(`/competency/test/${TEST_ID}/next`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.done) {
+                window.location.href = data.result_url;
+                return;
+            }
+            displayQuestion(data);
+        });
+    }
+
+    function displayQuestion(data) {
+        currentQuestion = data;
+        answering = false;
+
+        // Progress
+        const pct = Math.min(100, (data.progress / MAX_Q) * 100);
+        document.getElementById('progressBar').style.width = pct + '%';
+        document.getElementById('questionCount').textContent = `${data.progress} / ${MAX_Q}`;
+
+        // Skill badge
+        const badge = document.getElementById('skillBadge');
+        const card = document.getElementById('contentCard');
+        if (data.skill === 'reading') {
+            badge.className = 'ct-skill-badge ct-skill-reading';
+            badge.textContent = '📖 Reading';
+            card.className = 'ct-content-card ct-reading-card';
+        } else {
+            badge.className = 'ct-skill-badge ct-skill-listening';
+            badge.textContent = '🎧 Listening';
+            card.className = 'ct-content-card ct-listening-card';
+        }
+
+        // Content
+        if (data.skill === 'reading') {
+            card.innerHTML = `<div class="ct-content-text">${escapeHtml(data.text)}</div>`;
+        } else {
+            card.innerHTML = `
+                <button class="ct-listen-btn" onclick="speak('${escapeJs(data.tts_text)}', '${escapeJs(data.tts_voice)}')">🔊</button>
+                <div class="ct-listen-hint">Tap to listen (you can replay)</div>
+            `;
+            // Auto-play on first load
+            setTimeout(() => speak(data.tts_text, data.tts_voice), 300);
+        }
+
+        // Question
+        document.getElementById('questionText').textContent = data.question_text;
+
+        // Options
+        const grid = document.getElementById('optionsGrid');
+        grid.innerHTML = '';
+        data.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'ct-option';
+            btn.textContent = opt;
+            btn.onclick = () => submitAnswer(btn, opt);
+            grid.appendChild(btn);
+        });
+    }
+
+    function submitAnswer(btn, chosen) {
+        if (answering) return;
+        answering = true;
+
+        const buttons = document.querySelectorAll('.ct-option');
+        buttons.forEach(b => b.disabled = true);
+
+        fetch(`/competency/test/${TEST_ID}/answer`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                question_id: currentQuestion.question_db_id,
+                answer: chosen
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            // Show feedback
+            if (data.is_correct) {
+                btn.classList.add('correct');
+            } else {
+                btn.classList.add('wrong');
+                // Highlight correct answer
+                buttons.forEach(b => {
+                    if (b.textContent === data.correct_answer) b.classList.add('correct');
+                });
+            }
+
+            // Update count
+            document.getElementById('questionCount').textContent = `${data.questions_done} / ${MAX_Q}`;
+            const pct = Math.min(100, (data.questions_done / MAX_Q) * 100);
+            document.getElementById('progressBar').style.width = pct + '%';
+
+            setTimeout(() => {
+                if (data.is_done) {
+                    window.location.href = data.result_url;
+                } else {
+                    fetchNext();
+                }
+            }, 1200);
+        });
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function escapeJs(str) {
+        return (str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    }
+
+    // Keyboard shortcuts: 1-4 for options
+    document.addEventListener('keydown', (e) => {
+        if (answering) return;
+        const idx = parseInt(e.key) - 1;
+        if (idx >= 0 && idx <= 3) {
+            const btns = document.querySelectorAll('.ct-option');
+            if (btns[idx]) btns[idx].click();
+        }
+    });
+
+    // Start
+    fetchNext();
+</script>
+{% endblock %}
