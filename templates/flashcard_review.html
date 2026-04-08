@@ -162,6 +162,21 @@
     .result-overlay.show {
         display: block;
     }
+    .report-toggle-btn {
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.3rem 0.75rem;
+        font-size: 0.8rem;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .report-toggle-btn:hover {
+        border-color: var(--danger);
+        color: var(--danger);
+        background: #fee2e2;
+    }
 </style>
 
 <div class="content-wrapper" style="max-width:520px;margin:1rem auto;">
@@ -284,6 +299,24 @@
             </div>
         </div>
 
+        <!-- Report button -->
+        <div style="display:flex;justify-content:flex-start;max-width:420px;margin:-0.5rem auto 0.75rem;">
+            <button class="report-toggle-btn" id="reportToggleBtn" onclick="toggleReport()">🚩 Report</button>
+        </div>
+
+        <!-- Report form (hidden by default) -->
+        <div id="reportForm" style="display:none;max-width:420px;margin:0 auto 1rem;">
+            <div style="background:var(--light);border-radius:10px;padding:1rem;">
+                <label style="font-size:0.85rem;font-weight:600;margin-bottom:0.4rem;">What's wrong with this card?</label>
+                <textarea id="reportComment" rows="2" placeholder="e.g. Wrong translation, bad distractors..." style="font-size:0.9rem;margin-bottom:0.5rem;"></textarea>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-sm btn-danger" onclick="submitReport()">Send Report</button>
+                    <button class="btn btn-sm btn-secondary" onclick="toggleReport()">Cancel</button>
+                </div>
+                <div id="reportFeedback" style="display:none;margin-top:0.5rem;font-size:0.85rem;"></div>
+            </div>
+        </div>
+
         <p class="text-center text-muted mb-2" style="font-size:0.85rem;">Tap the card to flip, then choose your answer:</p>
 
         <!-- Answer options -->
@@ -305,6 +338,7 @@
 
         <input type="hidden" id="userFlashcardId" value="{{ card.user_flashcard_id }}">
         <input type="hidden" id="correctAnswer" value="{{ correct_answer }}">
+        <input type="hidden" id="flashcardId" value="{{ card.flashcard_id }}">
     {% endif %}
 </div>
 {% endblock %}
@@ -336,6 +370,7 @@
     let totalReviewed = 0;
     let slowMode = false;
     let currentFrontWord = '{{ front_word|e }}';
+    let currentFlashcardId = document.getElementById('flashcardId').value;
 
     function flipCard() {
         document.getElementById('flipCard').classList.toggle('flipped');
@@ -459,6 +494,12 @@
             currentUfId = data.user_flashcard_id;
             correctAnswerText = data.correct_answer;
             currentFrontWord = data.front_word;
+            currentFlashcardId = data.flashcard_id;
+
+            // Reset report form
+            document.getElementById('reportForm').style.display = 'none';
+            document.getElementById('reportComment').value = '';
+            document.getElementById('reportFeedback').style.display = 'none';
 
             // Update card front with clickable words
             buildClickableWords(document.getElementById('frontWord'), data.front_word, SOURCE_LANG);
@@ -515,6 +556,46 @@
             // Update hidden fields
             document.getElementById('userFlashcardId').value = data.user_flashcard_id;
             document.getElementById('correctAnswer').value = data.correct_answer;
+        });
+    }
+
+    // Report functions
+    function toggleReport() {
+        const form = document.getElementById('reportForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'none') {
+            document.getElementById('reportComment').value = '';
+            document.getElementById('reportFeedback').style.display = 'none';
+        }
+    }
+
+    function submitReport() {
+        const comment = document.getElementById('reportComment').value.trim();
+        if (!comment) {
+            const fb = document.getElementById('reportFeedback');
+            fb.style.display = 'block';
+            fb.style.color = 'var(--danger)';
+            fb.textContent = 'Please enter a comment.';
+            return;
+        }
+        fetch('/flashcards/report', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({flashcard_id: currentFlashcardId, comment: comment})
+        })
+        .then(r => r.json())
+        .then(data => {
+            const fb = document.getElementById('reportFeedback');
+            fb.style.display = 'block';
+            if (data.ok) {
+                fb.style.color = 'var(--success)';
+                fb.textContent = 'Report sent! Thank you.';
+                document.getElementById('reportComment').value = '';
+                setTimeout(() => toggleReport(), 1500);
+            } else {
+                fb.style.color = 'var(--danger)';
+                fb.textContent = data.error || 'Error sending report.';
+            }
         });
     }
 

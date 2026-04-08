@@ -325,7 +325,8 @@ def review_next():
         'category_name': card['category_name'],
         'category_icon': card['category_icon'],
         'audio_hint': card['audio_hint'],
-        'remaining': remaining
+        'remaining': remaining,
+        'flashcard_id': card['flashcard_id']
     })
 
 
@@ -381,6 +382,56 @@ def answer(user_flashcard_id):
         'new_box': new_box,
         'next_review': next_review.isoformat()
     })
+
+
+# ── Report a card ────────────────────────────────────────────────────────────
+
+@flashcard_bp.route('/flashcards/report', methods=['POST'])
+@login_required
+def report_card():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data'}), 400
+
+    flashcard_id = data.get('flashcard_id')
+    comment = (data.get('comment') or '').strip()
+
+    if not flashcard_id or not comment:
+        return jsonify({'error': 'Card ID and comment are required'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO flashcard_reports (user_id, flashcard_id, comment, source_lang, target_lang)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (session['user_id'], flashcard_id, comment,
+              session.get('fc_source_lang'), session.get('fc_target_lang')))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+    return jsonify({'ok': True})
+
+
+# ── Admin: Delete a report ──────────────────────────────────────────────────
+
+@flashcard_bp.route('/flashcards/admin/reports/<int:report_id>/delete', methods=['POST'])
+def admin_delete_report(report_id):
+    if request.form.get('password') != 'Tom123':
+        flash('Incorrect admin password!', 'error')
+        return redirect(url_for('admin'))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM flashcard_reports WHERE id = %s", (report_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash('Report deleted.', 'success')
+    return redirect(url_for('admin'))
 
 
 # ── Add cards to collection ──────────────────────────────────────────────────

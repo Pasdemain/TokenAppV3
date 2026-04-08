@@ -219,6 +219,19 @@ def init_db():
         )
     """)
 
+    # Flashcard reports (user-submitted issues)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS flashcard_reports (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            flashcard_id INTEGER REFERENCES flashcards(id) ON DELETE CASCADE,
+            comment TEXT NOT NULL,
+            source_lang VARCHAR(10),
+            target_lang VARCHAR(10),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # Seed default Leitner intervals if empty
     cur.execute("SELECT COUNT(*) as cnt FROM leitner_intervals")
     if cur.fetchone()['cnt'] == 0:
