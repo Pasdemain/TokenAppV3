@@ -49,10 +49,26 @@
         text-align: center;
         word-break: break-word;
     }
+    .flip-word .word-span {
+        cursor: pointer;
+        border-radius: 4px;
+        padding: 0 2px;
+        transition: background 0.15s;
+        display: inline-block;
+    }
+    .flip-word .word-span:hover {
+        background: rgba(255,255,255,0.25);
+    }
     .flip-hint {
         font-size: 0.9rem;
         opacity: 0.8;
         margin-top: 0.5rem;
+    }
+    .tts-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 1rem;
     }
     .tts-btn {
         background: rgba(255,255,255,0.25);
@@ -62,11 +78,29 @@
         height: 48px;
         font-size: 1.4rem;
         cursor: pointer;
-        margin-top: 1rem;
         transition: background 0.2s;
     }
     .tts-btn:hover {
         background: rgba(255,255,255,0.4);
+    }
+    .tts-speed-btn {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 20px;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: rgba(255,255,255,0.8);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .tts-speed-btn:hover {
+        background: rgba(255,255,255,0.3);
+    }
+    .tts-speed-btn.active {
+        background: rgba(255,255,255,0.4);
+        color: #fff;
+        border-color: rgba(255,255,255,0.6);
     }
     .options-grid {
         display: flex;
@@ -228,18 +262,24 @@
                     <div style="font-size:0.85rem;opacity:0.7;margin-bottom:0.5rem;">
                         {{ lang_info.get(source_lang, {}).get('flag_emoji', '') }} {{ source_lang|upper }}
                     </div>
-                    <div class="flip-word" id="frontWord">{{ front_word }}</div>
+                    <div class="flip-word" id="frontWord"></div>
                     {% if card.audio_hint %}
                     <div class="flip-hint">{{ card.audio_hint }}</div>
                     {% endif %}
-                    <button class="tts-btn" onclick="event.stopPropagation(); speak('{{ front_word|e }}', '{{ source_lang }}')">🔊</button>
+                    <div class="tts-controls" onclick="event.stopPropagation();">
+                        <button class="tts-btn" onclick="speakFront()">🔊</button>
+                        <button class="tts-speed-btn" id="speedBtnFront" onclick="toggleSpeed()">🐢 Slow</button>
+                    </div>
                 </div>
                 <div class="flip-face flip-back">
                     <div style="font-size:0.85rem;opacity:0.7;margin-bottom:0.5rem;">
                         {{ lang_info.get(target_lang, {}).get('flag_emoji', '') }} {{ target_lang|upper }}
                     </div>
-                    <div class="flip-word" id="backWord">?</div>
-                    <button class="tts-btn" onclick="event.stopPropagation(); speakAnswer()">🔊</button>
+                    <div class="flip-word" id="backWord"></div>
+                    <div class="tts-controls" onclick="event.stopPropagation();">
+                        <button class="tts-btn" onclick="speakBack()">🔊</button>
+                        <button class="tts-speed-btn" id="speedBtnBack" onclick="toggleSpeed()">🐢 Slow</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -294,23 +334,61 @@
     let currentUfId = document.getElementById('userFlashcardId').value;
     let correctAnswerText = document.getElementById('correctAnswer').value;
     let totalReviewed = 0;
+    let slowMode = false;
+    let currentFrontWord = '{{ front_word|e }}';
 
     function flipCard() {
         document.getElementById('flipCard').classList.toggle('flipped');
     }
 
-    function speak(text, langCode) {
+    function speak(text, langCode, forceRate) {
         if (!('speechSynthesis' in window)) return;
         window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(text);
         utter.lang = LANG_MAP[langCode] || langCode;
-        utter.rate = 0.85;
+        utter.rate = forceRate !== undefined ? forceRate : (slowMode ? 0.45 : 0.85);
         window.speechSynthesis.speak(utter);
     }
 
-    function speakAnswer() {
+    function speakFront() {
+        speak(currentFrontWord, SOURCE_LANG);
+    }
+
+    function speakBack() {
         if (answered) speak(correctAnswerText, TARGET_LANG);
     }
+
+    function toggleSpeed() {
+        slowMode = !slowMode;
+        document.querySelectorAll('.tts-speed-btn').forEach(btn => {
+            btn.classList.toggle('active', slowMode);
+            btn.textContent = slowMode ? '🐢 Slow ON' : '🐢 Slow';
+        });
+    }
+
+    // Build clickable words: each word wrapped in a span that speaks on click
+    function buildClickableWords(container, text, langCode) {
+        container.innerHTML = '';
+        const words = text.split(/(\s+)/);
+        words.forEach(part => {
+            if (part.trim() === '') {
+                container.appendChild(document.createTextNode(part));
+            } else {
+                const span = document.createElement('span');
+                span.className = 'word-span';
+                span.textContent = part;
+                span.onclick = (e) => {
+                    e.stopPropagation();
+                    speak(part, langCode);
+                };
+                container.appendChild(span);
+            }
+        });
+    }
+
+    // Initial render of clickable words
+    buildClickableWords(document.getElementById('frontWord'), currentFrontWord, SOURCE_LANG);
+    document.getElementById('backWord').textContent = '?';
 
     function submitAnswer(btn, chosen) {
         if (answered) return;
@@ -327,7 +405,7 @@
             });
         }
 
-        document.getElementById('backWord').textContent = correctAnswerText;
+        buildClickableWords(document.getElementById('backWord'), correctAnswerText, TARGET_LANG);
         document.getElementById('flipCard').classList.add('flipped');
         setTimeout(() => speak(correctAnswerText, TARGET_LANG), 400);
 
@@ -380,9 +458,10 @@
             answered = false;
             currentUfId = data.user_flashcard_id;
             correctAnswerText = data.correct_answer;
+            currentFrontWord = data.front_word;
 
-            // Update card front
-            document.getElementById('frontWord').textContent = data.front_word;
+            // Update card front with clickable words
+            buildClickableWords(document.getElementById('frontWord'), data.front_word, SOURCE_LANG);
             document.getElementById('backWord').textContent = '?';
             document.getElementById('flipCard').classList.remove('flipped');
 
@@ -391,12 +470,6 @@
             if (hintEl) {
                 hintEl.textContent = data.audio_hint || '';
                 hintEl.style.display = data.audio_hint ? '' : 'none';
-            }
-
-            // Update TTS buttons
-            const frontTts = document.querySelector('.flip-front .tts-btn');
-            if (frontTts) {
-                frontTts.onclick = (e) => { e.stopPropagation(); speak(data.front_word, SOURCE_LANG); };
             }
 
             // Update Leitner box badge
