@@ -18,6 +18,12 @@ from flashcard_routes import flashcard_bp
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Session cookie config — needed for iOS Safari compatibility
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('RENDER_EXTERNAL_URL', '').startswith('https')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 30 * 24 * 3600  # 30 days
+
 # Register blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(token_bp)
