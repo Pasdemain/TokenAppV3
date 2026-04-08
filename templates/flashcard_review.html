@@ -154,14 +154,31 @@
                 </div>
                 <div style="margin-top:0.75rem;">
                     {% for cat in available_categories %}
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
-                        <div>
+                    <div style="padding:0.75rem 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
+                        <div class="flex flex-between flex-center mb-1">
                             <strong>{{ cat.icon or '📁' }} {{ cat.name }}</strong>
-                            <span class="text-muted" style="margin-left:0.5rem;">{{ cat.available_count }} available</span>
+                            <span class="text-muted" style="font-size:0.85rem;">{{ cat.available_count }} remaining</span>
                         </div>
-                        <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}">
-                            <button type="submit" class="btn btn-sm btn-success">+10 cards</button>
-                        </form>
+                        <div style="display:flex;gap:0.4rem;align-items:center;">
+                            <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;gap:0.4rem;align-items:center;flex:1;">
+                                <input type="hidden" name="difficulty" value="beginner">
+                                <button type="submit" class="btn btn-sm" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;flex:1;">
+                                    🟢 {{ cat.beginner_count or 0 }}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;gap:0.4rem;align-items:center;flex:1;">
+                                <input type="hidden" name="difficulty" value="medium">
+                                <button type="submit" class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;flex:1;">
+                                    🟡 {{ cat.medium_count or 0 }}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;gap:0.4rem;align-items:center;flex:1;">
+                                <input type="hidden" name="difficulty" value="confirmed">
+                                <button type="submit" class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;flex:1;">
+                                    🔴 {{ cat.confirmed_count or 0 }}
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -174,7 +191,7 @@
 
             <div class="flex gap-1" style="justify-content:center;">
                 <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-primary">📊 Dashboard</a>
-                <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-secondary">🔄 New Session</a>
+                <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-secondary">🌐 Change Languages</a>
             </div>
         </div>
     {% else %}

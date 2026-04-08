@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Start Session - Flashcards{% endblock %}
+{% block title %}Choose Languages - Flashcards{% endblock %}
 
 {% block content %}
-<div class="content-wrapper" style="max-width:600px;margin:2rem auto;">
-    <h1 class="mb-3">▶️ Start Flashcard Session</h1>
-    <p class="text-muted mb-3">Choose your languages and optionally a category to focus on.</p>
+<div class="content-wrapper" style="max-width:500px;margin:2rem auto;">
+    <h1 class="mb-3">🌐 Choose Your Languages</h1>
+    <p class="text-muted mb-3">Select the language you know and the one you're learning.</p>
 
     <form method="POST">
         <div class="form-group">
@@ -31,30 +31,8 @@
             </select>
         </div>
 
-        <div class="form-group">
-            <label>📂 Category (optional)</label>
-            <select name="category_id">
-                <option value="">All categories</option>
-                {% for cat in categories %}
-                <option value="{{ cat.id }}" {% if session.get('fc_category_id') == cat.id %}selected{% endif %}>
-                    {{ cat.icon or '📁' }} {{ cat.name }} ({{ cat.card_count }} cards)
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>📶 Difficulty (optional)</label>
-            <select name="difficulty">
-                <option value="">All levels</option>
-                <option value="beginner" {% if session.get('fc_difficulty') == 'beginner' %}selected{% endif %}>🟢 Beginner</option>
-                <option value="medium" {% if session.get('fc_difficulty') == 'medium' %}selected{% endif %}>🟡 Medium</option>
-                <option value="confirmed" {% if session.get('fc_difficulty') == 'confirmed' %}selected{% endif %}>🔴 Confirmed</option>
-            </select>
-        </div>
-
         <div class="flex gap-1">
-            <button type="submit" class="btn btn-primary">🚀 Start Review</button>
+            <button type="submit" class="btn btn-primary">🚀 Start</button>
             <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
