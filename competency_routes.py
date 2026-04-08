@@ -13,7 +13,7 @@ MAX_QUESTIONS = 50
 MIN_QUESTIONS_EARLY_STOP = 25
 CONVERGENCE_WINDOW = 10
 CONVERGENCE_THRESHOLD = 25.0
-INITIAL_SCORE = 400.0
+INITIAL_SCORE = 275.0
 INITIAL_STEP = 100.0
 STEP_DECAY = 0.82
 MIN_STEP = 15.0
@@ -139,7 +139,7 @@ def start_test():
         INSERT INTO competency_tests (user_id, target_lang, estimated_score, step_size)
         VALUES (%s, %s, %s, %s)
         RETURNING id
-    """, (session['user_id'], target_lang, INITIAL_SCORE, INITIAL_STEP))
+    """, (session['user_id'], target_lang, float(INITIAL_SCORE), INITIAL_STEP))
     test_id = cur.fetchone()['id']
 
     conn.commit()
