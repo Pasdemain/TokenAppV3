@@ -101,32 +101,32 @@ def create_token():
 @login_required
 def start_token(token_id):
     conn = get_db_connection()
-    cur = conn.cursor()
-    
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
     try:
         # Check if user is the recipient
         cur.execute("""
-            SELECT recipient_id, status, name 
-            FROM tokens 
+            SELECT recipient_id, status, name
+            FROM tokens
             WHERE id = %s
         """, (token_id,))
         token = cur.fetchone()
-        
+
         if not token:
             flash('Token not found!', 'error')
-        elif token[0] != session['user_id']:  # recipient_id
+        elif token['recipient_id'] != session['user_id']:
             flash('You can only start tokens assigned to you!', 'error')
-        elif token[1] != 'available':  # status
+        elif token['status'] != 'available':
             flash('This token is already in use or completed!', 'warning')
         else:
             # Update token status
             cur.execute("""
-                UPDATE tokens 
-                SET status = 'in_progress', used_at = CURRENT_TIMESTAMP 
+                UPDATE tokens
+                SET status = 'in_progress', used_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (token_id,))
             conn.commit()
-            flash(f'Token "{token[2]}" started!', 'success')
+            flash(f'Token "{token["name"]}" started!', 'success')
             
     except Exception as e:
         conn.rollback()
@@ -142,34 +142,34 @@ def start_token(token_id):
 @login_required
 def complete_token(token_id):
     conn = get_db_connection()
-    cur = conn.cursor()
-    
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
     try:
         # Check if user is the recipient
         cur.execute("""
-            SELECT recipient_id, status, name 
-            FROM tokens 
+            SELECT recipient_id, status, name
+            FROM tokens
             WHERE id = %s
         """, (token_id,))
         token = cur.fetchone()
-        
+
         if not token:
             flash('Token not found!', 'error')
-        elif token[0] != session['user_id']:  # recipient_id
+        elif token['recipient_id'] != session['user_id']:
             flash('You can only complete tokens assigned to you!', 'error')
-        elif token[1] == 'completed':  # status
+        elif token['status'] == 'completed':
             flash('This token is already completed!', 'warning')
-        elif token[1] != 'in_progress':  # status
+        elif token['status'] != 'in_progress':
             flash('You must start the token before completing it!', 'warning')
         else:
             # Update token status
             cur.execute("""
-                UPDATE tokens 
+                UPDATE tokens
                 SET status = 'completed'
                 WHERE id = %s
             """, (token_id,))
             conn.commit()
-            flash(f'Token "{token[2]}" completed! Great job!', 'success')
+            flash(f'Token "{token["name"]}" completed! Great job!', 'success')
             
     except Exception as e:
         conn.rollback()
@@ -185,28 +185,28 @@ def complete_token(token_id):
 @login_required
 def cancel_token(token_id):
     conn = get_db_connection()
-    cur = conn.cursor()
-    
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
     try:
         # Check if user is the creator
         cur.execute("""
-            SELECT creator_id, status, name 
-            FROM tokens 
+            SELECT creator_id, status, name
+            FROM tokens
             WHERE id = %s
         """, (token_id,))
         token = cur.fetchone()
-        
+
         if not token:
             flash('Token not found!', 'error')
-        elif token[0] != session['user_id']:  # creator_id
+        elif token['creator_id'] != session['user_id']:
             flash('You can only cancel tokens you created!', 'error')
-        elif token[1] == 'completed':  # status
+        elif token['status'] == 'completed':
             flash('Cannot cancel a completed token!', 'warning')
         else:
             # Delete token
             cur.execute("DELETE FROM tokens WHERE id = %s", (token_id,))
             conn.commit()
-            flash(f'Token "{token[2]}" has been cancelled.', 'info')
+            flash(f'Token "{token["name"]}" has been cancelled.', 'info')
             
     except Exception as e:
         conn.rollback()
