@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name }} - Secret Santa{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --santa-red: #c0392b;
+        --santa-red-dark: #922b21;
+        --santa-green: #1e7e34;
+        --santa-green-dark: #145523;
+    }
+    .santa-hero {
+        background: linear-gradient(135deg, #c0392b 0%, #1e7e34 100%);
+        color: #fff;
+        padding: 1.5rem 2rem;
+        border-radius: 16px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 6px 16px rgba(192, 57, 43, 0.3);
+    }
+    .santa-hero h1 { margin: 0 0 0.5rem 0; }
+    .santa-hero .meta { opacity: 0.95; font-size: 0.95rem; }
+    .btn-santa {
+        background: var(--santa-red);
+        color: #fff;
+    }
+    .btn-santa:hover { background: var(--santa-red-dark); }
+    .btn-santa-green {
+        background: var(--santa-green);
+        color: #fff;
+    }
+    .btn-santa-green:hover { background: var(--santa-green-dark); }
+    .badge-santa-open {
+        background: var(--santa-red);
+        color: #fff;
+    }
+    .badge-santa-drawn {
+        background: var(--santa-green);
+        color: #fff;
+    }
+    .assigned-card {
+        background: linear-gradient(135deg, #ffe9b3 0%, #fff7d6 100%);
+        border: 3px dashed var(--santa-green);
+        padding: 2rem;
+        border-radius: 16px;
+        margin-bottom: 1.5rem;
+        text-align: center;
+        position: relative;
+    }
+    .assigned-card h2 {
+        color: var(--santa-red);
+        font-size: 1.5rem;
+    }
+    .assigned-name {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: var(--santa-green-dark);
+        margin: 1rem 0;
+        letter-spacing: 1px;
+    }
+    .assigned-wishlist {
+        background: #fff;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        text-align: left;
+        white-space: pre-wrap;
+    }
+    .reveal-btn {
+        background: var(--santa-red);
+        color: #fff;
+        font-size: 1.25rem;
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    .reveal-btn:hover { background: var(--santa-red-dark); }
+    .member-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .member-row:last-child { border-bottom: none; }
+    .wishlist-box {
+        background: #f9fafb;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        margin-top: 0.25rem;
+        font-size: 0.9rem;
+        white-space: pre-wrap;
+        color: #4b5563;
+    }
+</style>
+
+<div class="content-wrapper">
+    <div class="santa-hero">
+        <div class="flex flex-between flex-center">
+            <div>
+                <h1>🎁 {{ group.name }}</h1>
+                <div class="meta">
+                    {% if group.status == 'open' %}
+                        <span class="badge badge-santa-open">Open</span>
+                    {% else %}
+                        <span class="badge badge-santa-drawn">Drawn</span>
+                    {% endif %}
+                    &nbsp;• By <strong>{{ group.creator_username }}</strong>
+                    {% if group.budget %} &nbsp;• 💰 {{ group.budget }}{% endif %}
+                    {% if group.event_date %} &nbsp;• 📅 {{ group.event_date.strftime('%b %d, %Y') }}{% endif %}
+                </div>
+                {% if group.description %}
+                    <p class="meta" style="margin-top:0.5rem;">{{ group.description }}</p>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('santa.santa_home') }}" class="btn" style="background:#fff; color:var(--santa-red);">← Back</a>
+        </div>
+    </div>
+
+    {# ── After draw: show assignment ──────────────────────────────────── #}
+    {% if group.status == 'drawn' and assigned_info %}
+    <div class="assigned-card">
+        <h2>🎅 Your Secret Santa target is...</h2>
+        <div id="reveal-area" style="display:none;">
+            <div class="assigned-name">🎁 {{ assigned_info.username }} 🎁</div>
+            {% if assigned_info.wishlist %}
+                <div class="text-muted" style="font-weight:600;">Their wishlist:</div>
+                <div class="assigned-wishlist">{{ assigned_info.wishlist }}</div>
+            {% else %}
+                <p class="text-muted"><em>No wishlist yet.</em></p>
+            {% endif %}
+        </div>
+        <button type="button" class="reveal-btn" id="reveal-btn" onclick="revealTarget()">
+            🔒 Click to reveal
+        </button>
+    </div>
+    <script>
+        function revealTarget() {
+            document.getElementById('reveal-btn').style.display = 'none';
+            document.getElementById('reveal-area').style.display = 'block';
+        }
+    </script>
+    {% endif %}
+
+    {# ── My wishlist editor ───────────────────────────────────────────── #}
+    {% if my_row %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">📝 My Wishlist</span>
+        </div>
+        <p class="text-muted mb-2"><small>Help your Secret Santa pick the perfect gift!</small></p>
+        <form method="POST" action="{{ url_for('santa.update_wishlist', group_id=group.id) }}">
+            <textarea name="wishlist" rows="4" placeholder="e.g., Books, chocolate, fluffy socks...">{{ my_row.wishlist or '' }}</textarea>
+            <button type="submit" class="btn btn-sm btn-santa mt-1">💾 Save Wishlist</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {# ── Members list ─────────────────────────────────────────────────── #}
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">👥 Members ({{ members|length }})</span>
+            {% if group.status == 'open' and members|length < min_members %}
+                <span class="badge badge-warning">
+                    Need {{ min_members - members|length }} more to draw
+                </span>
+            {% endif %}
+        </div>
+        {% for m in members %}
+        <div class="member-row">
+            <div style="flex:1;">
+                <strong>
+                    {% if m.user_id == group.creator_id %}👑{% else %}👤{% endif %}
+                    {{ m.username }}
+                    {% if m.user_id == session.user_id %}<span class="text-muted">(you)</span>{% endif %}
+                </strong>
+                {% if m.wishlist and group.status == 'open' %}
+                    <div class="wishlist-box">{{ m.wishlist }}</div>
+                {% elif group.status == 'open' %}
+                    <div class="text-muted"><small><em>No wishlist yet</em></small></div>
+                {% endif %}
+            </div>
+            {% if is_creator and group.status == 'open' and m.user_id != group.creator_id %}
+                <form method="POST" action="{{ url_for('santa.remove_member', group_id=group.id, user_id=m.user_id) }}" style="margin:0;">
+                    <button type="submit" class="btn btn-sm btn-danger"
+                            onclick="return confirm('Remove {{ m.username }}?')">✕</button>
+                </form>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {# ── Add member (creator, before draw) ────────────────────────────── #}
+    {% if is_creator and group.status == 'open' and addable_users %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">➕ Add Member</span>
+        </div>
+        <form method="POST" action="{{ url_for('santa.add_member', group_id=group.id) }}" class="flex gap-1">
+            <select name="user_id" required style="flex:1;">
+                <option value="">Select a user...</option>
+                {% for u in addable_users %}
+                    <option value="{{ u.id }}">{{ u.username }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-santa">Add</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {# ── Creator actions ──────────────────────────────────────────────── #}
+    {% if is_creator %}
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">⚙️ Creator Actions</span>
+        </div>
+        <div class="flex gap-1" style="flex-wrap:wrap;">
+            {% if group.status == 'open' %}
+                <form method="POST" action="{{ url_for('santa.draw_santa', group_id=group.id) }}" style="margin:0;">
+                    <button type="submit" class="btn btn-santa-green"
+                            {% if not can_draw %}disabled title="Need at least {{ min_members }} members"{% endif %}
+                            onclick="return confirm('Draw now? This cannot be undone!')">
+                        🎲 Draw Names
+                    </button>
+                </form>
+                {% if not can_draw %}
+                    <small class="text-muted" style="align-self:center;">
+                        Need at least {{ min_members }} members ({{ members|length }}/{{ min_members }})
+                    </small>
+                {% endif %}
+            {% endif %}
+            <form method="POST" action="{{ url_for('santa.delete_santa', group_id=group.id) }}" style="margin:0;">
+                <button type="submit" class="btn btn-danger"
+                        onclick="return confirm('Delete this group permanently? This cannot be undone!')">
+                    🗑️ Delete Group
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
