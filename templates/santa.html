@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Secret Santa - CoupleApp{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --santa-red: #c0392b;
+        --santa-red-dark: #922b21;
+        --santa-green: #1e7e34;
+        --santa-green-dark: #145523;
+        --santa-gold: #f1c40f;
+    }
+    .santa-hero {
+        background: linear-gradient(135deg, #c0392b 0%, #1e7e34 100%);
+        color: #fff;
+        padding: 1.5rem 2rem;
+        border-radius: 16px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 6px 16px rgba(192, 57, 43, 0.3);
+    }
+    .santa-hero h1 { margin: 0; }
+    .santa-card {
+        border-left: 5px solid var(--santa-red);
+    }
+    .santa-card.drawn { border-left-color: var(--santa-green); }
+    .santa-card.completed { border-left-color: #6b7280; }
+    .btn-santa {
+        background: var(--santa-red);
+        color: #fff;
+    }
+    .btn-santa:hover { background: var(--santa-red-dark); }
+    .btn-santa-green {
+        background: var(--santa-green);
+        color: #fff;
+    }
+    .btn-santa-green:hover { background: var(--santa-green-dark); }
+    .badge-santa-open {
+        background: var(--santa-red);
+        color: #fff;
+    }
+    .badge-santa-drawn {
+        background: var(--santa-green);
+        color: #fff;
+    }
+    .badge-santa-completed {
+        background: #6b7280;
+        color: #fff;
+    }
+</style>
+
+<div class="content-wrapper">
+    <div class="santa-hero">
+        <div class="flex flex-between flex-center">
+            <div>
+                <h1>🎅 Secret Santa</h1>
+                <p style="opacity:0.9; margin-top:0.25rem;">Create groups, draw names, spread joy!</p>
+            </div>
+            <a href="{{ url_for('santa.create_santa') }}" class="btn" style="background:#fff; color:var(--santa-red);">➕ New Group</a>
+        </div>
+    </div>
+
+    {% if groups %}
+        <div class="grid grid-2">
+            {% for g in groups %}
+            <div class="card santa-card {{ g.status }}">
+                <div class="card-header">
+                    <span class="card-title">🎁 {{ g.name }}</span>
+                    {% if g.status == 'open' %}
+                        <span class="badge badge-santa-open">Open</span>
+                    {% elif g.status == 'drawn' %}
+                        <span class="badge badge-santa-drawn">Drawn</span>
+                    {% else %}
+                        <span class="badge badge-santa-completed">Completed</span>
+                    {% endif %}
+                </div>
+                {% if g.description %}
+                    <p class="mb-1">{{ g.description }}</p>
+                {% endif %}
+                <p class="text-muted mb-1">
+                    <small>👥 {{ g.member_count }} member{{ 's' if g.member_count > 1 }} • By <strong>{{ g.creator_username }}</strong></small>
+                </p>
+                {% if g.budget %}
+                    <p class="text-muted mb-1"><small>💰 Budget: {{ g.budget }}</small></p>
+                {% endif %}
+                {% if g.event_date %}
+                    <p class="text-muted mb-1"><small>📅 {{ g.event_date.strftime('%b %d, %Y') }}</small></p>
+                {% endif %}
+                <a href="{{ url_for('santa.santa_detail', group_id=g.id) }}" class="btn btn-sm btn-santa mt-1">Open Group</a>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card text-center">
+            <p class="text-muted mb-2">No Secret Santa groups yet.</p>
+            <a href="{{ url_for('santa.create_santa') }}" class="btn btn-santa">🎄 Create Your First Group</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

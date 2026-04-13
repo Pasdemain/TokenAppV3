@@ -288,6 +288,36 @@ def init_db():
         )
     """)
 
+    # ── Secret Santa tables ──────────────────────────────────────────────────
+
+    # Santa groups
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS santa_groups (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            description TEXT,
+            budget VARCHAR(50),
+            event_date DATE,
+            creator_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            status VARCHAR(20) DEFAULT 'open' CHECK (status IN ('open','drawn','completed')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            drawn_at TIMESTAMP
+        )
+    """)
+
+    # Santa members + wishlist + assignment
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS santa_members (
+            id SERIAL PRIMARY KEY,
+            group_id INTEGER REFERENCES santa_groups(id) ON DELETE CASCADE,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            wishlist TEXT,
+            assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(group_id, user_id)
+        )
+    """)
+
     # Seed default Leitner intervals if empty
     cur.execute("SELECT COUNT(*) as cnt FROM leitner_intervals")
     if cur.fetchone()['cnt'] == 0:

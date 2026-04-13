@@ -15,6 +15,7 @@ from scratch_routes import scratch_bp
 from wheel_routes import wheel_bp
 from flashcard_routes import flashcard_bp
 from competency_routes import competency_bp
+from santa_routes import santa_bp
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -33,6 +34,7 @@ app.register_blueprint(scratch_bp)
 app.register_blueprint(wheel_bp)
 app.register_blueprint(flashcard_bp)
 app.register_blueprint(competency_bp)
+app.register_blueprint(santa_bp)
 
 # Initialize database on startup
 with app.app_context():
@@ -126,6 +128,19 @@ def dashboard():
     """, (session['user_id'],))
     last_competency = cur.fetchone()
 
+    # Active Secret Santa groups
+    cur.execute("""
+        SELECT DISTINCT sg.id, sg.name, sg.status, sg.event_date,
+               (SELECT COUNT(*) FROM santa_members WHERE group_id = sg.id) as member_count
+        FROM santa_groups sg
+        LEFT JOIN santa_members sm ON sg.id = sm.group_id
+        WHERE (sg.creator_id = %s OR sm.user_id = %s)
+          AND sg.status IN ('open', 'drawn')
+        ORDER BY sg.created_at DESC
+        LIMIT 3
+    """, (session['user_id'], session['user_id']))
+    santa_groups = cur.fetchall()
+
     cur.close()
     conn.close()
 
@@ -138,7 +153,8 @@ def dashboard():
                            has_scratch_prizes=has_scratch_prizes,
                            fc_due_count=fc_due_count,
                            fc_total=fc_total,
-                           last_competency=last_competency)
+                           last_competency=last_competency,
+                           santa_groups=santa_groups)
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -168,6 +184,8 @@ def admin():
                 cur.execute("DELETE FROM shopping_list_members")
                 cur.execute("DELETE FROM shopping_lists")
                 cur.execute("DELETE FROM tokens")
+                cur.execute("DELETE FROM santa_members")
+                cur.execute("DELETE FROM santa_groups")
                 cur.execute("DELETE FROM wheel_countries")
                 cur.execute("DELETE FROM users")
 

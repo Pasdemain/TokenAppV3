@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Create Secret Santa - CoupleApp{% endblock %}
+
+{% block content %}
+<style>
+    .santa-red { color: #c0392b; }
+    .btn-santa {
+        background: #c0392b;
+        color: #fff;
+    }
+    .btn-santa:hover { background: #922b21; }
+    .user-pick {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .user-pick:hover {
+        background: #fdf2f0;
+        border-color: #c0392b;
+    }
+    .user-pick input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+        accent-color: #c0392b;
+    }
+</style>
+
+<div class="content-wrapper" style="max-width: 700px; margin: 2rem auto;">
+    <h1 class="santa-red mb-3">🎅 Create a Secret Santa Group</h1>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Group Name *</label>
+            <input type="text" id="name" name="name" required maxlength="100"
+                   placeholder="e.g., Family Christmas 2026">
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description (Optional)</label>
+            <textarea id="description" name="description" rows="2"
+                      placeholder="Rules, theme, etc."></textarea>
+        </div>
+
+        <div class="grid grid-2">
+            <div class="form-group">
+                <label for="budget">Budget (Optional)</label>
+                <input type="text" id="budget" name="budget" maxlength="50"
+                       placeholder="e.g., 20€">
+            </div>
+            <div class="form-group">
+                <label for="event_date">Event Date (Optional)</label>
+                <input type="date" id="event_date" name="event_date">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Invite Members</label>
+            <small class="text-muted" style="display:block; margin-bottom:0.5rem;">
+                You will be added automatically. Pick at least 2 others (minimum 3 total to draw).
+            </small>
+            {% if users %}
+                {% for user in users %}
+                <label class="user-pick">
+                    <input type="checkbox" name="members" value="{{ user.id }}">
+                    <span>👤 {{ user.username }}</span>
+                </label>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No other users available to invite yet.</p>
+            {% endif %}
+        </div>
+
+        <div class="flex gap-1">
+            <button type="submit" class="btn btn-santa">🎄 Create Group</button>
+            <a href="{{ url_for('santa.santa_home') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

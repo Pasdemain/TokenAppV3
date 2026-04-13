@@ -61,6 +61,30 @@
         <a href="{{ url_for('competency.competency_home') }}" class="btn btn-sm" style="background:#6366f1;color:#fff;">📝 Take a Test</a>
     </div>
 
+    <!-- Secret Santa Widget -->
+    {% if santa_groups %}
+    <div class="card mb-3" style="background: linear-gradient(135deg, #fde2e0, #d4edda); border: 2px solid #c0392b;">
+        <div class="card-header" style="background:transparent;">
+            <span class="card-title">🎅 Secret Santa</span>
+            <a href="{{ url_for('santa.santa_home') }}" style="color:#c0392b;">View all →</a>
+        </div>
+        {% for g in santa_groups %}
+            <div class="flex flex-between flex-center" style="padding:0.5rem 0; border-bottom:1px solid rgba(192,57,43,0.1);">
+                <div>
+                    <strong style="color:#922b21;">🎁 {{ g.name }}</strong>
+                    <span class="text-muted"> • {{ g.member_count }} member{{ 's' if g.member_count > 1 }}</span>
+                    {% if g.status == 'open' %}
+                        <span class="badge badge-warning" style="margin-left:0.5rem;">Open</span>
+                    {% else %}
+                        <span class="badge badge-success" style="margin-left:0.5rem;">Drawn</span>
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('santa.santa_detail', group_id=g.id) }}" class="btn btn-sm" style="background:#c0392b; color:#fff;">Open</a>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- Daily Scratch Ticket -->
     {% if has_scratch_prizes %}
     <div class="card mb-3" style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b;">
