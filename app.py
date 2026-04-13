@@ -130,11 +130,12 @@ def dashboard():
 
     # Active Secret Santa groups
     cur.execute("""
-        SELECT DISTINCT sg.id, sg.name, sg.status, sg.event_date,
+        SELECT sg.id, sg.name, sg.status, sg.event_date,
                (SELECT COUNT(*) FROM santa_members WHERE group_id = sg.id) as member_count
         FROM santa_groups sg
-        LEFT JOIN santa_members sm ON sg.id = sm.group_id
-        WHERE (sg.creator_id = %s OR sm.user_id = %s)
+        WHERE (sg.creator_id = %s
+               OR EXISTS (SELECT 1 FROM santa_members sm
+                          WHERE sm.group_id = sg.id AND sm.user_id = %s))
           AND sg.status IN ('open', 'drawn')
         ORDER BY sg.created_at DESC
         LIMIT 3
