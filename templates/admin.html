@@ -205,29 +205,117 @@
             <p class="text-muted mb-3">No countries added yet.</p>
             {% endif %}
 
-            <!-- Add country form -->
-            <details>
-                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">
-                    ➕ Add a country
-                </summary>
-                <form method="POST" action="{{ url_for('wheel.add_country') }}" style="margin-top:0.75rem;">
-                    <div class="grid grid-2" style="gap:0.75rem;">
-                        <div class="form-group" style="margin-bottom:0.75rem;">
-                            <label>Country name *</label>
-                            <input type="text" name="name" placeholder="e.g. France" required maxlength="100">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0.75rem;">
-                            <label>Flag emoji *</label>
-                            <input type="text" name="flag_emoji" placeholder="e.g. 🇫🇷" required maxlength="10">
-                        </div>
-                    </div>
-                    <div class="form-group" style="margin-bottom:0.75rem;">
-                        <label>Admin Password *</label>
-                        <input type="password" name="password" placeholder="Admin password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm">✅ Add Country</button>
-                </form>
-            </details>
+            <!-- Add country: searchable picker -->
+            <div style="margin-top:0.5rem;">
+                <div class="form-group" style="margin-bottom:0.75rem;max-width:300px;">
+                    <label>Admin Password *</label>
+                    <input type="password" id="countryAdminPwd" placeholder="Admin password">
+                </div>
+                <input type="text" id="countrySearch"
+                       placeholder="🔍 Search country…"
+                       style="width:100%;margin-bottom:0.75rem;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);font-size:0.95rem;">
+                <div id="countryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.5rem;max-height:420px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:0.75rem;"></div>
+            </div>
+
+            <!-- hidden submit form (reused for every click) -->
+            <form id="addCountryForm" method="POST" action="{{ url_for('wheel.add_country') }}" style="display:none;">
+                <input type="hidden" name="name"       id="acName">
+                <input type="hidden" name="flag_emoji" id="acFlag">
+                <input type="hidden" name="password"   id="acPwd">
+            </form>
+
+            <script>
+            (function(){
+                const COUNTRIES = [
+                    ["Afghanistan","🇦🇫"],["Albania","🇦🇱"],["Algeria","🇩🇿"],["Andorra","🇦🇩"],
+                    ["Angola","🇦🇴"],["Antigua & Barbuda","🇦🇬"],["Argentina","🇦🇷"],["Armenia","🇦🇲"],
+                    ["Australia","🇦🇺"],["Austria","🇦🇹"],["Azerbaijan","🇦🇿"],["Bahamas","🇧🇸"],
+                    ["Bahrain","🇧🇭"],["Bangladesh","🇧🇩"],["Barbados","🇧🇧"],["Belarus","🇧🇾"],
+                    ["Belgium","🇧🇪"],["Belize","🇧🇿"],["Benin","🇧🇯"],["Bhutan","🇧🇹"],
+                    ["Bolivia","🇧🇴"],["Bosnia & Herzegovina","🇧🇦"],["Botswana","🇧🇼"],["Brazil","🇧🇷"],
+                    ["Brunei","🇧🇳"],["Bulgaria","🇧🇬"],["Burkina Faso","🇧🇫"],["Burundi","🇧🇮"],
+                    ["Cabo Verde","🇨🇻"],["Cambodia","🇰🇭"],["Cameroon","🇨🇲"],["Canada","🇨🇦"],
+                    ["Central African Republic","🇨🇫"],["Chad","🇹🇩"],["Chile","🇨🇱"],["China","🇨🇳"],
+                    ["Colombia","🇨🇴"],["Comoros","🇰🇲"],["Congo","🇨🇬"],["DR Congo","🇨🇩"],
+                    ["Costa Rica","🇨🇷"],["Croatia","🇭🇷"],["Cuba","🇨🇺"],["Cyprus","🇨🇾"],
+                    ["Czech Republic","🇨🇿"],["Denmark","🇩🇰"],["Djibouti","🇩🇯"],["Dominica","🇩🇲"],
+                    ["Dominican Republic","🇩🇴"],["Ecuador","🇪🇨"],["Egypt","🇪🇬"],["El Salvador","🇸🇻"],
+                    ["Equatorial Guinea","🇬🇶"],["Eritrea","🇪🇷"],["Estonia","🇪🇪"],["Eswatini","🇸🇿"],
+                    ["Ethiopia","🇪🇹"],["Fiji","🇫🇯"],["Finland","🇫🇮"],["France","🇫🇷"],
+                    ["Gabon","🇬🇦"],["Gambia","🇬🇲"],["Georgia","🇬🇪"],["Germany","🇩🇪"],
+                    ["Ghana","🇬🇭"],["Greece","🇬🇷"],["Grenada","🇬🇩"],["Guatemala","🇬🇹"],
+                    ["Guinea","🇬🇳"],["Guinea-Bissau","🇬🇼"],["Guyana","🇬🇾"],["Haiti","🇭🇹"],
+                    ["Honduras","🇭🇳"],["Hungary","🇭🇺"],["Iceland","🇮🇸"],["India","🇮🇳"],
+                    ["Indonesia","🇮🇩"],["Iran","🇮🇷"],["Iraq","🇮🇶"],["Ireland","🇮🇪"],
+                    ["Israel","🇮🇱"],["Italy","🇮🇹"],["Jamaica","🇯🇲"],["Japan","🇯🇵"],
+                    ["Jordan","🇯🇴"],["Kazakhstan","🇰🇿"],["Kenya","🇰🇪"],["Kiribati","🇰🇮"],
+                    ["Kuwait","🇰🇼"],["Kyrgyzstan","🇰🇬"],["Laos","🇱🇦"],["Latvia","🇱🇻"],
+                    ["Lebanon","🇱🇧"],["Lesotho","🇱🇸"],["Liberia","🇱🇷"],["Libya","🇱🇾"],
+                    ["Liechtenstein","🇱🇮"],["Lithuania","🇱🇹"],["Luxembourg","🇱🇺"],["Madagascar","🇲🇬"],
+                    ["Malawi","🇲🇼"],["Malaysia","🇲🇾"],["Maldives","🇲🇻"],["Mali","🇲🇱"],
+                    ["Malta","🇲🇹"],["Marshall Islands","🇲🇭"],["Mauritania","🇲🇷"],["Mauritius","🇲🇺"],
+                    ["Mexico","🇲🇽"],["Micronesia","🇫🇲"],["Moldova","🇲🇩"],["Monaco","🇲🇨"],
+                    ["Mongolia","🇲🇳"],["Montenegro","🇲🇪"],["Morocco","🇲🇦"],["Mozambique","🇲🇿"],
+                    ["Myanmar","🇲🇲"],["Namibia","🇳🇦"],["Nauru","🇳🇷"],["Nepal","🇳🇵"],
+                    ["Netherlands","🇳🇱"],["New Zealand","🇳🇿"],["Nicaragua","🇳🇮"],["Niger","🇳🇪"],
+                    ["Nigeria","🇳🇬"],["North Korea","🇰🇵"],["North Macedonia","🇲🇰"],["Norway","🇳🇴"],
+                    ["Oman","🇴🇲"],["Pakistan","🇵🇰"],["Palau","🇵🇼"],["Palestine","🇵🇸"],
+                    ["Panama","🇵🇦"],["Papua New Guinea","🇵🇬"],["Paraguay","🇵🇾"],["Peru","🇵🇪"],
+                    ["Philippines","🇵🇭"],["Poland","🇵🇱"],["Portugal","🇵🇹"],["Qatar","🇶🇦"],
+                    ["Romania","🇷🇴"],["Russia","🇷🇺"],["Rwanda","🇷🇼"],["Saint Kitts & Nevis","🇰🇳"],
+                    ["Saint Lucia","🇱🇨"],["Saint Vincent","🇻🇨"],["Samoa","🇼🇸"],["San Marino","🇸🇲"],
+                    ["São Tomé & Príncipe","🇸🇹"],["Saudi Arabia","🇸🇦"],["Senegal","🇸🇳"],["Serbia","🇷🇸"],
+                    ["Seychelles","🇸🇨"],["Sierra Leone","🇸🇱"],["Singapore","🇸🇬"],["Slovakia","🇸🇰"],
+                    ["Slovenia","🇸🇮"],["Solomon Islands","🇸🇧"],["Somalia","🇸🇴"],["South Africa","🇿🇦"],
+                    ["South Korea","🇰🇷"],["South Sudan","🇸🇸"],["Spain","🇪🇸"],["Sri Lanka","🇱🇰"],
+                    ["Sudan","🇸🇩"],["Suriname","🇸🇷"],["Sweden","🇸🇪"],["Switzerland","🇨🇭"],
+                    ["Syria","🇸🇾"],["Taiwan","🇹🇼"],["Tajikistan","🇹🇯"],["Tanzania","🇹🇿"],
+                    ["Thailand","🇹🇭"],["Timor-Leste","🇹🇱"],["Togo","🇹🇬"],["Tonga","🇹🇴"],
+                    ["Trinidad & Tobago","🇹🇹"],["Tunisia","🇹🇳"],["Turkey","🇹🇷"],["Turkmenistan","🇹🇲"],
+                    ["Tuvalu","🇹🇻"],["Uganda","🇺🇬"],["Ukraine","🇺🇦"],["United Arab Emirates","🇦🇪"],
+                    ["United Kingdom","🇬🇧"],["United States","🇺🇸"],["Uruguay","🇺🇾"],["Uzbekistan","🇺🇿"],
+                    ["Vanuatu","🇻🇺"],["Vatican City","🇻🇦"],["Venezuela","🇻🇪"],["Vietnam","🇻🇳"],
+                    ["Yemen","🇾🇪"],["Zambia","🇿🇲"],["Zimbabwe","🇿🇼"]
+                ];
+
+                const added = new Set({{ wheel_countries | map(attribute='name') | list | tojson }});
+                const grid   = document.getElementById('countryGrid');
+                const search = document.getElementById('countrySearch');
+                let filtered = COUNTRIES;
+
+                function render() {
+                    const q = search.value.toLowerCase().trim();
+                    filtered = q ? COUNTRIES.filter(c => c[0].toLowerCase().includes(q)) : COUNTRIES;
+                    grid.innerHTML = '';
+                    filtered.forEach(([name, flag]) => {
+                        const isAdded = added.has(name);
+                        const div = document.createElement('div');
+                        div.style.cssText = 'display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.6rem;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:0.9rem;transition:all 0.15s;' +
+                            (isAdded ? 'opacity:0.4;cursor:default;background:#f3f4f6;' : 'background:#fff;');
+                        div.innerHTML = `<span style="font-size:1.3rem;">${flag}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>`
+                            + (isAdded ? '<span style="font-size:0.75rem;color:var(--success);">✓</span>' : '<span style="font-size:0.75rem;color:var(--primary);">+</span>');
+                        if (!isAdded) {
+                            div.onmouseenter = () => { div.style.background='#eef2ff'; div.style.borderColor='var(--primary)'; };
+                            div.onmouseleave = () => { div.style.background='#fff'; div.style.borderColor='var(--border)'; };
+                            div.onclick = () => addCountry(name, flag);
+                        }
+                        grid.appendChild(div);
+                    });
+                }
+
+                function addCountry(name, flag) {
+                    const pwd = document.getElementById('countryAdminPwd').value.trim();
+                    if (!pwd) { alert('Please enter the admin password first.'); document.getElementById('countryAdminPwd').focus(); return; }
+                    document.getElementById('acName').value = name;
+                    document.getElementById('acFlag').value = flag;
+                    document.getElementById('acPwd').value  = pwd;
+                    document.getElementById('addCountryForm').submit();
+                }
+
+                search.addEventListener('input', render);
+                render();
+            })();
+            </script>
         </div>
     </div>
 
