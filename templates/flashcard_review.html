@@ -177,6 +177,43 @@
         color: var(--danger);
         background: #fee2e2;
     }
+    /* ── Listening card ── */
+    .listening-card {
+        background: linear-gradient(135deg, #0891b2, #0e7490);
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 8px 24px rgba(8,145,178,0.3);
+        color: #fff;
+    }
+    .listening-lang {
+        font-size: 0.85rem;
+        opacity: 0.85;
+        margin-bottom: 1.5rem;
+        letter-spacing: 0.05em;
+    }
+    .big-play-btn {
+        background: rgba(255,255,255,0.2);
+        border: 3px solid rgba(255,255,255,0.5);
+        border-radius: 50%;
+        width: 90px;
+        height: 90px;
+        font-size: 2.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .big-play-btn:hover, .big-play-btn:active {
+        background: rgba(255,255,255,0.35);
+        transform: scale(1.08);
+    }
+    .listening-hint {
+        font-size: 0.8rem;
+        opacity: 0.7;
+        margin-top: 0.75rem;
+    }
 </style>
 
 <div class="content-wrapper" style="max-width:520px;margin:1rem auto;">
@@ -196,41 +233,48 @@
             </div>
 
             <!-- Propose adding cards from available categories -->
-            {% if available_categories %}
+            {% if avail_reading or avail_listening %}
             <div class="card mb-3">
                 <div class="card-header">
                     <span class="card-title">➕ Add more cards</span>
                 </div>
+                {% macro cat_rows(cats, ctype) %}
                 <div style="margin-top:0.75rem;">
-                    {% for cat in available_categories %}
+                    {% for cat in cats %}
                     <div style="padding:0.75rem 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
                         <div class="flex flex-between flex-center mb-1">
                             <strong>{{ cat.icon or '📁' }} {{ cat.name }}</strong>
-                            <span class="text-muted" style="font-size:0.85rem;">{{ cat.available_count }} remaining</span>
+                            <span class="text-muted" style="font-size:0.85rem;">{{ cat.available_count }} left</span>
                         </div>
                         <div style="display:flex;gap:0.4rem;align-items:center;">
-                            <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;gap:0.4rem;align-items:center;flex:1;">
-                                <input type="hidden" name="difficulty" value="beginner">
-                                <button type="submit" class="btn btn-sm" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;flex:1;">
-                                    🟢 {{ cat.beginner_count or 0 }}
+                            {% for diff, bg, border, col in [('beginner','#d1fae5','#a7f3d0','#065f46'),('medium','#fef3c7','#fde68a','#92400e'),('confirmed','#fee2e2','#fecaca','#991b1b')] %}
+                            <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;flex:1;">
+                                <input type="hidden" name="difficulty" value="{{ diff }}">
+                                <input type="hidden" name="card_type"  value="{{ ctype }}">
+                                <button type="submit" class="btn btn-sm" style="background:{{ bg }};color:{{ col }};border:1px solid {{ border }};flex:1;">
+                                    {% if diff == 'beginner' %}🟢{% elif diff == 'medium' %}🟡{% else %}🔴{% endif %}
+                                    {{ cat[diff ~ '_count'] or 0 }}
                                 </button>
                             </form>
-                            <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;gap:0.4rem;align-items:center;flex:1;">
-                                <input type="hidden" name="difficulty" value="medium">
-                                <button type="submit" class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;flex:1;">
-                                    🟡 {{ cat.medium_count or 0 }}
-                                </button>
-                            </form>
-                            <form method="POST" action="{{ url_for('flashcards.add_cards', category_id=cat.id) }}" style="display:flex;gap:0.4rem;align-items:center;flex:1;">
-                                <input type="hidden" name="difficulty" value="confirmed">
-                                <button type="submit" class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;flex:1;">
-                                    🔴 {{ cat.confirmed_count or 0 }}
-                                </button>
-                            </form>
+                            {% endfor %}
                         </div>
                     </div>
                     {% endfor %}
                 </div>
+                {% endmacro %}
+
+                {% if avail_reading %}
+                <div style="margin-top:0.5rem;">
+                    <div style="font-weight:600;color:#6366f1;font-size:0.9rem;padding:0.25rem 0;">📖 Reading</div>
+                    {{ cat_rows(avail_reading, 'reading') }}
+                </div>
+                {% endif %}
+                {% if avail_listening %}
+                <div style="margin-top:0.75rem;{% if avail_reading %}border-top:2px solid var(--border);padding-top:0.5rem;{% endif %}">
+                    <div style="font-weight:600;color:#0891b2;font-size:0.9rem;padding:0.25rem 0;">🎧 Listening</div>
+                    {{ cat_rows(avail_listening, 'listening') }}
+                </div>
+                {% endif %}
             </div>
             {% else %}
             <div class="alert alert-info">
@@ -270,8 +314,10 @@
             {% endif %}
         </div>
 
-        <!-- Flip card -->
-        <div class="flip-container" id="flipContainer" onclick="flipCard()">
+        <!-- READING: flip card (hidden for listening) -->
+        <div class="flip-container" id="flipContainer"
+             onclick="flipCard()"
+             style="display:{{ 'none' if card_type == 'listening' else 'block' }};">
             <div class="flip-card" id="flipCard">
                 <div class="flip-face flip-front">
                     <div style="font-size:0.85rem;opacity:0.7;margin-bottom:0.5rem;">
@@ -299,12 +345,29 @@
             </div>
         </div>
 
+        <!-- LISTENING: audio player (hidden for reading) -->
+        <div id="listeningContainer" style="display:{{ 'block' if card_type == 'listening' else 'none' }};max-width:420px;margin:0 auto 1.5rem;">
+            <div class="listening-card">
+                <div class="listening-lang">
+                    {{ lang_info.get(target_lang, {}).get('flag_emoji', '') }} {{ target_lang|upper }}
+                    <span style="font-size:0.8rem;opacity:0.7;margin-left:0.5rem;">🎧 Listening</span>
+                </div>
+                <button class="big-play-btn" id="playBtn" onclick="speakFront()">🔊</button>
+                <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem;">
+                    <button class="tts-speed-btn" id="speedBtnListen" onclick="toggleSpeed()">🐢 Slow</button>
+                </div>
+                <div class="listening-hint">Tap to listen · you can replay anytime</div>
+                <!-- Revealed text shown after answer -->
+                <div id="listenReveal" style="display:none;margin-top:1rem;padding:0.75rem 1rem;background:rgba(255,255,255,0.9);border-radius:10px;color:#1e3a5f;font-weight:600;font-size:1.05rem;"></div>
+            </div>
+        </div>
+
         <!-- Report button -->
         <div style="display:flex;justify-content:flex-start;max-width:420px;margin:-0.5rem auto 0.75rem;">
             <button class="report-toggle-btn" id="reportToggleBtn" onclick="toggleReport()">🚩 Report</button>
         </div>
 
-        <!-- Report form (hidden by default) -->
+        <!-- Report form -->
         <div id="reportForm" style="display:none;max-width:420px;margin:0 auto 1rem;">
             <div style="background:var(--light);border-radius:10px;padding:1rem;">
                 <label style="font-size:0.85rem;font-weight:600;margin-bottom:0.4rem;">What's wrong with this card?</label>
@@ -317,7 +380,9 @@
             </div>
         </div>
 
-        <p class="text-center text-muted mb-2" style="font-size:0.85rem;">Tap the card to flip, then choose your answer:</p>
+        <p class="text-center text-muted mb-2" style="font-size:0.85rem;" id="cardHint">
+            {% if card_type == 'listening' %}Listen, then choose the correct translation:{% else %}Tap the card to flip, then choose your answer:{% endif %}
+        </p>
 
         <!-- Answer options -->
         <div class="options-grid" id="optionsGrid">
@@ -337,8 +402,11 @@
         </div>
 
         <input type="hidden" id="userFlashcardId" value="{{ card.user_flashcard_id }}">
-        <input type="hidden" id="correctAnswer" value="{{ correct_answer }}">
-        <input type="hidden" id="flashcardId" value="{{ card.flashcard_id }}">
+        <input type="hidden" id="correctAnswer"   value="{{ correct_answer }}">
+        <input type="hidden" id="flashcardId"     value="{{ card.flashcard_id }}">
+        <input type="hidden" id="cardType"        value="{{ card_type }}">
+        <input type="hidden" id="frontLang"       value="{{ front_lang }}">
+        <input type="hidden" id="frontWordHidden" value="{{ front_word }}">
     {% endif %}
 </div>
 {% endblock %}
@@ -364,33 +432,31 @@
         'confirmed': {label: '🔴 Confirmed',  bg: '#fee2e2', color: '#991b1b'}
     };
 
-    let answered = false;
-    let currentUfId = document.getElementById('userFlashcardId').value;
+    let answered       = false;
+    let currentUfId    = document.getElementById('userFlashcardId').value;
     let correctAnswerText = document.getElementById('correctAnswer').value;
-    let totalReviewed = 0;
-    let slowMode = false;
-    let currentFrontWord = '{{ front_word|e }}';
     let currentFlashcardId = document.getElementById('flashcardId').value;
+    let currentCardType   = document.getElementById('cardType').value;
+    let currentFrontLang  = document.getElementById('frontLang').value;
+    let currentFrontWord  = document.getElementById('frontWordHidden').value;
+    let slowMode = false;
 
-    function flipCard() {
-        document.getElementById('flipCard').classList.toggle('flipped');
-    }
-
-    function speak(text, langCode, forceRate) {
+    // ── TTS ──────────────────────────────────────────────────────────────────
+    function speak(text, langCode) {
         if (!('speechSynthesis' in window)) return;
         window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(text);
         utter.lang = LANG_MAP[langCode] || langCode;
-        utter.rate = forceRate !== undefined ? forceRate : (slowMode ? 0.45 : 0.85);
+        utter.rate = slowMode ? 0.45 : 0.85;
         window.speechSynthesis.speak(utter);
     }
 
-    function speakFront() {
-        speak(currentFrontWord, SOURCE_LANG);
-    }
+    // speakFront: for reading = speak source word; for listening = speak audio sentence
+    function speakFront() { speak(currentFrontWord, currentFrontLang); }
 
+    // speakBack: only used in reading mode after flip
     function speakBack() {
-        if (answered) speak(correctAnswerText, TARGET_LANG);
+        if (answered && currentCardType === 'reading') speak(correctAnswerText, TARGET_LANG);
     }
 
     function toggleSpeed() {
@@ -401,30 +467,49 @@
         });
     }
 
-    // Build clickable words: each word wrapped in a span that speaks on click
+    // ── Clickable words (reading mode only) ──────────────────────────────────
     function buildClickableWords(container, text, langCode) {
         container.innerHTML = '';
-        const words = text.split(/(\s+)/);
-        words.forEach(part => {
+        text.split(/(\s+)/).forEach(part => {
             if (part.trim() === '') {
                 container.appendChild(document.createTextNode(part));
             } else {
                 const span = document.createElement('span');
                 span.className = 'word-span';
                 span.textContent = part;
-                span.onclick = (e) => {
-                    e.stopPropagation();
-                    speak(part, langCode);
-                };
+                span.onclick = (e) => { e.stopPropagation(); speak(part, langCode); };
                 container.appendChild(span);
             }
         });
     }
 
-    // Initial render of clickable words
-    buildClickableWords(document.getElementById('frontWord'), currentFrontWord, SOURCE_LANG);
-    document.getElementById('backWord').textContent = '?';
+    // ── Show the right UI for the current card type ───────────────────────────
+    function applyCardType(type) {
+        const isListening = (type === 'listening');
+        document.getElementById('flipContainer').style.display      = isListening ? 'none'  : 'block';
+        document.getElementById('listeningContainer').style.display = isListening ? 'block' : 'none';
+        document.getElementById('cardHint').textContent = isListening
+            ? 'Listen, then choose the correct translation:'
+            : 'Tap the card to flip, then choose your answer:';
+    }
 
+    // ── Initial render ────────────────────────────────────────────────────────
+    applyCardType(currentCardType);
+    if (currentCardType === 'reading') {
+        buildClickableWords(document.getElementById('frontWord'), currentFrontWord, SOURCE_LANG);
+        document.getElementById('backWord').textContent = '?';
+    } else {
+        // Auto-play listening audio on load
+        setTimeout(() => speakFront(), 400);
+    }
+
+    // ── Flip (reading only) ───────────────────────────────────────────────────
+    function flipCard() {
+        if (currentCardType === 'reading')
+            document.getElementById('flipCard').classList.toggle('flipped');
+    }
+
+    // ── Answer ────────────────────────────────────────────────────────────────
     function submitAnswer(btn, chosen) {
         if (answered) return;
         answered = true;
@@ -440,80 +525,72 @@
             });
         }
 
-        buildClickableWords(document.getElementById('backWord'), correctAnswerText, TARGET_LANG);
-        document.getElementById('flipCard').classList.add('flipped');
-        setTimeout(() => speak(correctAnswerText, TARGET_LANG), 400);
+        if (currentCardType === 'reading') {
+            buildClickableWords(document.getElementById('backWord'), correctAnswerText, TARGET_LANG);
+            document.getElementById('flipCard').classList.add('flipped');
+            setTimeout(() => speak(correctAnswerText, TARGET_LANG), 400);
+        } else {
+            // Listening: reveal the spoken sentence text
+            const rev = document.getElementById('listenReveal');
+            rev.textContent = currentFrontWord;
+            rev.style.display = 'block';
+        }
 
         const formData = new FormData();
         formData.append('answer', chosen);
-
-        fetch(`/flashcards/review/${currentUfId}/answer`, {
-            method: 'POST',
-            body: formData
-        })
+        fetch(`/flashcards/review/${currentUfId}/answer`, { method: 'POST', body: formData })
         .then(r => r.json())
         .then(data => {
-            totalReviewed++;
             const overlay = document.getElementById('resultOverlay');
-            const icon = document.getElementById('resultIcon');
-            const text = document.getElementById('resultText');
-            const detail = document.getElementById('resultDetail');
-
-            if (data.correct) {
-                icon.textContent = '✅';
-                text.textContent = 'Correct!';
-                text.style.color = 'var(--success)';
-                detail.textContent = `Moved to Box ${data.new_box}. Next review: ${data.next_review}`;
-            } else {
-                icon.textContent = '❌';
-                text.textContent = `The answer was: ${data.correct_answer}`;
-                text.style.color = 'var(--danger)';
-                detail.textContent = `Back to Box 1. Next review: ${data.next_review}`;
-            }
+            document.getElementById('resultIcon').textContent = data.correct ? '✅' : '❌';
+            const txt = document.getElementById('resultText');
+            txt.textContent = data.correct ? 'Correct!' : `The answer was: ${data.correct_answer}`;
+            txt.style.color = data.correct ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('resultDetail').textContent =
+                data.correct ? `Moved to Box ${data.new_box}. Next review: ${data.next_review}`
+                             : `Back to Box 1. Next review: ${data.next_review}`;
             overlay.classList.add('show');
         });
     }
 
+    // ── Next card (SPA, no reload) ────────────────────────────────────────────
     function nextCard() {
-        // Fetch next card via JSON — no page reload
-        const reviewArea = document.getElementById('reviewArea');
-        const overlay = document.getElementById('resultOverlay');
-        overlay.classList.remove('show');
+        document.getElementById('resultOverlay').classList.remove('show');
 
         fetch('/flashcards/review/next')
         .then(r => r.json())
         .then(data => {
-            if (data.done) {
-                // No more cards — redirect to review page which shows "+10" UI
-                window.location.href = '{{ url_for("flashcards.review") }}';
-                return;
-            }
+            if (data.done) { window.location.href = '{{ url_for("flashcards.review") }}'; return; }
 
-            // Reset state
-            answered = false;
-            currentUfId = data.user_flashcard_id;
-            correctAnswerText = data.correct_answer;
-            currentFrontWord = data.front_word;
+            // Update state
+            answered           = false;
+            currentUfId        = data.user_flashcard_id;
+            correctAnswerText  = data.correct_answer;
+            currentFrontWord   = data.front_word;
             currentFlashcardId = data.flashcard_id;
+            currentCardType    = data.card_type;
+            currentFrontLang   = data.front_lang;
 
-            // Reset report form
+            // Reset report
             document.getElementById('reportForm').style.display = 'none';
             document.getElementById('reportComment').value = '';
             document.getElementById('reportFeedback').style.display = 'none';
 
-            // Update card front with clickable words
-            buildClickableWords(document.getElementById('frontWord'), data.front_word, SOURCE_LANG);
-            document.getElementById('backWord').textContent = '?';
-            document.getElementById('flipCard').classList.remove('flipped');
+            // Switch UI based on new card type
+            applyCardType(data.card_type);
 
-            // Update audio hint
-            const hintEl = document.querySelector('.flip-hint');
-            if (hintEl) {
-                hintEl.textContent = data.audio_hint || '';
-                hintEl.style.display = data.audio_hint ? '' : 'none';
+            if (data.card_type === 'reading') {
+                buildClickableWords(document.getElementById('frontWord'), data.front_word, SOURCE_LANG);
+                document.getElementById('backWord').textContent = '?';
+                document.getElementById('flipCard').classList.remove('flipped');
+                const hintEl = document.querySelector('.flip-hint');
+                if (hintEl) { hintEl.textContent = data.audio_hint || ''; hintEl.style.display = data.audio_hint ? '' : 'none'; }
+            } else {
+                document.getElementById('listenReveal').style.display = 'none';
+                setTimeout(() => speakFront(), 300);
             }
 
-            // Update Leitner box badge
+            // Leitner box badge
             const boxBadge = document.getElementById('boxBadge');
             if (boxBadge) {
                 const c = BOX_COLORS[data.leitner_box - 1];
@@ -522,7 +599,7 @@
                 boxBadge.textContent = `Box ${data.leitner_box} / 7`;
             }
 
-            // Update difficulty badge
+            // Difficulty badge
             const diffBadge = document.getElementById('diffBadge');
             if (diffBadge) {
                 const d = DIFF_MAP[data.difficulty] || DIFF_MAP['medium'];
@@ -531,17 +608,12 @@
                 diffBadge.textContent = d.label;
             }
 
-            // Update category info
+            // Category + remaining
             const catInfo = document.getElementById('catInfo');
-            if (catInfo) {
-                catInfo.textContent = data.category_name
-                    ? ` · ${data.category_icon || '📁'} ${data.category_name}` : '';
-            }
-
-            // Update remaining count
+            if (catInfo) catInfo.textContent = data.category_name ? ` · ${data.category_icon || '📁'} ${data.category_name}` : '';
             document.getElementById('remainingCount').textContent = `${data.remaining} left`;
 
-            // Update options
+            // Rebuild options
             const grid = document.getElementById('optionsGrid');
             grid.innerHTML = '';
             data.options.forEach(opt => {
@@ -553,9 +625,11 @@
                 grid.appendChild(btn);
             });
 
-            // Update hidden fields
             document.getElementById('userFlashcardId').value = data.user_flashcard_id;
-            document.getElementById('correctAnswer').value = data.correct_answer;
+            document.getElementById('correctAnswer').value   = data.correct_answer;
+            document.getElementById('cardType').value        = data.card_type;
+            document.getElementById('frontLang').value       = data.front_lang;
+            document.getElementById('frontWordHidden').value = data.front_word;
         });
     }
 

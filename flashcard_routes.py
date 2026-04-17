@@ -50,18 +50,22 @@ def flashcards_home():
                 (session['user_id'],))
     total_cards = cur.fetchone()['cnt']
 
-    # Available categories with card counts per difficulty
+    # Available categories split by card_type
     cur.execute("""
-        SELECT fc.id, fc.name, fc.icon, COUNT(f.id) as card_count,
+        SELECT fc.id, fc.name, fc.icon, f.card_type,
+               COUNT(f.id) as card_count,
                SUM(CASE WHEN f.difficulty = 'beginner' THEN 1 ELSE 0 END) as beginner_count,
                SUM(CASE WHEN f.difficulty = 'medium' THEN 1 ELSE 0 END) as medium_count,
                SUM(CASE WHEN f.difficulty = 'confirmed' THEN 1 ELSE 0 END) as confirmed_count
         FROM flashcard_categories fc
-        LEFT JOIN flashcards f ON f.category_id = fc.id
-        GROUP BY fc.id, fc.name, fc.icon
+        JOIN flashcards f ON f.category_id = fc.id
+        GROUP BY fc.id, fc.name, fc.icon, f.card_type
+        HAVING COUNT(f.id) > 0
         ORDER BY fc.name
     """)
-    categories = cur.fetchall()
+    all_cats = cur.fetchall()
+    reading_categories  = [c for c in all_cats if c['card_type'] == 'reading']
+    listening_categories = [c for c in all_cats if c['card_type'] == 'listening']
 
     # Available languages
     cur.execute("SELECT id, code, name, flag_emoji FROM languages ORDER BY name")
@@ -81,7 +85,8 @@ def flashcards_home():
                            due_count=due_count,
                            box_stats=box_stats,
                            total_cards=total_cards,
-                           categories=categories,
+                           reading_categories=reading_categories,
+                           listening_categories=listening_categories,
                            languages=languages,
                            lang_pairs=lang_pairs)
 
@@ -141,7 +146,7 @@ def review():
     cur.execute("""
         SELECT uf.id as user_flashcard_id, uf.leitner_box, uf.next_review_date,
                f.id as flashcard_id, f.translations, f.audio_hint, f.difficulty,
-               fc.name as category_name, fc.icon as category_icon
+               f.card_type, fc.name as category_name, fc.icon as category_icon
         FROM user_flashcards uf
         JOIN flashcards f ON uf.flashcard_id = f.id
         LEFT JOIN flashcard_categories fc ON f.category_id = fc.id
@@ -154,16 +159,15 @@ def review():
     card = cur.fetchone()
 
     if not card:
-        # Count total cards in user's collection for this pair
         cur.execute("""
             SELECT COUNT(*) as cnt FROM user_flashcards
             WHERE user_id = %s AND source_lang = %s AND target_lang = %s
         """, (session['user_id'], source_lang, target_lang))
         total_in_pair = cur.fetchone()['cnt']
 
-        # Fetch categories with available (not yet added) cards, broken down by difficulty
+        # Available cards split by card_type
         cur.execute("""
-            SELECT fc.id, fc.name, fc.icon,
+            SELECT fc.id, fc.name, fc.icon, f.card_type,
                    COUNT(f.id) as available_count,
                    SUM(CASE WHEN f.difficulty = 'beginner' THEN 1 ELSE 0 END) as beginner_count,
                    SUM(CASE WHEN f.difficulty = 'medium' THEN 1 ELSE 0 END) as medium_count,
@@ -175,40 +179,53 @@ def review():
                   SELECT flashcard_id FROM user_flashcards
                   WHERE user_id = %s AND source_lang = %s AND target_lang = %s
               )
-            GROUP BY fc.id, fc.name, fc.icon
+            GROUP BY fc.id, fc.name, fc.icon, f.card_type
             HAVING COUNT(f.id) > 0
             ORDER BY fc.name
         """, (source_lang, target_lang, session['user_id'], source_lang, target_lang))
-        available_categories = cur.fetchall()
+        all_avail = cur.fetchall()
+        avail_reading   = [c for c in all_avail if c['card_type'] == 'reading']
+        avail_listening = [c for c in all_avail if c['card_type'] == 'listening']
 
         cur.close()
         conn.close()
         return render_template('flashcard_review.html',
                                card=None, total_in_pair=total_in_pair,
                                source_lang=source_lang, target_lang=target_lang,
-                               available_categories=available_categories,
+                               avail_reading=avail_reading,
+                               avail_listening=avail_listening,
                                options=[])
 
     translations = card['translations'] if isinstance(card['translations'], dict) else json.loads(card['translations'])
-    front_word = translations.get(source_lang, '???')
-    correct_answer = translations.get(target_lang, '???')
+    card_type = card['card_type'] or 'reading'
 
-    # Fetch distractors for this card + target language
+    # Reading: show source → pick target | Listening: play target → pick source
+    if card_type == 'listening':
+        front_word    = translations.get(target_lang, '???')   # spoken
+        correct_answer = translations.get(source_lang, '???')  # picked
+        options_lang  = source_lang
+        front_lang    = target_lang
+    else:
+        front_word    = translations.get(source_lang, '???')
+        correct_answer = translations.get(target_lang, '???')
+        options_lang  = target_lang
+        front_lang    = source_lang
+
+    # Distractors in the options language, same card_type pool
     cur.execute("""
         SELECT distractor_text FROM flashcard_distractors
         WHERE flashcard_id = %s AND language_code = %s
         ORDER BY RANDOM() LIMIT 2
-    """, (card['flashcard_id'], target_lang))
+    """, (card['flashcard_id'], options_lang))
     distractors = [r['distractor_text'] for r in cur.fetchall()]
 
-    # If not enough distractors, grab random translations from other cards
     if len(distractors) < 2:
         cur.execute("""
             SELECT DISTINCT translations->>%s as word
             FROM flashcards
-            WHERE id != %s AND translations ? %s
+            WHERE id != %s AND translations ? %s AND card_type = %s
             ORDER BY RANDOM() LIMIT %s
-        """, (target_lang, card['flashcard_id'], target_lang, 2 - len(distractors)))
+        """, (options_lang, card['flashcard_id'], options_lang, card_type, 2 - len(distractors)))
         for r in cur.fetchall():
             if r['word'] and r['word'] != correct_answer:
                 distractors.append(r['word'])
@@ -234,7 +251,9 @@ def review():
 
     return render_template('flashcard_review.html',
                            card=card,
+                           card_type=card_type,
                            front_word=front_word,
+                           front_lang=front_lang,
                            correct_answer=correct_answer,
                            options=options,
                            remaining=remaining,
@@ -261,7 +280,7 @@ def review_next():
     cur.execute("""
         SELECT uf.id as user_flashcard_id, uf.leitner_box,
                f.id as flashcard_id, f.translations, f.audio_hint, f.difficulty,
-               fc.name as category_name, fc.icon as category_icon
+               f.card_type, fc.name as category_name, fc.icon as category_icon
         FROM user_flashcards uf
         JOIN flashcards f ON uf.flashcard_id = f.id
         LEFT JOIN flashcard_categories fc ON f.category_id = fc.id
@@ -278,24 +297,33 @@ def review_next():
         return jsonify({'done': True})
 
     translations = card['translations'] if isinstance(card['translations'], dict) else json.loads(card['translations'])
-    front_word = translations.get(source_lang, '???')
-    correct_answer = translations.get(target_lang, '???')
+    card_type = card['card_type'] or 'reading'
 
-    # Distractors
+    if card_type == 'listening':
+        front_word     = translations.get(target_lang, '???')
+        correct_answer = translations.get(source_lang, '???')
+        options_lang   = source_lang
+        front_lang     = target_lang
+    else:
+        front_word     = translations.get(source_lang, '???')
+        correct_answer = translations.get(target_lang, '???')
+        options_lang   = target_lang
+        front_lang     = source_lang
+
     cur.execute("""
         SELECT distractor_text FROM flashcard_distractors
         WHERE flashcard_id = %s AND language_code = %s
         ORDER BY RANDOM() LIMIT 2
-    """, (card['flashcard_id'], target_lang))
+    """, (card['flashcard_id'], options_lang))
     distractors = [r['distractor_text'] for r in cur.fetchall()]
 
     if len(distractors) < 2:
         cur.execute("""
             SELECT DISTINCT translations->>%s as word
             FROM flashcards
-            WHERE id != %s AND translations ? %s
+            WHERE id != %s AND translations ? %s AND card_type = %s
             ORDER BY RANDOM() LIMIT %s
-        """, (target_lang, card['flashcard_id'], target_lang, 2 - len(distractors)))
+        """, (options_lang, card['flashcard_id'], options_lang, card_type, 2 - len(distractors)))
         for r in cur.fetchall():
             if r['word'] and r['word'] != correct_answer:
                 distractors.append(r['word'])
@@ -317,7 +345,9 @@ def review_next():
     return jsonify({
         'done': False,
         'user_flashcard_id': card['user_flashcard_id'],
+        'card_type': card_type,
         'front_word': front_word,
+        'front_lang': front_lang,
         'correct_answer': correct_answer,
         'options': options,
         'leitner_box': card['leitner_box'],
@@ -338,9 +368,8 @@ def answer(user_flashcard_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
-    # Verify ownership
     cur.execute("""
-        SELECT uf.*, f.translations FROM user_flashcards uf
+        SELECT uf.*, f.translations, f.card_type FROM user_flashcards uf
         JOIN flashcards f ON uf.flashcard_id = f.id
         WHERE uf.id = %s AND uf.user_id = %s
     """, (user_flashcard_id, session['user_id']))
@@ -353,8 +382,12 @@ def answer(user_flashcard_id):
 
     chosen = request.form.get('answer', '').strip()
     translations = uf['translations'] if isinstance(uf['translations'], dict) else json.loads(uf['translations'])
+    source_lang = session.get('fc_source_lang', '')
     target_lang = session.get('fc_target_lang', '')
-    correct_answer = translations.get(target_lang, '')
+    card_type   = uf['card_type'] or 'reading'
+    # Listening: options are in source_lang; Reading: options are in target_lang
+    answer_lang   = source_lang if card_type == 'listening' else target_lang
+    correct_answer = translations.get(answer_lang, '')
 
     is_correct = chosen == correct_answer
     intervals = get_leitner_intervals(cur)
@@ -441,7 +474,10 @@ def admin_delete_report(report_id):
 def add_cards(category_id):
     source_lang = request.form.get('source_lang') or session.get('fc_source_lang', '')
     target_lang = request.form.get('target_lang') or session.get('fc_target_lang', '')
-    difficulty = request.form.get('difficulty', '').strip()
+    difficulty  = request.form.get('difficulty', '').strip()
+    card_type   = request.form.get('card_type', 'reading')
+    if card_type not in ('reading', 'listening'):
+        card_type = 'reading'
 
     if not source_lang or not target_lang:
         flash('Please select languages first.', 'error')
@@ -451,13 +487,13 @@ def add_cards(category_id):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     today = date.today()
 
-    # Select up to 10 cards from this category not already in user's collection for this lang pair
-    add_where = """f.category_id = %s AND f.translations ? %s AND f.translations ? %s
+    add_where = """f.category_id = %s AND f.card_type = %s
+          AND f.translations ? %s AND f.translations ? %s
           AND f.id NOT IN (
               SELECT flashcard_id FROM user_flashcards
               WHERE user_id = %s AND source_lang = %s AND target_lang = %s
           )"""
-    add_params = [category_id, source_lang, target_lang,
+    add_params = [category_id, card_type, source_lang, target_lang,
                   session['user_id'], source_lang, target_lang]
 
     if difficulty in ('beginner', 'medium', 'confirmed'):
@@ -560,16 +596,18 @@ def admin_import():
             difficulty = item.get('difficulty', 'medium').strip().lower()
             if difficulty not in ('beginner', 'medium', 'confirmed'):
                 difficulty = 'medium'
+            card_type = item.get('card_type', 'reading').strip().lower()
+            if card_type not in ('reading', 'listening'):
+                card_type = 'reading'
             if not category_name or not translations or category_name not in cat_map:
                 continue
             cat_id = cat_map[category_name]
-            flashcard_rows.append((cat_id, json.dumps(translations), difficulty))
+            flashcard_rows.append((cat_id, json.dumps(translations), difficulty, card_type))
             distractor_meta.append(item.get('distractors', {}))
 
-        # Bulk insert all flashcards in one query, get back their IDs
         if flashcard_rows:
             inserted = execute_values(cur,
-                "INSERT INTO flashcards (category_id, translations, difficulty) VALUES %s RETURNING id",
+                "INSERT INTO flashcards (category_id, translations, difficulty, card_type) VALUES %s RETURNING id",
                 flashcard_rows, fetch=True)
             flashcard_ids = [row['id'] for row in inserted]
 

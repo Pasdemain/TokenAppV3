@@ -49,6 +49,13 @@ def init_db():
         ALTER TABLE users ADD COLUMN IF NOT EXISTS remember_token VARCHAR(64) UNIQUE;
     """)
 
+    # Add card_type to flashcards (listening support)
+    cur.execute("""
+        ALTER TABLE flashcards ADD COLUMN IF NOT EXISTS
+        card_type VARCHAR(10) DEFAULT 'reading'
+        CHECK (card_type IN ('reading', 'listening'))
+    """)
+
     # Create tokens table
     cur.execute("""
         CREATE TABLE IF NOT EXISTS tokens (
