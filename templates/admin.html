@@ -324,8 +324,25 @@
       "fr": ["Chien", "Oiseau", "Poisson"],
       "es": ["Perro", "Pájaro", "Pez"]
     }
+  },
+  {
+    "card_type": "listening",
+    "category": "Travel",
+    "difficulty": "medium",
+    "translations": {
+      "en": "Where is the train station?",
+      "fr": "Où est la gare ?"
+    },
+    "distractors": {
+      "en": ["Where is the airport?", "Where is the bus stop?"],
+      "fr": ["Où est l'aéroport ?", "Où est l'arrêt de bus ?"]
+    }
   }
-]</pre>
+]
+
+card_type: "reading" (default) or "listening"
+Reading: user sees source text → picks target translation
+Listening: user hears target audio (TTS) → picks source translation</pre>
             </details>
             <form method="POST" action="{{ url_for('flashcards.admin_import') }}">
                 <div class="form-group" style="margin-bottom:0.75rem;">
