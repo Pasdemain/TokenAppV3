@@ -190,9 +190,8 @@
                         <td style="padding:0.5rem;text-align:right;">
                             <form method="POST" action="{{ url_for('wheel.delete_country', country_id=country.id) }}"
                                   style="display:inline;">
-                                <input type="hidden" name="password" id="del-country-pw-{{ country.id }}">
-                                <button type="button" class="btn btn-sm btn-danger"
-                                    onclick="promptAndSubmit('del-country-pw-{{ country.id }}', this.closest('form'))">
+                                <button type="submit" class="btn btn-sm btn-danger"
+                                        onclick="return confirm('Remove {{ country.name }}?')">
                                     🗑️
                                 </button>
                             </form>
@@ -207,10 +206,6 @@
 
             <!-- Add country: searchable picker -->
             <div style="margin-top:0.5rem;">
-                <div class="form-group" style="margin-bottom:0.75rem;max-width:300px;">
-                    <label>Admin Password *</label>
-                    <input type="password" id="countryAdminPwd" placeholder="Admin password">
-                </div>
                 <input type="text" id="countrySearch"
                        placeholder="🔍 Search country…"
                        style="width:100%;margin-bottom:0.75rem;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);font-size:0.95rem;">
@@ -221,7 +216,6 @@
             <form id="addCountryForm" method="POST" action="{{ url_for('wheel.add_country') }}" style="display:none;">
                 <input type="hidden" name="name"       id="acName">
                 <input type="hidden" name="flag_emoji" id="acFlag">
-                <input type="hidden" name="password"   id="acPwd">
             </form>
 
             <script>
@@ -304,11 +298,8 @@
                 }
 
                 function addCountry(name, flag) {
-                    const pwd = document.getElementById('countryAdminPwd').value.trim();
-                    if (!pwd) { alert('Please enter the admin password first.'); document.getElementById('countryAdminPwd').focus(); return; }
                     document.getElementById('acName').value = name;
                     document.getElementById('acFlag').value = flag;
-                    document.getElementById('acPwd').value  = pwd;
                     document.getElementById('addCountryForm').submit();
                 }
 

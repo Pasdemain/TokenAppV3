@@ -58,10 +58,6 @@ def spin_wheel():
 
 @wheel_bp.route('/admin/wheel/countries/add', methods=['POST'])
 def add_country():
-    if request.form.get('password', '') != ADMIN_PASSWORD:
-        flash('Invalid admin password!', 'error')
-        return redirect(url_for('admin'))
-
     name = request.form.get('name', '').strip()
     flag_emoji = request.form.get('flag_emoji', '').strip()
 
@@ -91,10 +87,6 @@ def add_country():
 
 @wheel_bp.route('/admin/wheel/countries/<int:country_id>/delete', methods=['POST'])
 def delete_country(country_id):
-    if request.form.get('password', '') != ADMIN_PASSWORD:
-        flash('Invalid admin password!', 'error')
-        return redirect(url_for('admin'))
-
     conn = get_db_connection()
     cur = conn.cursor()
     try:
