@@ -382,10 +382,16 @@ def init_db():
             team_id INTEGER REFERENCES molkky_teams(id) ON DELETE CASCADE,
             pins_knocked JSONB NOT NULL,
             score_gained INTEGER NOT NULL,
+            score_before INTEGER NOT NULL DEFAULT 0,
             score_after INTEGER NOT NULL,
+            consecutive_zeros_before INTEGER NOT NULL DEFAULT 0,
+            is_eliminated_before BOOLEAN NOT NULL DEFAULT FALSE,
             threw_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS score_before INTEGER NOT NULL DEFAULT 0")
+    cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS consecutive_zeros_before INTEGER NOT NULL DEFAULT 0")
+    cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS is_eliminated_before BOOLEAN NOT NULL DEFAULT FALSE")
 
     # ── Feature defaults table ────────────────────────────────────────────────
 

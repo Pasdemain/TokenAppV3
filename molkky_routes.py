@@ -441,9 +441,13 @@ def molkky_throw(game_id):
         """, (new_score, consecutive_zeros, is_eliminated, team_id))
 
         cur.execute("""
-            INSERT INTO molkky_throws (game_id, team_id, pins_knocked, score_gained, score_after)
-            VALUES (%s, %s, %s::jsonb, %s, %s)
-        """, (game_id, team_id, json.dumps(pins), score_gained, new_score))
+            INSERT INTO molkky_throws (game_id, team_id, pins_knocked, score_gained,
+                                       score_before, score_after,
+                                       consecutive_zeros_before, is_eliminated_before)
+            VALUES (%s, %s, %s::jsonb, %s, %s, %s, %s, %s)
+        """, (game_id, team_id, json.dumps(pins), score_gained,
+              score_before, new_score,
+              team['consecutive_zeros'], team['is_eliminated']))
 
         new_status = 'active'
         winner_team_id = None
@@ -491,6 +495,51 @@ def molkky_throw(game_id):
         conn.rollback()
         print(f"Throw error: {e}")
         import traceback; traceback.print_exc()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
+@molkky_bp.route('/molkky/game/<int:game_id>/undo', methods=['POST'])
+@feature_required('molkky')
+def molkky_undo(game_id):
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("SELECT * FROM molkky_games WHERE id = %s AND created_by = %s",
+                    (game_id, session['user_id']))
+        game = cur.fetchone()
+        if not game:
+            return jsonify({'ok': False, 'error': 'Non autorisé'}), 403
+
+        cur.execute("""
+            SELECT * FROM molkky_throws WHERE game_id = %s ORDER BY threw_at DESC LIMIT 1
+        """, (game_id,))
+        last_throw = cur.fetchone()
+        if not last_throw:
+            return jsonify({'ok': False, 'error': 'Aucun lancer à annuler'})
+
+        cur.execute("""
+            UPDATE molkky_teams SET score = %s, consecutive_zeros = %s, is_eliminated = %s
+            WHERE id = %s
+        """, (last_throw['score_before'], last_throw['consecutive_zeros_before'],
+              last_throw['is_eliminated_before'], last_throw['team_id']))
+
+        cur.execute("DELETE FROM molkky_throws WHERE id = %s", (last_throw['id'],))
+
+        cur.execute("""
+            UPDATE molkky_games
+            SET status = 'active', current_team_id = %s, winner_team_id = NULL, finished_at = NULL
+            WHERE id = %s
+        """, (last_throw['team_id'], game_id))
+
+        conn.commit()
+        state = _get_game_state(cur, game_id)
+        return jsonify({'ok': True, 'state': _serialize(state)})
+    except Exception as e:
+        conn.rollback()
+        print(f"Undo error: {e}")
         return jsonify({'ok': False, 'error': str(e)}), 500
     finally:
         cur.close()
