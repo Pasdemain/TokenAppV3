@@ -435,19 +435,27 @@ def molkky_throw(game_id):
 
         winner = (new_score == 50 and not is_eliminated)
 
+        # Advance within-team member rotation
+        cur.execute("SELECT COUNT(*) as cnt FROM molkky_members WHERE team_id = %s", (team_id,))
+        member_count = cur.fetchone()['cnt']
+        old_member_idx = team.get('current_member_idx', 0) or 0
+        new_member_idx = (old_member_idx + 1) % member_count if member_count > 0 else 0
+
         cur.execute("""
-            UPDATE molkky_teams SET score = %s, consecutive_zeros = %s, is_eliminated = %s
+            UPDATE molkky_teams
+            SET score = %s, consecutive_zeros = %s, is_eliminated = %s, current_member_idx = %s
             WHERE id = %s
-        """, (new_score, consecutive_zeros, is_eliminated, team_id))
+        """, (new_score, consecutive_zeros, is_eliminated, new_member_idx, team_id))
 
         cur.execute("""
             INSERT INTO molkky_throws (game_id, team_id, pins_knocked, score_gained,
                                        score_before, score_after,
-                                       consecutive_zeros_before, is_eliminated_before)
-            VALUES (%s, %s, %s::jsonb, %s, %s, %s, %s, %s)
+                                       consecutive_zeros_before, is_eliminated_before,
+                                       member_idx_before)
+            VALUES (%s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s)
         """, (game_id, team_id, json.dumps(pins), score_gained,
               score_before, new_score,
-              team['consecutive_zeros'], team['is_eliminated']))
+              team['consecutive_zeros'], team['is_eliminated'], old_member_idx))
 
         new_status = 'active'
         winner_team_id = None
@@ -521,10 +529,12 @@ def molkky_undo(game_id):
             return jsonify({'ok': False, 'error': 'Aucun lancer à annuler'})
 
         cur.execute("""
-            UPDATE molkky_teams SET score = %s, consecutive_zeros = %s, is_eliminated = %s
+            UPDATE molkky_teams
+            SET score = %s, consecutive_zeros = %s, is_eliminated = %s, current_member_idx = %s
             WHERE id = %s
         """, (last_throw['score_before'], last_throw['consecutive_zeros_before'],
-              last_throw['is_eliminated_before'], last_throw['team_id']))
+              last_throw['is_eliminated_before'], last_throw['member_idx_before'],
+              last_throw['team_id']))
 
         cur.execute("DELETE FROM molkky_throws WHERE id = %s", (last_throw['id'],))
 
