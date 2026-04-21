@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Propositions de prix — Scratch{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width:720px;margin:2rem auto;">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;">
+        <h1 style="font-size:1.4rem;">📋 Propositions de prix</h1>
+        <a href="{{ url_for('scratch.manage_prizes') }}" class="btn btn-secondary btn-sm">← Gérer les prix</a>
+    </div>
+
+    <!-- ── Incoming ─────────────────────────────────────────────────────── -->
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
+        <h2 style="font-size:1rem;margin:0;">📥 Reçues</h2>
+        {% set pending_count = incoming | selectattr('status', 'equalto', 'pending') | list | length %}
+        {% if pending_count > 0 %}
+        <span style="background:var(--danger);color:#fff;border-radius:20px;padding:.15rem .65rem;font-size:.78rem;font-weight:700;">{{ pending_count }} en attente</span>
+        {% endif %}
+    </div>
+
+    {% if not incoming %}
+    <p style="color:#9ca3af;font-size:.9rem;margin-bottom:2rem;">Aucune proposition reçue.</p>
+    {% else %}
+    {% for p in incoming %}
+    <div style="border:2px solid {% if p.status == 'pending' %}var(--primary){% elif p.status == 'accepted' %}var(--success){% else %}var(--border){% endif %};border-radius:12px;padding:1.25rem;margin-bottom:1rem;">
+
+        <!-- Header -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem;">
+            <div>
+                <strong>{{ p.proposer_username }}</strong>
+                <span style="color:#9ca3af;font-size:.82rem;margin-left:.5rem;">
+                    {{ p.created_at.strftime('%d/%m/%Y à %H:%M') if p.created_at else '' }}
+                </span>
+                <div style="font-size:.82rem;color:#6b7280;margin-top:.2rem;">
+                    Portée :
+                    {% if p.scope == 'my' %}prix de <strong>{{ p.proposer_username }}</strong>
+                    {% elif p.scope == 'partner' %}vos prix
+                    {% else %}prix des deux
+                    {% endif %}
+                </div>
+            </div>
+            <span style="border-radius:20px;padding:.2rem .8rem;font-size:.8rem;font-weight:600;
+                {% if p.status == 'pending' %}background:#eef2ff;color:var(--primary);
+                {% elif p.status == 'accepted' %}background:#d1fae5;color:#059669;
+                {% else %}background:#f3f4f6;color:#6b7280;{% endif %}">
+                {% if p.status == 'pending' %}⏳ En attente
+                {% elif p.status == 'accepted' %}✓ Acceptée
+                {% else %}✗ Refusée{% endif %}
+            </span>
+        </div>
+
+        <!-- Proposed prizes for proposer -->
+        {% if p.my_prizes_grouped %}
+        <div style="background:#f9fafb;border-radius:8px;padding:.85rem;margin-bottom:.75rem;">
+            <p style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:.6rem;">
+                Prix proposés pour {{ p.proposer_username }} :
+            </p>
+            {% if p.my_prizes_grouped %}
+            {% for g, items in p.my_prizes_grouped.items() %}
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;margin-bottom:.4rem;font-size:.85rem;">
+                <span style="background:#eef2ff;color:var(--primary);border-radius:4px;padding:.1rem .45rem;font-size:.75rem;font-weight:700;white-space:nowrap;">
+                    G{{ g }} · {{ group_pcts[g] }}%
+                </span>
+                {% for prize in items %}
+                <span style="background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:.2rem .65rem;">
+                    {{ prize.token_name }}{% if prize.token_duration_minutes and prize.token_duration_minutes != 30 %} <span style="color:#9ca3af;font-size:.78rem;">{{ prize.token_duration_minutes }}min</span>{% endif %}
+                </span>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:#9ca3af;font-size:.85rem;">Tous les groupes vides.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Proposed prizes for reviewer (self) -->
+        {% if p.partner_prizes_grouped %}
+        <div style="background:#f9fafb;border-radius:8px;padding:.85rem;margin-bottom:.75rem;">
+            <p style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:.6rem;">
+                Vos prix proposés :
+            </p>
+            {% if p.partner_prizes_grouped %}
+            {% for g, items in p.partner_prizes_grouped.items() %}
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;margin-bottom:.4rem;font-size:.85rem;">
+                <span style="background:#eef2ff;color:var(--primary);border-radius:4px;padding:.1rem .45rem;font-size:.75rem;font-weight:700;white-space:nowrap;">
+                    G{{ g }} · {{ group_pcts[g] }}%
+                </span>
+                {% for prize in items %}
+                <span style="background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:.2rem .65rem;">
+                    {{ prize.token_name }}{% if prize.token_duration_minutes and prize.token_duration_minutes != 30 %} <span style="color:#9ca3af;font-size:.78rem;">{{ prize.token_duration_minutes }}min</span>{% endif %}
+                </span>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:#9ca3af;font-size:.85rem;">Tous les groupes vides.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
+        {% if p.status == 'pending' %}
+        <div style="display:flex;gap:.75rem;margin-top:1rem;">
+            <form method="POST" action="{{ url_for('scratch.review_proposal', proposal_id=p.id) }}" style="flex:1;">
+                <input type="hidden" name="action" value="reject">
+                <button type="submit" class="btn btn-secondary" style="width:100%;">✗ Refuser</button>
+            </form>
+            <form method="POST" action="{{ url_for('scratch.review_proposal', proposal_id=p.id) }}" style="flex:2;">
+                <input type="hidden" name="action" value="accept">
+                <button type="submit" class="btn btn-success" style="width:100%;font-weight:600;">✓ Accepter et appliquer</button>
+            </form>
+        </div>
+        {% elif p.reviewed_at %}
+        <p style="font-size:.8rem;color:#9ca3af;margin-top:.5rem;">
+            Traitée le {{ p.reviewed_at.strftime('%d/%m/%Y à %H:%M') }}
+        </p>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- ── Outgoing ──────────────────────────────────────────────────────── -->
+    <h2 style="font-size:1rem;margin-bottom:1rem;margin-top:2rem;">📤 Envoyées</h2>
+
+    {% if not outgoing %}
+    <p style="color:#9ca3af;font-size:.9rem;">Aucune proposition envoyée.</p>
+    {% else %}
+    {% for p in outgoing %}
+    <div style="border:1px solid var(--border);border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.65rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;">
+        <div>
+            <strong style="font-size:.9rem;">Pour : {{ p.reviewer_username }}</strong>
+            <span style="color:#9ca3af;font-size:.8rem;margin-left:.5rem;">
+                {{ p.created_at.strftime('%d/%m/%Y %H:%M') if p.created_at else '' }}
+            </span>
+            <div style="font-size:.8rem;color:#6b7280;margin-top:.15rem;">
+                {% if p.scope == 'my' %}Mes prix seulement
+                {% elif p.scope == 'partner' %}Prix de {{ p.reviewer_username }} seulement
+                {% else %}Prix des deux
+                {% endif %}
+            </div>
+        </div>
+        <span style="border-radius:20px;padding:.2rem .8rem;font-size:.8rem;font-weight:600;
+            {% if p.status == 'pending' %}background:#eef2ff;color:var(--primary);
+            {% elif p.status == 'accepted' %}background:#d1fae5;color:#059669;
+            {% else %}background:#f3f4f6;color:#6b7280;{% endif %}">
+            {% if p.status == 'pending' %}⏳ En attente
+            {% elif p.status == 'accepted' %}✓ Acceptée
+            {% else %}✗ Refusée{% endif %}
+        </span>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+</div>
+{% endblock %}

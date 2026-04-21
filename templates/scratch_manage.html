@@ -25,7 +25,7 @@
         &nbsp;— le % par prize = % du groupe ÷ nombre de prizes
     </div>
 
-    <form method="POST" action="{{ url_for('scratch.save_prizes') }}" id="prizeForm">
+    <form method="POST" action="{{ url_for('scratch.propose_prizes') }}" id="prizeForm">
 
     <!-- Tabs -->
     <div style="display:flex;gap:0;margin-bottom:1rem;border-radius:10px;overflow:hidden;border:1px solid var(--primary);">
@@ -55,23 +55,43 @@
         {% include 'scratch_manage_groups.html' %}
     </div>
 
-    <!-- Save section -->
+    <!-- Propose section -->
     <div class="card mt-3" style="border:2px solid var(--primary);">
         <div style="padding:1.25rem;">
-            <p style="font-weight:600;margin-bottom:1rem;text-align:center;">🔐 Les deux mots de passe sont requis pour enregistrer</p>
-            <div class="grid grid-2" style="gap:1rem;">
-                <div class="form-group" style="margin:0;">
-                    <label>{{ session.username }}</label>
-                    <input type="password" name="my_password" required placeholder="Ton mot de passe">
-                </div>
-                <div class="form-group" style="margin:0;">
-                    <label>{{ partner.username }}</label>
-                    <input type="password" name="partner_password" required placeholder="Mot de passe partenaire">
-                </div>
+
+            {% if pending_scratch_proposals > 0 %}
+            <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;margin-bottom:1.25rem;font-size:.875rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
+                <span>⏳ <strong>{{ pending_scratch_proposals }}</strong> proposition(s) reçue(s) en attente de votre validation.</span>
+                <a href="{{ url_for('scratch.proposals_page') }}" style="white-space:nowrap;font-weight:600;">Voir →</a>
             </div>
-            <button type="submit" class="btn btn-primary mt-3" style="width:100%;font-size:1rem;">
-                💾 Enregistrer pour les deux
+            {% endif %}
+
+            <p style="font-weight:600;margin-bottom:.5rem;text-align:center;">📤 Proposer des changements</p>
+            <p style="color:#6b7280;font-size:.85rem;text-align:center;margin-bottom:1.25rem;">
+                {{ partner.username }} devra valider avant que les prix soient appliqués.
+            </p>
+
+            <div style="display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;margin-bottom:1.25rem;">
+                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;">
+                    <input type="radio" name="scope" value="my"> Moi seulement
+                </label>
+                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;">
+                    <input type="radio" name="scope" value="partner"> {{ partner.username }} seulement
+                </label>
+                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;font-weight:600;">
+                    <input type="radio" name="scope" value="both" checked> Les deux
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;font-size:1rem;">
+                📤 Proposer les changements
             </button>
+
+            <div style="text-align:center;margin-top:.75rem;">
+                <a href="{{ url_for('scratch.proposals_page') }}" style="font-size:.85rem;color:#6b7280;">
+                    Voir toutes les propositions →
+                </a>
+            </div>
         </div>
     </div>
 

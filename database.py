@@ -143,6 +143,21 @@ def init_db():
         )
     """)
 
+    # Scratch prize proposals (partner approval workflow)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS scratch_prize_proposals (
+            id SERIAL PRIMARY KEY,
+            proposer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            reviewer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            scope VARCHAR(10) NOT NULL CHECK (scope IN ('my', 'partner', 'both')),
+            my_prizes JSONB,
+            partner_prizes JSONB,
+            status VARCHAR(10) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            reviewed_at TIMESTAMP
+        )
+    """)
+
     # Create wheel countries table
     cur.execute("""
         CREATE TABLE IF NOT EXISTS wheel_countries (

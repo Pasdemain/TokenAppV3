@@ -409,7 +409,11 @@
                     <li><a href="{{ url_for('santa.santa_home') }}" class="{% if 'santa' in request.endpoint %}active{% endif %}">🎅 Santa</a></li>
                     {% endif %}
                     {% if user_features.get('scratch') %}
-                    <li><a href="{{ url_for('scratch.scratch_page') }}" class="{% if 'scratch' in request.endpoint %}active{% endif %}">🎰 Ticket</a></li>
+                    <li>
+                        <a href="{{ url_for('scratch.scratch_page') }}" class="{% if 'scratch' in request.endpoint %}active{% endif %}">
+                            🎰 Ticket{% if pending_scratch_proposals > 0 %}<span style="background:var(--danger);color:#fff;border-radius:50%;padding:.05rem .38rem;font-size:.7rem;margin-left:.3rem;font-weight:700;vertical-align:middle;">{{ pending_scratch_proposals }}</span>{% endif %}
+                        </a>
+                    </li>
                     {% endif %}
                     {% if user_features.get('wheel') %}
                     <li><a href="{{ url_for('wheel.wheel_page') }}" class="{% if 'wheel' in request.endpoint %}active{% endif %}">🌍 Wheel</a></li>

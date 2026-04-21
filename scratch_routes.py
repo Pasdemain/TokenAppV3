@@ -1,8 +1,9 @@
+import json
 import random
+from collections import defaultdict
 from datetime import date, datetime
 from flask import Blueprint, render_template, redirect, url_for, session, flash, request, jsonify
 from psycopg2.extras import RealDictCursor
-from werkzeug.security import check_password_hash
 from database import get_db_connection
 from auth import feature_required, admin_required
 
@@ -116,76 +117,197 @@ def manage_prizes():
                            group_pcts=GROUP_PCTS)
 
 
-@scratch_bp.route('/scratch/manage/save', methods=['POST'])
+@scratch_bp.route('/scratch/manage/propose', methods=['POST'])
 @feature_required('scratch')
-def save_prizes():
+def propose_prizes():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-
     try:
-        cur.execute("SELECT id, username, password_hash FROM users WHERE id = %s", (session['user_id'],))
-        me = cur.fetchone()
-
         partner = _get_partner(cur, session['user_id'])
         if not partner:
             flash('Aucun partenaire configuré.', 'error')
             return redirect(url_for('scratch.manage_prizes'))
 
-        cur.execute("SELECT password_hash FROM users WHERE id = %s", (partner['id'],))
-        partner_row = cur.fetchone()
+        scope = request.form.get('scope', 'both')
+        if scope not in ('my', 'partner', 'both'):
+            scope = 'both'
 
-        my_password = request.form.get('my_password', '')
-        partner_password = request.form.get('partner_password', '')
-
-        if not check_password_hash(me['password_hash'], my_password):
-            flash('Votre mot de passe est incorrect.', 'error')
-            return redirect(url_for('scratch.manage_prizes'))
-
-        if not check_password_hash(partner_row['password_hash'], partner_password):
-            flash(f"Le mot de passe de {partner['username']} est incorrect.", 'error')
-            return redirect(url_for('scratch.manage_prizes'))
-
-        def save_for_user(uid, prefix):
-            cur2 = conn.cursor()
-            cur2.execute("DELETE FROM scratch_prizes WHERE user_id = %s", (uid,))
-            cur2.execute("""
-                INSERT INTO scratch_prizes (user_id, name, probability, is_loser, group_number)
-                VALUES (%s, 'Try Again', 70.0, TRUE, 0)
-            """, (uid,))
+        def prizes_from_form(prefix):
+            prizes = []
             for g in range(1, 6):
                 tnames = request.form.getlist(f'{prefix}_g{g}_token_name')
                 tdescs = request.form.getlist(f'{prefix}_g{g}_token_desc')
                 tdurs  = request.form.getlist(f'{prefix}_g{g}_token_dur')
-                prizes_data = [
-                    (tnames[i].strip(),
-                     tdescs[i].strip() if i < len(tdescs) else '',
-                     int(tdurs[i]) if i < len(tdurs) and str(tdurs[i]).strip().isdigit() else 30)
-                    for i in range(len(tnames)) if tnames[i].strip()
-                ]
-                if prizes_data:
-                    pct_each = round(GROUP_PCTS[g] / len(prizes_data), 4)
-                    for (tname, tdesc, tdur) in prizes_data:
-                        cur2.execute("""
-                            INSERT INTO scratch_prizes
-                                (user_id, name, token_name, token_description,
-                                 token_duration_minutes, probability, is_loser, group_number)
-                            VALUES (%s, %s, %s, %s, %s, %s, FALSE, %s)
-                        """, (uid, tname, tname, tdesc or None, tdur, pct_each, g))
-            cur2.close()
+                for i, tname in enumerate(tnames):
+                    tname = tname.strip()
+                    if not tname:
+                        continue
+                    prizes.append({
+                        'group_number': g,
+                        'token_name': tname,
+                        'token_description': tdescs[i].strip() if i < len(tdescs) else '',
+                        'token_duration_minutes': int(tdurs[i]) if i < len(tdurs) and str(tdurs[i]).strip().isdigit() else 30,
+                    })
+            return prizes
 
-        save_for_user(session['user_id'], 'my')
-        save_for_user(partner['id'], 'partner')
+        my_prizes = prizes_from_form('my') if scope in ('my', 'both') else None
+        partner_prizes = prizes_from_form('partner') if scope in ('partner', 'both') else None
+
+        # Replace any pending proposal from this proposer to this reviewer
+        cur.execute("""
+            DELETE FROM scratch_prize_proposals
+            WHERE proposer_id = %s AND reviewer_id = %s AND status = 'pending'
+        """, (session['user_id'], partner['id']))
+
+        cur.execute("""
+            INSERT INTO scratch_prize_proposals
+                (proposer_id, reviewer_id, scope, my_prizes, partner_prizes)
+            VALUES (%s, %s, %s, %s::jsonb, %s::jsonb)
+        """, (session['user_id'], partner['id'], scope,
+              json.dumps(my_prizes) if my_prizes is not None else None,
+              json.dumps(partner_prizes) if partner_prizes is not None else None))
+
         conn.commit()
-        flash('Prix enregistrés avec succès !', 'success')
+        flash(f'Proposition envoyée à {partner["username"]} — en attente de sa validation.', 'success')
     except Exception as e:
         conn.rollback()
-        flash("Erreur lors de l'enregistrement.", 'error')
-        print(f"Save prizes error: {e}")
+        flash("Erreur lors de l'envoi de la proposition.", 'error')
+        print(f"Propose prizes error: {e}")
+        import traceback; traceback.print_exc()
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for('scratch.manage_prizes'))
+
+
+@scratch_bp.route('/scratch/proposals')
+@feature_required('scratch')
+def proposals_page():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            SELECT p.*, u.username as proposer_username
+            FROM scratch_prize_proposals p
+            JOIN users u ON p.proposer_id = u.id
+            WHERE p.reviewer_id = %s
+            ORDER BY p.created_at DESC
+            LIMIT 30
+        """, (session['user_id'],))
+        incoming = [dict(r) for r in cur.fetchall()]
+
+        cur.execute("""
+            SELECT p.*, u.username as reviewer_username
+            FROM scratch_prize_proposals p
+            JOIN users u ON p.reviewer_id = u.id
+            WHERE p.proposer_id = %s
+            ORDER BY p.created_at DESC
+            LIMIT 30
+        """, (session['user_id'],))
+        outgoing = [dict(r) for r in cur.fetchall()]
+
+        # Pre-group prizes by group_number for template rendering
+        def by_group(prizes_list):
+            groups = {}
+            if prizes_list:
+                for p in prizes_list:
+                    g = int(p.get('group_number', 0))
+                    groups.setdefault(g, []).append(p)
+            return dict(sorted(groups.items()))
+
+        for row in incoming:
+            row['my_prizes_grouped'] = by_group(row.get('my_prizes'))
+            row['partner_prizes_grouped'] = by_group(row.get('partner_prizes'))
+
+        my_groups = _prizes_by_group(cur, session['user_id'])
+    except Exception as e:
+        print(f"Proposals page error: {e}")
+        incoming = []
+        outgoing = []
+        my_groups = {i: [] for i in range(6)}
     finally:
         cur.close()
         conn.close()
 
-    return redirect(url_for('scratch.manage_prizes'))
+    return render_template('scratch_proposals.html',
+                           incoming=incoming, outgoing=outgoing,
+                           my_groups=my_groups, group_pcts=GROUP_PCTS)
+
+
+@scratch_bp.route('/scratch/proposals/<int:proposal_id>/review', methods=['POST'])
+@feature_required('scratch')
+def review_proposal(proposal_id):
+    action = request.form.get('action')
+    if action not in ('accept', 'reject'):
+        flash('Action invalide.', 'error')
+        return redirect(url_for('scratch.proposals_page'))
+
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            SELECT * FROM scratch_prize_proposals
+            WHERE id = %s AND reviewer_id = %s AND status = 'pending'
+        """, (proposal_id, session['user_id']))
+        proposal = cur.fetchone()
+        if not proposal:
+            flash('Proposition non trouvée ou déjà traitée.', 'error')
+            return redirect(url_for('scratch.proposals_page'))
+
+        if action == 'accept':
+            def apply_prizes(uid, prizes_raw):
+                if not prizes_raw:
+                    return
+                prizes = prizes_raw if isinstance(prizes_raw, list) else json.loads(prizes_raw)
+                cur.execute("DELETE FROM scratch_prizes WHERE user_id = %s", (uid,))
+                cur.execute("""
+                    INSERT INTO scratch_prizes (user_id, name, probability, is_loser, group_number)
+                    VALUES (%s, 'Try Again', 70.0, TRUE, 0)
+                """, (uid,))
+                by_g = defaultdict(list)
+                for p in prizes:
+                    by_g[int(p['group_number'])].append(p)
+                for g, gprizes in by_g.items():
+                    pct_each = round(GROUP_PCTS[g] / len(gprizes), 4)
+                    for p in gprizes:
+                        cur.execute("""
+                            INSERT INTO scratch_prizes
+                                (user_id, name, token_name, token_description,
+                                 token_duration_minutes, probability, is_loser, group_number)
+                            VALUES (%s, %s, %s, %s, %s, %s, FALSE, %s)
+                        """, (uid, p['token_name'], p['token_name'],
+                              p.get('token_description') or None,
+                              p.get('token_duration_minutes', 30),
+                              pct_each, g))
+
+            scope = proposal['scope']
+            if scope in ('my', 'both'):
+                apply_prizes(proposal['proposer_id'], proposal['my_prizes'])
+            if scope in ('partner', 'both'):
+                apply_prizes(proposal['reviewer_id'], proposal['partner_prizes'])
+
+            cur.execute("""
+                UPDATE scratch_prize_proposals SET status = 'accepted', reviewed_at = NOW()
+                WHERE id = %s
+            """, (proposal_id,))
+            conn.commit()
+            flash('Proposition acceptée — prix mis à jour !', 'success')
+        else:
+            cur.execute("""
+                UPDATE scratch_prize_proposals SET status = 'rejected', reviewed_at = NOW()
+                WHERE id = %s
+            """, (proposal_id,))
+            conn.commit()
+            flash('Proposition refusée.', 'info')
+    except Exception as e:
+        conn.rollback()
+        print(f"Review proposal error: {e}")
+        import traceback; traceback.print_exc()
+        flash('Erreur lors du traitement.', 'error')
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for('scratch.proposals_page'))
 
 
 @scratch_bp.route('/scratch/play', methods=['POST'])
