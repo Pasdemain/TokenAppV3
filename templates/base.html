@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CoupleApp{% endblock %}</title>
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
     
     <!-- PWA Support -->
     <link rel="manifest" href="/manifest.json">
@@ -392,8 +392,8 @@
 <body>
     <nav>
         <div class="container nav-container">
-            <a href="{{ url_for('dashboard') }}" class="nav-brand">
-                💑 CoupleApp
+            <a href="{{ url_for('dashboard') }}" class="nav-brand" id="navBrand">
+                {{ app_icon }} {{ app_name }}
             </a>
             <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
             <ul class="nav-menu" id="navMenu">
@@ -530,5 +530,81 @@
     </script>
 
     {% block scripts %}{% endblock %}
+
+{% if show_app_name_popup %}
+<!-- ── First-visit app name popup ────────────────────────────────────────── -->
+<div id="appNameOverlay" style="position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;border-radius:20px;padding:2rem;width:min(92vw,420px);box-shadow:0 24px 60px rgba(0,0,0,0.3);">
+        <h2 style="margin-bottom:.4rem;font-size:1.25rem;">✨ Personnalise ton appli</h2>
+        <p style="color:#6b7280;font-size:.875rem;margin-bottom:1.5rem;">
+            Comment veux-tu appeler cette appli ? Tu pourras changer ça plus tard dans ton profil.
+        </p>
+
+        <div class="form-group">
+            <label style="font-weight:600;font-size:.9rem;">Nom de l'appli</label>
+            <input id="popupAppName" type="text" value="LoveBirds" maxlength="50"
+                   style="margin-top:.35rem;"
+                   placeholder="ex : LoveBirds, Notre App, Chez nous…">
+        </div>
+
+        <div style="margin-top:1.1rem;margin-bottom:1.4rem;">
+            <label style="font-weight:600;font-size:.9rem;display:block;margin-bottom:.6rem;">Icône</label>
+            <div id="iconGrid" style="display:flex;flex-wrap:wrap;gap:.5rem;">
+                {% set icons = ['💑','💕','🏠','🌟','🎯','🌸','🦋','🌈','🎮','🌙','⚡','🎵','🐱','🐶','🦊','🍀','🔥','💎','🎭','🎪'] %}
+                {% for ico in icons %}
+                <button type="button" onclick="selectIcon('{{ ico }}', this)"
+                        data-icon="{{ ico }}"
+                        style="width:2.6rem;height:2.6rem;border-radius:8px;border:2px solid #e5e7eb;background:#f9fafb;font-size:1.3rem;cursor:pointer;transition:border-color .15s,background .15s;">
+                    {{ ico }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button onclick="saveAppPrefs()" class="btn btn-primary" style="width:100%;font-size:1rem;">
+            ✅ C'est parti !
+        </button>
+    </div>
+</div>
+
+<script>
+let _selectedIcon = '💑';
+
+// Pre-select first icon
+document.addEventListener('DOMContentLoaded', () => {
+    const first = document.querySelector('#iconGrid button');
+    if (first) first.style.cssText += ';border-color:var(--primary);background:#eef2ff;';
+});
+
+function selectIcon(ico, btn) {
+    _selectedIcon = ico;
+    document.querySelectorAll('#iconGrid button').forEach(b => {
+        b.style.borderColor = '#e5e7eb';
+        b.style.background = '#f9fafb';
+    });
+    btn.style.borderColor = 'var(--primary)';
+    btn.style.background = '#eef2ff';
+}
+
+async function saveAppPrefs() {
+    const name = document.getElementById('popupAppName').value.trim() || 'LoveBirds';
+    const fd = new FormData();
+    fd.append('app_name', name);
+    fd.append('app_icon', _selectedIcon);
+
+    const res = await fetch('/profile/app-prefs', {method: 'POST', body: fd});
+    const data = await res.json();
+    if (data.ok) {
+        document.getElementById('navBrand').textContent = `${data.app_icon} ${data.app_name}`;
+        document.title = data.app_name;
+        document.getElementById('appNameOverlay').remove();
+    }
+}
+
+document.getElementById('popupAppName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveAppPrefs();
+});
+</script>
+{% endif %}
 </body>
 </html>

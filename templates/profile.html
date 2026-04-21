@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Profile - CoupleApp{% endblock %}
+{% block title %}Profil — {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width: 800px; margin: 2rem auto;">
@@ -95,9 +95,39 @@
             
             {% if stats.tokens_created == 0 and stats.tokens_received == 0 and stats.lists_created == 0 %}
                 <p class="text-center text-muted" style="padding: 2rem;">
-                    Start using CoupleApp to unlock achievements!
+                    Utilise {{ app_name }} pour débloquer des succès !
                 </p>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- App preferences -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">✨ Personnalisation de l'appli</span>
+        </div>
+        <div style="padding:1.25rem;">
+            <div class="form-group" style="margin-bottom:1rem;">
+                <label style="font-weight:600;font-size:.9rem;">Nom de l'appli</label>
+                <input id="prefAppName" type="text" value="{{ app_name }}" maxlength="50"
+                       style="margin-top:.4rem;" placeholder="ex : LoveBirds">
+            </div>
+            <div style="margin-bottom:1.25rem;">
+                <label style="font-weight:600;font-size:.9rem;display:block;margin-bottom:.6rem;">Icône</label>
+                <div id="prefIconGrid" style="display:flex;flex-wrap:wrap;gap:.5rem;">
+                    {% for ico in allowed_icons %}
+                    <button type="button" onclick="prefSelectIcon('{{ ico }}', this)"
+                            data-icon="{{ ico }}"
+                            style="width:2.6rem;height:2.6rem;border-radius:8px;font-size:1.3rem;cursor:pointer;transition:border-color .15s,background .15s;
+                                   border:2px solid {% if ico == app_icon %}var(--primary){% else %}#e5e7eb{% endif %};
+                                   background:{% if ico == app_icon %}#eef2ff{% else %}#f9fafb{% endif %};">
+                        {{ ico }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="prefFeedback" style="display:none;color:var(--success);font-size:.875rem;margin-bottom:.75rem;">✓ Préférences enregistrées !</div>
+            <button onclick="savePrefPrefs()" class="btn btn-primary">💾 Enregistrer</button>
         </div>
     </div>
 
@@ -106,8 +136,8 @@
             <span class="card-title">⚙️ Actions</span>
         </div>
         <div style="padding: 1rem;">
-            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">📊 Go to Dashboard</a>
-            <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary">🚪 Log Out</a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">📊 Tableau de bord</a>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary">🚪 Se déconnecter</a>
         </div>
     </div>
 </div>
@@ -123,4 +153,37 @@
         }
     }
 </style>
+
+{% block scripts %}
+<script>
+let _prefIcon = '{{ app_icon }}';
+
+function prefSelectIcon(ico, btn) {
+    _prefIcon = ico;
+    document.querySelectorAll('#prefIconGrid button').forEach(b => {
+        b.style.borderColor = '#e5e7eb';
+        b.style.background = '#f9fafb';
+    });
+    btn.style.borderColor = 'var(--primary)';
+    btn.style.background = '#eef2ff';
+}
+
+async function savePrefPrefs() {
+    const name = document.getElementById('prefAppName').value.trim() || 'LoveBirds';
+    const fd = new FormData();
+    fd.append('app_name', name);
+    fd.append('app_icon', _prefIcon);
+
+    const res = await fetch('/profile/app-prefs', {method: 'POST', body: fd});
+    const data = await res.json();
+    if (data.ok) {
+        document.getElementById('navBrand').textContent = `${data.app_icon} ${data.app_name}`;
+        document.title = `Profil — ${data.app_name}`;
+        const fb = document.getElementById('prefFeedback');
+        fb.style.display = '';
+        setTimeout(() => { fb.style.display = 'none'; }, 3000);
+    }
+}
+</script>
+{% endblock %}
 {% endblock %}

@@ -2,7 +2,7 @@ import os
 import threading
 import time
 import urllib.request
-from flask import Flask, render_template, redirect, url_for, session, flash, send_from_directory
+from flask import Flask, render_template, redirect, url_for, session, flash, send_from_directory, request, jsonify
 from werkzeug.security import generate_password_hash
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -67,8 +67,17 @@ def inject_user_features():
         finally:
             cur.close()
             conn.close()
-        return {'user_features': features, 'pending_scratch_proposals': pending_proposals}
-    return {'user_features': {}, 'pending_scratch_proposals': 0}
+        app_name = session.get('app_name')
+        app_icon = session.get('app_icon') or '💑'
+        return {
+            'user_features': features,
+            'pending_scratch_proposals': pending_proposals,
+            'app_name': app_name or 'LoveBirds',
+            'app_icon': app_icon,
+            'show_app_name_popup': app_name is None,
+        }
+    return {'user_features': {}, 'pending_scratch_proposals': 0,
+            'app_name': 'LoveBirds', 'app_icon': '💑', 'show_app_name_popup': False}
 
 # PWA routes - serve manifest and service worker at root
 @app.route('/manifest.json')
@@ -416,7 +425,42 @@ def profile():
     cur.close()
     conn.close()
     
-    return render_template('profile.html', username=session.get('username'), stats=stats)
+    return render_template('profile.html', username=session.get('username'), stats=stats,
+                           app_name=session.get('app_name') or 'LoveBirds',
+                           app_icon=session.get('app_icon') or '💑',
+                           allowed_icons=ALLOWED_APP_ICONS)
+
+
+ALLOWED_APP_ICONS = [
+    '💑', '💕', '🏠', '🌟', '🎯', '🌸', '🦋', '🌈',
+    '🎮', '🌙', '⚡', '🎵', '🐱', '🐶', '🦊', '🍀',
+    '🔥', '💎', '🎭', '🎪',
+]
+
+
+@app.route('/profile/app-prefs', methods=['POST'])
+@login_required
+def save_app_prefs():
+    app_name = request.form.get('app_name', '').strip()[:50] or 'LoveBirds'
+    app_icon = request.form.get('app_icon', '💑')
+    if app_icon not in ALLOWED_APP_ICONS:
+        app_icon = '💑'
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE users SET app_name = %s, app_icon = %s WHERE id = %s",
+                    (app_name, app_icon, session['user_id']))
+        conn.commit()
+        session['app_name'] = app_name
+        session['app_icon'] = app_icon
+        return jsonify({'ok': True, 'app_name': app_name, 'app_icon': app_icon})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
 
 @app.template_filter('timeago')
 def timeago(timestamp):

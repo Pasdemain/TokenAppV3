@@ -52,6 +52,12 @@ def init_db():
     cur.execute("""
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
     """)
+    cur.execute("""
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS app_name VARCHAR(50);
+    """)
+    cur.execute("""
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS app_icon VARCHAR(10) DEFAULT '💑';
+    """)
 
     # Add card_type to flashcards (listening support)
     cur.execute("""
