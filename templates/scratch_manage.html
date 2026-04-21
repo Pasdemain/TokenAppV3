@@ -2,7 +2,7 @@
 {% block title %}Gérer les prix - Scratch{% endblock %}
 
 {% block content %}
-<div class="content-wrapper" style="max-width:900px;margin:2rem auto;">
+<div class="content-wrapper" style="max-width:720px;margin:2rem auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;">
         <h1>🎁 Gérer les prix du scratch</h1>
         <a href="{{ url_for('scratch.scratch_page') }}" class="btn btn-secondary btn-sm">← Retour</a>
@@ -14,68 +14,63 @@
     </div>
     {% else %}
 
-    <!-- Info groups -->
-    <div class="card mb-3" style="background:linear-gradient(135deg,#eef2ff,#f5f3ff);">
-        <div style="padding:1rem 1.5rem;">
-            <p style="margin:0;font-size:0.9rem;color:#4338ca;">
-                <strong>Structure des prizes :</strong>
-                🔄 Try Again 70% (fixe) &nbsp;|&nbsp;
-                Groupe 1 : 15% &nbsp;|&nbsp;
-                Groupe 2 : 7.5% &nbsp;|&nbsp;
-                Groupe 3 : 4.5% &nbsp;|&nbsp;
-                Groupe 4 : 2% &nbsp;|&nbsp;
-                Groupe 5 : 1%
-            </p>
-            <p style="margin:0.5rem 0 0;font-size:0.85rem;color:#6366f1;">
-                Le pourcentage par prize d'un groupe = % du groupe ÷ nombre de prizes dans ce groupe.
-                Pour enregistrer, les deux mots de passe sont nécessaires.
-            </p>
-        </div>
+    <!-- Info banner -->
+    <div style="background:#eef2ff;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1.5rem;font-size:0.85rem;color:#4338ca;">
+        🔄 Try Again <strong>70%</strong> &nbsp;·&nbsp;
+        G1 <strong>15%</strong> &nbsp;·&nbsp;
+        G2 <strong>7.5%</strong> &nbsp;·&nbsp;
+        G3 <strong>4.5%</strong> &nbsp;·&nbsp;
+        G4 <strong>2%</strong> &nbsp;·&nbsp;
+        G5 <strong>1%</strong>
+        &nbsp;— le % par prize = % du groupe ÷ nombre de prizes
     </div>
 
     <form method="POST" action="{{ url_for('scratch.save_prizes') }}" id="prizeForm">
 
-    <div class="grid" style="grid-template-columns:1fr 1fr;gap:1.5rem;">
-
-        <!-- ── My prizes ──────────────────────────────────────── -->
-        <div>
-            <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:1rem;color:var(--primary);">
-                👤 Mes prix — {{ session.username }}
-            </h2>
-            {% set me_groups = my_groups %}
-            {% include 'scratch_manage_groups.html' with context %}
-        </div>
-
-        <!-- ── Partner prizes ─────────────────────────────────── -->
-        <div>
-            <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:1rem;color:var(--secondary);">
-                👤 Prix de {{ partner.username }}
-            </h2>
-            {% set me_groups = partner_groups %}
-            {% set is_partner = true %}
-            {% include 'scratch_manage_groups.html' with context %}
-        </div>
-
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;margin-bottom:1rem;border-radius:10px;overflow:hidden;border:1px solid var(--primary);">
+        <button type="button" id="tab-my-btn"
+                onclick="switchTab('my')"
+                style="flex:1;padding:0.65rem;font-weight:600;font-size:0.95rem;border:none;cursor:pointer;background:var(--primary);color:#fff;">
+            👤 {{ session.username }}
+        </button>
+        <button type="button" id="tab-partner-btn"
+                onclick="switchTab('partner')"
+                style="flex:1;padding:0.65rem;font-weight:600;font-size:0.95rem;border:none;cursor:pointer;background:#fff;color:var(--primary);">
+            👤 {{ partner.username }}
+        </button>
     </div>
 
-    <!-- Passwords + save -->
+    <!-- My prizes tab -->
+    <div id="tab-my">
+        {% set current_prefix = 'my' %}
+        {% set current_groups = my_groups %}
+        {% include 'scratch_manage_groups.html' %}
+    </div>
+
+    <!-- Partner prizes tab -->
+    <div id="tab-partner" style="display:none;">
+        {% set current_prefix = 'partner' %}
+        {% set current_groups = partner_groups %}
+        {% include 'scratch_manage_groups.html' %}
+    </div>
+
+    <!-- Save section -->
     <div class="card mt-3" style="border:2px solid var(--primary);">
-        <div class="card-header">
-            <span class="card-title">🔐 Confirmation — les deux mots de passe sont requis</span>
-        </div>
-        <div style="padding:1.5rem;">
+        <div style="padding:1.25rem;">
+            <p style="font-weight:600;margin-bottom:1rem;text-align:center;">🔐 Les deux mots de passe sont requis pour enregistrer</p>
             <div class="grid grid-2" style="gap:1rem;">
                 <div class="form-group" style="margin:0;">
-                    <label>Mon mot de passe ({{ session.username }})</label>
+                    <label>{{ session.username }}</label>
                     <input type="password" name="my_password" required placeholder="Ton mot de passe">
                 </div>
                 <div class="form-group" style="margin:0;">
-                    <label>Mot de passe de {{ partner.username }}</label>
-                    <input type="password" name="partner_password" required placeholder="Mot de passe du partenaire">
+                    <label>{{ partner.username }}</label>
+                    <input type="password" name="partner_password" required placeholder="Mot de passe partenaire">
                 </div>
             </div>
             <button type="submit" class="btn btn-primary mt-3" style="width:100%;font-size:1rem;">
-                💾 Enregistrer les prix pour les deux
+                💾 Enregistrer pour les deux
             </button>
         </div>
     </div>
@@ -84,49 +79,158 @@
     {% endif %}
 </div>
 
+<!-- ── Prize modal ───────────────────────────────────────────────────────── -->
+<div id="prize-modal" style="display:none;position:fixed;inset:0;z-index:2000;">
+    <div onclick="closeModal()" style="position:absolute;inset:0;background:rgba(0,0,0,0.5);"></div>
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                background:#fff;border-radius:16px;padding:1.5rem;width:min(90vw,380px);
+                box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <h3 style="margin-bottom:1rem;" id="modal-title">Ajouter un prix</h3>
+        <div class="form-group">
+            <label>Nom du token *</label>
+            <input id="modal-token-name" type="text" placeholder="ex: Massage 30 min" maxlength="50">
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <input id="modal-token-desc" type="text" placeholder="ex: Un massage relaxant" maxlength="200">
+        </div>
+        <div class="form-group">
+            <label>Durée (minutes)</label>
+            <input id="modal-token-dur" type="number" value="30" min="1">
+        </div>
+        <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+            <button type="button" onclick="closeModal()"
+                    class="btn btn-secondary" style="flex:1;">Annuler</button>
+            <button type="button" onclick="confirmModal()"
+                    class="btn btn-primary" style="flex:2;" id="modal-confirm-btn">Ajouter</button>
+        </div>
+    </div>
+</div>
+
 {% block scripts %}
 <script>
 const GROUP_PCTS = {{ group_pcts | tojson }};
+let modalPrefix = null, modalGroup = null, modalEditEl = null;
 
-function addPrizeRow(groupEl, prefix, g) {
-    const list = groupEl.querySelector('.prize-list');
-    const idx = list.children.length;
-    const row = document.createElement('div');
-    row.className = 'prize-row';
-    row.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;';
-    row.innerHTML = `
-        <input type="text" name="${prefix}_g${g}_name" placeholder="Nom du prix *"
-               style="flex:2;min-width:120px;" oninput="updatePcts(${g}, '${prefix}')">
-        <input type="text" name="${prefix}_g${g}_token_name" placeholder="Nom du token"
-               style="flex:2;min-width:120px;">
-        <input type="number" name="${prefix}_g${g}_token_dur" placeholder="Durée (min)" value="30"
-               style="flex:0 0 90px;" min="1">
-        <button type="button" onclick="this.closest('.prize-row').remove(); updatePcts(${g}, '${prefix}')"
-                style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:1.2rem;flex:0 0 auto;">✕</button>
-    `;
-    list.appendChild(row);
-    updatePcts(g, prefix);
+/* ── Tab switching ──────────────────────────────────────────────────────── */
+function switchTab(tab) {
+    const isMe = tab === 'my';
+    document.getElementById('tab-my').style.display = isMe ? '' : 'none';
+    document.getElementById('tab-partner').style.display = isMe ? 'none' : '';
+    document.getElementById('tab-my-btn').style.background = isMe ? 'var(--primary)' : '#fff';
+    document.getElementById('tab-my-btn').style.color = isMe ? '#fff' : 'var(--primary)';
+    document.getElementById('tab-partner-btn').style.background = isMe ? '#fff' : 'var(--primary)';
+    document.getElementById('tab-partner-btn').style.color = isMe ? 'var(--primary)' : '#fff';
 }
 
-function updatePcts(g, prefix) {
-    const container = document.querySelector(`[data-g="${g}"][data-prefix="${prefix}"]`);
-    if (!container) return;
-    const names = container.querySelectorAll(`input[name="${prefix}_g${g}_name"]`);
-    const n = Array.from(names).filter(i => i.value.trim()).length;
-    const badge = container.querySelector('.pct-badge');
-    if (badge) {
-        if (n === 0) {
-            badge.textContent = GROUP_PCTS[g] + '%';
-            badge.style.background = '#e5e7eb';
-            badge.style.color = '#6b7280';
-        } else {
-            const each = (GROUP_PCTS[g] / n).toFixed(2);
-            badge.textContent = `${n} × ${each}%`;
-            badge.style.background = 'var(--primary)';
-            badge.style.color = '#fff';
-        }
+/* ── Modal open/close ───────────────────────────────────────────────────── */
+function openModal(prefix, g, editEl) {
+    modalPrefix = prefix;
+    modalGroup = g;
+    modalEditEl = editEl || null;
+    document.getElementById('modal-token-name').value = editEl ? editEl.dataset.tname : '';
+    document.getElementById('modal-token-desc').value = editEl ? editEl.dataset.tdesc : '';
+    document.getElementById('modal-token-dur').value  = editEl ? editEl.dataset.tdur  : '30';
+    document.getElementById('modal-title').textContent = editEl ? 'Modifier le prix' : 'Ajouter un prix';
+    document.getElementById('modal-confirm-btn').textContent = editEl ? 'Modifier' : 'Ajouter';
+    document.getElementById('prize-modal').style.display = '';
+    document.getElementById('modal-token-name').focus();
+}
+
+function closeModal() {
+    document.getElementById('prize-modal').style.display = 'none';
+    modalEditEl = null;
+}
+
+/* ── Confirm modal ──────────────────────────────────────────────────────── */
+function confirmModal() {
+    const tname = document.getElementById('modal-token-name').value.trim();
+    if (!tname) { document.getElementById('modal-token-name').focus(); return; }
+    const tdesc = document.getElementById('modal-token-desc').value.trim();
+    const tdur  = document.getElementById('modal-token-dur').value || '30';
+
+    if (modalEditEl) {
+        // Update existing chip
+        modalEditEl.dataset.tname = tname;
+        modalEditEl.dataset.tdesc = tdesc;
+        modalEditEl.dataset.tdur  = tdur;
+        modalEditEl.querySelector('.chip-label').textContent = tname;
+        // Update hidden inputs
+        modalEditEl.querySelector('input[data-type="tname"]').value = tname;
+        modalEditEl.querySelector('input[data-type="tdesc"]').value = tdesc;
+        modalEditEl.querySelector('input[data-type="tdur"]').value  = tdur;
+    } else {
+        addChip(modalPrefix, modalGroup, tname, tdesc, tdur);
+    }
+    updatePct(modalPrefix, modalGroup);
+    closeModal();
+}
+
+/* ── Add chip ───────────────────────────────────────────────────────────── */
+function addChip(prefix, g, tname, tdesc, tdur) {
+    const container = document.getElementById(`chips-${prefix}-${g}`);
+    const chip = document.createElement('div');
+    chip.className = 'prize-chip';
+    chip.dataset.tname = tname;
+    chip.dataset.tdesc = tdesc;
+    chip.dataset.tdur  = tdur;
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:0.4rem;background:#eef2ff;border:1px solid var(--primary);border-radius:20px;padding:0.35rem 0.75rem;margin:0.25rem;cursor:pointer;font-size:0.9rem;';
+    chip.innerHTML = `
+        <span class="chip-label" style="color:var(--primary);font-weight:500;">${escHtml(tname)}</span>
+        <input type="hidden" name="${prefix}_g${g}_token_name" value="${escHtml(tname)}" data-type="tname">
+        <input type="hidden" name="${prefix}_g${g}_token_desc" value="${escHtml(tdesc)}" data-type="tdesc">
+        <input type="hidden" name="${prefix}_g${g}_token_dur"  value="${escHtml(tdur)}"  data-type="tdur">
+        <span onclick="event.stopPropagation();removeChip(this,${g},'${prefix}')"
+              style="color:var(--danger);font-size:1rem;line-height:1;margin-left:0.1rem;">✕</span>
+    `;
+    chip.addEventListener('click', () => openModal(prefix, g, chip));
+    container.appendChild(chip);
+}
+
+function removeChip(el, g, prefix) {
+    el.closest('.prize-chip').remove();
+    updatePct(prefix, g);
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Update % badge ─────────────────────────────────────────────────────── */
+function updatePct(prefix, g) {
+    const chips = document.querySelectorAll(`#chips-${prefix}-${g} .prize-chip`);
+    const n = chips.length;
+    const badge = document.getElementById(`pct-${prefix}-${g}`);
+    if (!badge) return;
+    if (n === 0) {
+        badge.textContent = GROUP_PCTS[g] + '%';
+        badge.style.background = '#e5e7eb';
+        badge.style.color = '#6b7280';
+    } else {
+        badge.textContent = `${n} × ${(GROUP_PCTS[g]/n).toFixed(2)}%`;
+        badge.style.background = 'var(--primary)';
+        badge.style.color = '#fff';
     }
 }
+
+/* ── Re-attach click on existing chips (rendered server-side) ─────────── */
+document.querySelectorAll('.prize-chip').forEach(chip => {
+    const prefix = chip.dataset.prefix;
+    const g      = chip.dataset.group;
+    chip.addEventListener('click', () => openModal(prefix, parseInt(g), chip));
+});
+
+/* ── Enter key in modal ─────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Enter' && document.getElementById('prize-modal').style.display !== 'none') {
+        e.preventDefault(); confirmModal();
+    }
+});
 </script>
+
+<style>
+.prize-chip:hover { background: #e0e7ff !important; }
+</style>
 {% endblock %}
 {% endblock %}
