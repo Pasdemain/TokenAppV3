@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, session, flash, request, jsonify
 from psycopg2.extras import RealDictCursor, execute_values
 from database import get_db_connection
-from auth import login_required
+from auth import feature_required
 
 competency_bp = Blueprint('competency', __name__)
 
@@ -53,7 +53,7 @@ def find_closest_question(cur, skill, answered_ids, score, lang):
 # ── Home ────────────────────────────────────────────────────────────────────
 
 @competency_bp.route('/competency')
-@login_required
+@feature_required('competency')
 def competency_home():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -107,7 +107,7 @@ def competency_home():
 # ── Start test ──────────────────────────────────────────────────────────────
 
 @competency_bp.route('/competency/start', methods=['POST'])
-@login_required
+@feature_required('competency')
 def start_test():
     target_lang = request.form.get('target_lang', '').strip()
     if not target_lang:
@@ -152,7 +152,7 @@ def start_test():
 # ── Test page (SPA shell) ──────────────────────────────────────────────────
 
 @competency_bp.route('/competency/test/<int:test_id>')
-@login_required
+@feature_required('competency')
 def test_page(test_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -179,7 +179,7 @@ def test_page(test_id):
 # ── Next question (JSON) ───────────────────────────────────────────────────
 
 @competency_bp.route('/competency/test/<int:test_id>/next')
-@login_required
+@feature_required('competency')
 def next_question(test_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -260,7 +260,7 @@ def next_question(test_id):
 # ── Submit answer (JSON) ───────────────────────────────────────────────────
 
 @competency_bp.route('/competency/test/<int:test_id>/answer', methods=['POST'])
-@login_required
+@feature_required('competency')
 def submit_answer(test_id):
     data = request.get_json()
     if not data:
@@ -365,7 +365,7 @@ def submit_answer(test_id):
 # ── Result page ─────────────────────────────────────────────────────────────
 
 @competency_bp.route('/competency/result/<int:test_id>')
-@login_required
+@feature_required('competency')
 def result_page(test_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)

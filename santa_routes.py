@@ -2,7 +2,7 @@ import random
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db_connection
 from psycopg2.extras import RealDictCursor
-from auth import login_required
+from auth import feature_required
 
 santa_bp = Blueprint('santa', __name__)
 
@@ -29,7 +29,7 @@ def _user_is_member(cur, group_id, user_id):
 
 
 @santa_bp.route('/santa')
-@login_required
+@feature_required('santa')
 def santa_home():
     """List all santa groups the user is part of (created or member)."""
     conn = get_db_connection()
@@ -53,7 +53,7 @@ def santa_home():
 
 
 @santa_bp.route('/santa/create', methods=['GET', 'POST'])
-@login_required
+@feature_required('santa')
 def create_santa():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -126,7 +126,7 @@ def create_santa():
 
 
 @santa_bp.route('/santa/<int:group_id>')
-@login_required
+@feature_required('santa')
 def santa_detail(group_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -205,7 +205,7 @@ def santa_detail(group_id):
 
 
 @santa_bp.route('/santa/<int:group_id>/wishlist', methods=['POST'])
-@login_required
+@feature_required('santa')
 def update_wishlist(group_id):
     wishlist = request.form.get('wishlist', '').strip()
 
@@ -235,7 +235,7 @@ def update_wishlist(group_id):
 
 
 @santa_bp.route('/santa/<int:group_id>/add_member', methods=['POST'])
-@login_required
+@feature_required('santa')
 def add_member(group_id):
     new_user_id = request.form.get('user_id', type=int)
 
@@ -272,7 +272,7 @@ def add_member(group_id):
 
 
 @santa_bp.route('/santa/<int:group_id>/remove_member/<int:user_id>', methods=['POST'])
-@login_required
+@feature_required('santa')
 def remove_member(group_id, user_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -306,7 +306,7 @@ def remove_member(group_id, user_id):
 
 
 @santa_bp.route('/santa/<int:group_id>/draw', methods=['POST'])
-@login_required
+@feature_required('santa')
 def draw_santa(group_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -373,7 +373,7 @@ def draw_santa(group_id):
 
 
 @santa_bp.route('/santa/<int:group_id>/delete', methods=['POST'])
-@login_required
+@feature_required('santa')
 def delete_santa(group_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)

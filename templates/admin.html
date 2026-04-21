@@ -8,6 +8,108 @@
         ⚠️ <strong>Warning:</strong> Admin actions are permanent and cannot be undone!
     </div>
 
+    <!-- ── User Features ────────────────────────────────────────────────── -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">⚙️ Gestion des fonctionnalités par utilisateur</span>
+        </div>
+        <div style="padding: 1.5rem;">
+            {% set feature_labels = {
+                'tokens': '🎟️ Tokens',
+                'shopping': '🛒 Shopping',
+                'scratch': '🎰 Scratch',
+                'wheel': '🌍 Wheel',
+                'flashcards': '🧠 Flashcards',
+                'competency': '📝 Compétence',
+                'santa': '🎅 Santa'
+            } %}
+
+            {% if users %}
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--border);">
+                            <th style="text-align:left;padding:0.5rem 0.75rem;">Utilisateur</th>
+                            {% for feat in all_features %}
+                            <th style="text-align:center;padding:0.5rem 0.4rem;white-space:nowrap;">{{ feature_labels[feat] }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:0.6rem 0.75rem;font-weight:600;">{{ user.username }}</td>
+                            {% for feat in all_features %}
+                            {% set feat_data = user_features_map.get(user.id, {}).get(feat, {'is_enabled': True}) %}
+                            <td style="text-align:center;padding:0.4rem;">
+                                <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="action" value="toggle_feature">
+                                    <input type="hidden" name="target_user_id" value="{{ user.id }}">
+                                    <input type="hidden" name="feature_name" value="{{ feat }}">
+                                    <input type="hidden" name="is_enabled" value="{{ '0' if feat_data.is_enabled else '1' }}">
+                                    <input type="hidden" name="password" class="admin-pw-toggle">
+                                    <button type="button"
+                                        style="background:none;border:none;cursor:pointer;font-size:1.4rem;line-height:1;"
+                                        title="{{ 'Désactiver' if feat_data.is_enabled else 'Activer' }}"
+                                        onclick="promptAndSubmitToggle(this)">
+                                        {{ '✅' if feat_data.is_enabled else '❌' }}
+                                    </button>
+                                </form>
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Scratch partner assignment -->
+            <div style="margin-top:2rem;">
+                <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;">🎰 Partenaire Scratch par utilisateur</h3>
+                <p class="text-muted mb-2" style="font-size:0.875rem;">
+                    Quand un utilisateur gagne au scratch, le token est créé entre lui et son partenaire assigné.
+                    Sans partenaire configuré, aucun token n'est généré.
+                </p>
+                <div class="grid grid-2" style="gap:1rem;">
+                    {% for user in users %}
+                    {% set scratch_data = user_features_map.get(user.id, {}).get('scratch', {}) %}
+                    <div style="border:1px solid var(--border);border-radius:8px;padding:1rem;">
+                        <div style="font-weight:600;margin-bottom:0.75rem;">👤 {{ user.username }}</div>
+                        <form method="POST">
+                            <input type="hidden" name="action" value="set_scratch_partner">
+                            <input type="hidden" name="target_user_id" value="{{ user.id }}">
+                            <div class="form-group" style="margin-bottom:0.75rem;">
+                                <label style="font-size:0.875rem;">Partenaire actuel :
+                                    <strong>{{ scratch_data.partner_username or '— non configuré —' }}</strong>
+                                </label>
+                                <select name="partner_id" style="margin-top:0.4rem;">
+                                    <option value="">— Aucun partenaire —</option>
+                                    {% for other in users %}
+                                    {% if other.id != user.id %}
+                                    <option value="{{ other.id }}"
+                                        {{ 'selected' if scratch_data.partner_id == other.id else '' }}>
+                                        {{ other.username }}
+                                    </option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0.75rem;">
+                                <input type="password" name="password" placeholder="Mot de passe admin" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">💾 Enregistrer</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% else %}
+            <div class="alert alert-info">ℹ️ Aucun utilisateur enregistré.</div>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- ── Scratch ticket prizes ─────────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
@@ -610,6 +712,14 @@ function promptAndSubmit(inputId, form) {
     const pw = prompt('Enter admin password to delete this prize:');
     if (pw === null) return;
     document.getElementById(inputId).value = pw;
+    form.submit();
+}
+
+function promptAndSubmitToggle(btn) {
+    const form = btn.closest('form');
+    const pw = prompt('Mot de passe admin :');
+    if (pw === null) return;
+    form.querySelector('.admin-pw-toggle').value = pw;
     form.submit();
 }
 </script>

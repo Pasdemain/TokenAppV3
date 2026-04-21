@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, session, flash, request, jsonify
 from psycopg2.extras import RealDictCursor, execute_values
 from database import get_db_connection
-from auth import login_required
+from auth import feature_required
 
 flashcard_bp = Blueprint('flashcards', __name__)
 
@@ -24,7 +24,7 @@ def get_leitner_intervals(cur):
 # ── Dashboard ────────────────────────────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards')
-@login_required
+@feature_required('flashcards')
 def flashcards_home():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -94,7 +94,7 @@ def flashcards_home():
 # ── Session (choose languages — only shown if not yet set) ───────────────────
 
 @flashcard_bp.route('/flashcards/session', methods=['GET', 'POST'])
-@login_required
+@feature_required('flashcards')
 def flashcard_session():
     # If languages already set, skip straight to review
     if request.method == 'GET' and session.get('fc_source_lang') and session.get('fc_target_lang'):
@@ -129,7 +129,7 @@ def flashcard_session():
 # ── Review (show card + QCM) ─────────────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards/review')
-@login_required
+@feature_required('flashcards')
 def review():
     source_lang = session.get('fc_source_lang')
     target_lang = session.get('fc_target_lang')
@@ -265,7 +265,7 @@ def review():
 # ── Next card (JSON for SPA-style transitions) ──────────────────────────────
 
 @flashcard_bp.route('/flashcards/review/next')
-@login_required
+@feature_required('flashcards')
 def review_next():
     source_lang = session.get('fc_source_lang')
     target_lang = session.get('fc_target_lang')
@@ -363,7 +363,7 @@ def review_next():
 # ── Answer ───────────────────────────────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards/review/<int:user_flashcard_id>/answer', methods=['POST'])
-@login_required
+@feature_required('flashcards')
 def answer(user_flashcard_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -420,7 +420,7 @@ def answer(user_flashcard_id):
 # ── Report a card ────────────────────────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards/report', methods=['POST'])
-@login_required
+@feature_required('flashcards')
 def report_card():
     data = request.get_json()
     if not data:
@@ -470,7 +470,7 @@ def admin_delete_report(report_id):
 # ── Add cards to collection ──────────────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards/add/<int:category_id>', methods=['POST'])
-@login_required
+@feature_required('flashcards')
 def add_cards(category_id):
     source_lang = request.form.get('source_lang') or session.get('fc_source_lang', '')
     target_lang = request.form.get('target_lang') or session.get('fc_target_lang', '')

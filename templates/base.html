@@ -399,13 +399,27 @@
             <ul class="nav-menu" id="navMenu">
                 {% if session.user_id %}
                     <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">🏠 Home</a></li>
+                    {% if user_features.get('shopping') %}
                     <li><a href="{{ url_for('shopping.shopping_lists') }}" class="{% if 'shopping' in request.endpoint %}active{% endif %}">🛒 Shopping</a></li>
+                    {% endif %}
+                    {% if user_features.get('tokens') %}
                     <li><a href="{{ url_for('tokens.tokens_page') }}" class="{% if 'token' in request.endpoint %}active{% endif %}">🎟️ Tokens</a></li>
+                    {% endif %}
+                    {% if user_features.get('santa') %}
                     <li><a href="{{ url_for('santa.santa_home') }}" class="{% if 'santa' in request.endpoint %}active{% endif %}">🎅 Santa</a></li>
+                    {% endif %}
+                    {% if user_features.get('scratch') %}
                     <li><a href="{{ url_for('scratch.scratch_page') }}" class="{% if 'scratch' in request.endpoint %}active{% endif %}">🎰 Ticket</a></li>
+                    {% endif %}
+                    {% if user_features.get('wheel') %}
                     <li><a href="{{ url_for('wheel.wheel_page') }}" class="{% if 'wheel' in request.endpoint %}active{% endif %}">🌍 Wheel</a></li>
+                    {% endif %}
+                    {% if user_features.get('flashcards') %}
                     <li><a href="{{ url_for('flashcards.flashcards_home') }}" class="{% if 'flashcard' in request.endpoint %}active{% endif %}">🧠 Cards</a></li>
+                    {% endif %}
+                    {% if user_features.get('competency') %}
                     <li><a href="{{ url_for('competency.competency_home') }}" class="{% if 'competency' in request.endpoint %}active{% endif %}">📝 Test</a></li>
+                    {% endif %}
                     <li class="dropdown">
                         <a href="#" onclick="event.preventDefault()">👤 {{ session.username }} ▼</a>
                         <div class="dropdown-content">

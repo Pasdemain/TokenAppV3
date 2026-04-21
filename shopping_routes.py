@@ -1,13 +1,13 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from database import get_db_connection
 from psycopg2.extras import RealDictCursor
-from auth import login_required
+from auth import feature_required
 from datetime import datetime
 
 shopping_bp = Blueprint('shopping', __name__)
 
 @shopping_bp.route('/shopping')
-@login_required
+@feature_required('shopping')
 def shopping_lists():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -41,7 +41,7 @@ def shopping_lists():
     return render_template('shopping_lists.html', lists=lists)
 
 @shopping_bp.route('/shopping/create', methods=['GET', 'POST'])
-@login_required
+@feature_required('shopping')
 def create_shopping_list():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
@@ -111,7 +111,7 @@ def create_shopping_list():
     return render_template('create_shopping_list.html', users=users)
 
 @shopping_bp.route('/shopping/<int:list_id>')
-@login_required
+@feature_required('shopping')
 def shopping_list_detail(list_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -169,7 +169,7 @@ def shopping_list_detail(list_id):
                          is_owner=(shopping_list['created_by'] == session['user_id']))
 
 @shopping_bp.route('/shopping/<int:list_id>/add_item', methods=['POST'])
-@login_required
+@feature_required('shopping')
 def add_item(list_id):
     name = request.form.get('name', '').strip()
     quantity = request.form.get('quantity', '1').strip()
@@ -215,7 +215,7 @@ def add_item(list_id):
     return redirect(url_for('shopping.shopping_list_detail', list_id=list_id))
 
 @shopping_bp.route('/shopping/toggle_item/<int:item_id>', methods=['POST'])
-@login_required
+@feature_required('shopping')
 def toggle_item(item_id):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -268,7 +268,7 @@ def toggle_item(item_id):
     return redirect(url_for('shopping.shopping_list_detail', list_id=list_id))
 
 @shopping_bp.route('/shopping/<int:list_id>/delete', methods=['POST'])
-@login_required
+@feature_required('shopping')
 def delete_list(list_id):
     conn = get_db_connection()
     cur = conn.cursor()

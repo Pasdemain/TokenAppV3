@@ -1,13 +1,13 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from database import get_db_connection
 from psycopg2.extras import RealDictCursor
-from auth import login_required
+from auth import feature_required
 from datetime import datetime
 
 token_bp = Blueprint('tokens', __name__)
 
 @token_bp.route('/tokens')
-@login_required
+@feature_required('tokens')
 def tokens_page():
     """Main tokens management page"""
     conn = get_db_connection()
@@ -41,7 +41,7 @@ def tokens_page():
                          received_tokens=received_tokens)
 
 @token_bp.route('/tokens/create', methods=['GET', 'POST'])
-@login_required
+@feature_required('tokens')
 def create_token():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -98,7 +98,7 @@ def create_token():
     return render_template('create_token.html', users=users)
 
 @token_bp.route('/tokens/<int:token_id>/start', methods=['POST'])
-@login_required
+@feature_required('tokens')
 def start_token(token_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -139,7 +139,7 @@ def start_token(token_id):
     return redirect(url_for('tokens.tokens_page'))
 
 @token_bp.route('/tokens/<int:token_id>/complete', methods=['POST'])
-@login_required
+@feature_required('tokens')
 def complete_token(token_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -182,7 +182,7 @@ def complete_token(token_id):
     return redirect(url_for('tokens.tokens_page'))
 
 @token_bp.route('/tokens/<int:token_id>/cancel', methods=['POST'])
-@login_required
+@feature_required('tokens')
 def cancel_token(token_id):
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
