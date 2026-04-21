@@ -116,11 +116,13 @@ def molkky_create():
             VALUES (%s, %s, %s, %s, %s, 'setup') RETURNING id
         """, (session['user_id'], name, mode, penalty_rule, stop_on_winner))
         game_id = cur.fetchone()['id']
-        # Auto-add creator as first player
-        cur.execute("""
-            INSERT INTO molkky_members (game_id, team_id, user_id, display_name)
-            VALUES (%s, NULL, %s, %s)
-        """, (game_id, session['user_id'], session['username']))
+        if mode == 'teams':
+            for i in range(4):
+                color = TEAM_COLORS[i % len(TEAM_COLORS)]
+                cur.execute("""
+                    INSERT INTO molkky_teams (game_id, name, color, score, consecutive_zeros, is_eliminated, turn_order)
+                    VALUES (%s, %s, %s, 0, 0, FALSE, %s)
+                """, (game_id, f'Équipe {i+1}', color, i))
         conn.commit()
         return redirect(url_for('molkky.molkky_setup', game_id=game_id))
     except Exception as e:
@@ -167,9 +169,8 @@ def molkky_setup(game_id):
         """, (game_id,))
         unassigned = cur.fetchall()
 
-        cur.execute("SELECT id, username FROM users WHERE id != %s ORDER BY username",
-                    (session['user_id'],))
-        other_users = cur.fetchall()
+        cur.execute("SELECT id, username FROM users ORDER BY username")
+        all_users = cur.fetchall()
 
         # IDs already in game
         cur.execute("SELECT user_id FROM molkky_members WHERE game_id = %s AND user_id IS NOT NULL", (game_id,))
@@ -183,7 +184,7 @@ def molkky_setup(game_id):
         conn.close()
 
     return render_template('molkky_setup.html', game=game, teams=teams, unassigned=unassigned,
-                           other_users=other_users, in_game_ids=in_game_ids, team_colors=TEAM_COLORS)
+                           all_users=all_users, in_game_ids=in_game_ids, team_colors=TEAM_COLORS)
 
 
 @molkky_bp.route('/molkky/setup/<int:game_id>/action', methods=['POST'])
@@ -297,17 +298,21 @@ def molkky_setup_action(game_id):
                                 (new_team_id, member['id']))
             else:
                 cur.execute("""
-                    SELECT t.id, t.name, COUNT(m.id) as member_count
+                    SELECT t.id, t.name, t.turn_order, COUNT(m.id) as member_count
                     FROM molkky_teams t
                     LEFT JOIN molkky_members m ON m.team_id = t.id
-                    WHERE t.game_id = %s GROUP BY t.id, t.name
+                    WHERE t.game_id = %s GROUP BY t.id, t.name, t.turn_order
+                    ORDER BY t.turn_order
                 """, (game_id,))
-                teams = cur.fetchall()
-                if len(teams) < 2:
-                    return jsonify({'ok': False, 'error': 'Au moins 2 équipes requises.'})
-                for t in teams:
-                    if t['member_count'] == 0:
-                        return jsonify({'ok': False, 'error': f'L\'équipe "{t["name"]}" est vide.'})
+                all_teams = cur.fetchall()
+                non_empty = [t for t in all_teams if t['member_count'] > 0]
+                empty_ids = [t['id'] for t in all_teams if t['member_count'] == 0]
+                if len(non_empty) < 2:
+                    return jsonify({'ok': False, 'error': 'Au moins 2 équipes avec des joueurs requis.'})
+                for tid in empty_ids:
+                    cur.execute("DELETE FROM molkky_teams WHERE id = %s", (tid,))
+                for i, t in enumerate(non_empty):
+                    cur.execute("UPDATE molkky_teams SET turn_order = %s WHERE id = %s", (i, t['id']))
 
             cur.execute("SELECT id FROM molkky_teams WHERE game_id = %s ORDER BY turn_order LIMIT 1",
                         (game_id,))
