@@ -1,57 +1,64 @@
-{% set prefix = 'partner' if is_partner is defined and is_partner else 'my' %}
-
-<!-- Try Again (fixed) -->
-<div class="card mb-2" style="border-left:4px solid #6b7280;">
-    <div style="padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;">
-        <span>🔄 <strong>Try Again</strong></span>
-        <span class="badge" style="background:#6b7280;color:#fff;">70% — fixe</span>
-    </div>
+<!-- Try Again (fixed, not editable) -->
+<div style="display:flex;justify-content:space-between;align-items:center;
+            background:var(--light);border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.75rem;">
+    <span style="font-weight:600;color:#6b7280;">🔄 Try Again</span>
+    <span class="badge" style="background:#6b7280;color:#fff;">70% — fixe</span>
 </div>
 
 {% for g in range(1, 6) %}
 {% set pct = group_pcts[g] %}
-{% set prizes = me_groups[g] %}
-<div class="card mb-2" style="border-left:4px solid var(--primary);" data-g="{{ g }}" data-prefix="{{ prefix }}">
-    <div style="padding:0.75rem 1rem 0.5rem;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
-            <strong>Groupe {{ g }}</strong>
-            <span class="pct-badge badge badge-primary" style="min-width:80px;text-align:center;">
-                {% if prizes | length > 0 %}
-                    {% set n = prizes | length %}
-                    {{ n }} × {{ (pct / n) | round(2) }}%
-                {% else %}
-                    {{ pct }}%
-                {% endif %}
+{% set prizes = current_groups[g] %}
+<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:0.75rem;overflow:hidden;">
+    <!-- Group header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;
+                padding:0.65rem 1rem;background:var(--light);">
+        <strong style="font-size:0.95rem;">Groupe {{ g }}</strong>
+        <span class="badge" id="pct-{{ current_prefix }}-{{ g }}"
+              style="{% if prizes %}background:var(--primary);color:#fff;{% else %}background:#e5e7eb;color:#6b7280;{% endif %}
+                     min-width:90px;text-align:center;">
+            {% if prizes %}
+                {{ prizes | length }} × {{ (pct / prizes | length) | round(2) }}%
+            {% else %}
+                {{ pct }}%
+            {% endif %}
+        </span>
+    </div>
+    <!-- Chips -->
+    <div id="chips-{{ current_prefix }}-{{ g }}"
+         style="padding:0.5rem 0.75rem;min-height:2.5rem;display:flex;flex-wrap:wrap;align-items:center;">
+        {% for prize in prizes %}
+        <div class="prize-chip"
+             data-prefix="{{ current_prefix }}" data-group="{{ g }}"
+             data-tname="{{ prize.token_name or prize.name }}"
+             data-tdesc="{{ prize.token_description or '' }}"
+             data-tdur="{{ prize.token_duration_minutes or 30 }}"
+             style="display:inline-flex;align-items:center;gap:0.4rem;
+                    background:#eef2ff;border:1px solid var(--primary);
+                    border-radius:20px;padding:0.35rem 0.75rem;margin:0.25rem;
+                    cursor:pointer;font-size:0.9rem;">
+            <span class="chip-label" style="color:var(--primary);font-weight:500;">
+                {{ prize.token_name or prize.name }}
             </span>
+            <input type="hidden" name="{{ current_prefix }}_g{{ g }}_token_name"
+                   value="{{ prize.token_name or prize.name }}" data-type="tname">
+            <input type="hidden" name="{{ current_prefix }}_g{{ g }}_token_desc"
+                   value="{{ prize.token_description or '' }}" data-type="tdesc">
+            <input type="hidden" name="{{ current_prefix }}_g{{ g }}_token_dur"
+                   value="{{ prize.token_duration_minutes or 30 }}" data-type="tdur">
+            <span onclick="event.stopPropagation();removeChip(this,{{ g }},'{{ current_prefix }}')"
+                  style="color:var(--danger);font-size:1rem;line-height:1;margin-left:0.1rem;">✕</span>
         </div>
-
-        <div class="prize-list">
-            {% for prize in prizes %}
-            <div class="prize-row" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;">
-                <input type="text" name="{{ prefix }}_g{{ g }}_name"
-                       value="{{ prize.name }}" placeholder="Nom du prix *"
-                       style="flex:2;min-width:120px;"
-                       oninput="updatePcts({{ g }}, '{{ prefix }}')">
-                <input type="text" name="{{ prefix }}_g{{ g }}_token_name"
-                       value="{{ prize.token_name or '' }}" placeholder="Nom du token"
-                       style="flex:2;min-width:120px;">
-                <input type="number" name="{{ prefix }}_g{{ g }}_token_dur"
-                       value="{{ prize.token_duration_minutes or 30 }}" placeholder="Durée (min)"
-                       style="flex:0 0 90px;" min="1">
-                <button type="button"
-                        onclick="this.closest('.prize-row').remove(); updatePcts({{ g }}, '{{ prefix }}')"
-                        style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:1.2rem;flex:0 0 auto;">✕</button>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div style="padding:0.5rem 0.5rem 0.75rem;">
-            <button type="button" class="btn btn-sm"
-                    style="border:1px dashed var(--primary);background:none;color:var(--primary);width:100%;"
-                    onclick="addPrizeRow(this.closest('.card'), '{{ prefix }}', {{ g }})">
-                ＋ Ajouter un prix dans le groupe {{ g }}
-            </button>
-        </div>
+        {% endfor %}
+    </div>
+    <!-- Add button -->
+    <div style="padding:0 0.75rem 0.75rem;">
+        <button type="button"
+                onclick="openModal('{{ current_prefix }}', {{ g }})"
+                style="width:100%;padding:0.5rem;border:1.5px dashed var(--primary);
+                       border-radius:8px;background:none;color:var(--primary);
+                       font-weight:600;cursor:pointer;font-size:0.9rem;">
+            ＋ Ajouter un prix
+        </button>
     </div>
 </div>
 {% endfor %}
