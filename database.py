@@ -147,12 +147,14 @@ def init_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS wheel_countries (
             id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id),
             name VARCHAR(100) NOT NULL,
             flag_emoji VARCHAR(10) NOT NULL,
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cur.execute("ALTER TABLE wheel_countries ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)")
 
     # ── Flashcard Leitner tables ─────────────────────────────────────────────
 

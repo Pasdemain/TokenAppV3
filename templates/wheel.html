@@ -2,44 +2,185 @@
 {% block title %}Country Wheel - CoupleApp{% endblock %}
 
 {% block content %}
-<div class="content-wrapper" style="max-width: 600px; margin: 2rem auto; text-align: center;">
-    <h1 class="mb-1">🌍 Country Wheel</h1>
-    <p class="text-muted mb-3">Spin the wheel to discover your next destination!</p>
+<div class="content-wrapper" style="max-width: 640px; margin: 2rem auto;">
+    <h1 class="mb-1" style="text-align:center;">🌍 Country Wheel</h1>
+    <p class="text-muted mb-3" style="text-align:center;">Spin the wheel to discover your next destination!</p>
 
     {% if not countries %}
-    <div class="alert alert-warning">
-        ⚠️ No countries have been added yet. Ask the admin to add countries!
+    <div class="alert alert-warning mb-3">
+        ⚠️ Tu n'as pas encore de pays. Ajoute-en ci-dessous !
     </div>
     {% else %}
 
-    <!-- Wheel container -->
-    <div style="position: relative; display: inline-block; margin-bottom: 1.5rem;">
-        <!-- Arrow pointer at top -->
-        <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 2rem; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">▼</div>
-        <canvas id="wheelCanvas" width="320" height="320"
-            style="border-radius: 50%; box-shadow: 0 8px 32px rgba(0,0,0,0.25); display: block;"></canvas>
+    <!-- Wheel -->
+    <div style="text-align:center; margin-bottom: 1.5rem;">
+        <div style="position: relative; display: inline-block;">
+            <div style="position: absolute; top: -18px; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 2rem; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">▼</div>
+            <canvas id="wheelCanvas" width="320" height="320"
+                style="border-radius: 50%; box-shadow: 0 8px 32px rgba(0,0,0,0.25); display: block;"></canvas>
+        </div>
     </div>
 
-    <div style="margin-bottom: 1.5rem;">
+    <div style="text-align:center; margin-bottom: 1.5rem;">
         <button id="spinBtn" class="btn btn-primary" style="font-size: 1.2rem; padding: 0.85rem 3rem;">
             🎰 Spin!
         </button>
     </div>
 
-    <!-- Result -->
-    <div id="result" style="display:none;" class="card" style="margin-top: 1rem;">
+    <div id="result" style="display:none;" class="card mb-3">
         <div id="resultContent"></div>
     </div>
 
     {% endif %}
 
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-2">← Back to Dashboard</a>
+    <!-- ── My Countries ────────────────────────────────────────────── -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">🗺️ Mes pays ({{ countries|length }})</span>
+        </div>
+        <div style="padding: 1rem;">
+            {% if countries %}
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
+                {% for c in countries %}
+                <form method="POST" action="{{ url_for('wheel.delete_country', country_id=c.id) }}" style="display:inline;">
+                    <button type="submit" style="display:flex;align-items:center;gap:0.3rem;padding:0.35rem 0.7rem;border:1px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;font-size:0.9rem;transition:all 0.15s;"
+                        onmouseenter="this.style.background='#fee2e2';this.style.borderColor='var(--danger)'"
+                        onmouseleave="this.style.background='#fff';this.style.borderColor='var(--border)'">
+                        {{ c.flag_emoji }} {{ c.name }} ✕
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted mb-2">Aucun pays sélectionné.</p>
+            {% endif %}
+
+            <!-- Searchable picker -->
+            <input type="text" id="countrySearch"
+                   placeholder="🔍 Rechercher un pays…"
+                   style="width:100%;margin-bottom:0.75rem;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);font-size:0.95rem;">
+            <div id="countryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.4rem;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:0.6rem;"></div>
+
+            <form id="addCountryForm" method="POST" action="{{ url_for('wheel.add_country') }}" style="display:none;">
+                <input type="hidden" name="name" id="acName">
+                <input type="hidden" name="flag_emoji" id="acFlag">
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Import from another user ────────────────────────────────── -->
+    {% if other_users %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <span class="card-title">📥 Importer la sélection d'un autre utilisateur</span>
+        </div>
+        <div style="padding: 1rem;">
+            <p class="text-muted mb-2" style="font-size:0.9rem;">Remplace ta sélection actuelle par celle d'un autre utilisateur.</p>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+                {% for u in other_users %}
+                <form method="POST" action="{{ url_for('wheel.import_countries', source_user_id=u.id) }}"
+                      onsubmit="return confirm('Remplacer ta sélection par celle de {{ u.username }} ?')">
+                    <button type="submit" class="btn btn-secondary btn-sm">
+                        📥 Copier {{ u.username }}
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 {% block scripts %}
 <script>
 (function() {
     const countries = {{ countries | tojson }};
+    const added = new Set(countries.map(c => c.name));
+
+    // ── Country picker ─────────────────────────────────────────────
+    const COUNTRIES = [
+        ["Afghanistan","🇦🇫"],["Albania","🇦🇱"],["Algeria","🇩🇿"],["Andorra","🇦🇩"],
+        ["Angola","🇦🇴"],["Antigua & Barbuda","🇦🇬"],["Argentina","🇦🇷"],["Armenia","🇦🇲"],
+        ["Australia","🇦🇺"],["Austria","🇦🇹"],["Azerbaijan","🇦🇿"],["Bahamas","🇧🇸"],
+        ["Bahrain","🇧🇭"],["Bangladesh","🇧🇩"],["Barbados","🇧🇧"],["Belarus","🇧🇾"],
+        ["Belgium","🇧🇪"],["Belize","🇧🇿"],["Benin","🇧🇯"],["Bhutan","🇧🇹"],
+        ["Bolivia","🇧🇴"],["Bosnia & Herzegovina","🇧🇦"],["Botswana","🇧🇼"],["Brazil","🇧🇷"],
+        ["Brunei","🇧🇳"],["Bulgaria","🇧🇬"],["Burkina Faso","🇧🇫"],["Burundi","🇧🇮"],
+        ["Cabo Verde","🇨🇻"],["Cambodia","🇰🇭"],["Cameroon","🇨🇲"],["Canada","🇨🇦"],
+        ["Central African Republic","🇨🇫"],["Chad","🇹🇩"],["Chile","🇨🇱"],["China","🇨🇳"],
+        ["Colombia","🇨🇴"],["Comoros","🇰🇲"],["Congo","🇨🇬"],["DR Congo","🇨🇩"],
+        ["Costa Rica","🇨🇷"],["Croatia","🇭🇷"],["Cuba","🇨🇺"],["Cyprus","🇨🇾"],
+        ["Czech Republic","🇨🇿"],["Denmark","🇩🇰"],["Djibouti","🇩🇯"],["Dominica","🇩🇲"],
+        ["Dominican Republic","🇩🇴"],["Ecuador","🇪🇨"],["Egypt","🇪🇬"],["El Salvador","🇸🇻"],
+        ["Equatorial Guinea","🇬🇶"],["Eritrea","🇪🇷"],["Estonia","🇪🇪"],["Eswatini","🇸🇿"],
+        ["Ethiopia","🇪🇹"],["Fiji","🇫🇯"],["Finland","🇫🇮"],["France","🇫🇷"],
+        ["Gabon","🇬🇦"],["Gambia","🇬🇲"],["Georgia","🇬🇪"],["Germany","🇩🇪"],
+        ["Ghana","🇬🇭"],["Greece","🇬🇷"],["Grenada","🇬🇩"],["Guatemala","🇬🇹"],
+        ["Guinea","🇬🇳"],["Guinea-Bissau","🇬🇼"],["Guyana","🇬🇾"],["Haiti","🇭🇹"],
+        ["Honduras","🇭🇳"],["Hungary","🇭🇺"],["Iceland","🇮🇸"],["India","🇮🇳"],
+        ["Indonesia","🇮🇩"],["Iran","🇮🇷"],["Iraq","🇮🇶"],["Ireland","🇮🇪"],
+        ["Israel","🇮🇱"],["Italy","🇮🇹"],["Jamaica","🇯🇲"],["Japan","🇯🇵"],
+        ["Jordan","🇯🇴"],["Kazakhstan","🇰🇿"],["Kenya","🇰🇪"],["Kiribati","🇰🇮"],
+        ["Kuwait","🇰🇼"],["Kyrgyzstan","🇰🇬"],["Laos","🇱🇦"],["Latvia","🇱🇻"],
+        ["Lebanon","🇱🇧"],["Lesotho","🇱🇸"],["Liberia","🇱🇷"],["Libya","🇱🇾"],
+        ["Liechtenstein","🇱🇮"],["Lithuania","🇱🇹"],["Luxembourg","🇱🇺"],["Madagascar","🇲🇬"],
+        ["Malawi","🇲🇼"],["Malaysia","🇲🇾"],["Maldives","🇲🇻"],["Mali","🇲🇱"],
+        ["Malta","🇲🇹"],["Marshall Islands","🇲🇭"],["Mauritania","🇲🇷"],["Mauritius","🇲🇺"],
+        ["Mexico","🇲🇽"],["Micronesia","🇫🇲"],["Moldova","🇲🇩"],["Monaco","🇲🇨"],
+        ["Mongolia","🇲🇳"],["Montenegro","🇲🇪"],["Morocco","🇲🇦"],["Mozambique","🇲🇿"],
+        ["Myanmar","🇲🇲"],["Namibia","🇳🇦"],["Nauru","🇳🇷"],["Nepal","🇳🇵"],
+        ["Netherlands","🇳🇱"],["New Zealand","🇳🇿"],["Nicaragua","🇳🇮"],["Niger","🇳🇪"],
+        ["Nigeria","🇳🇬"],["North Korea","🇰🇵"],["North Macedonia","🇲🇰"],["Norway","🇳🇴"],
+        ["Oman","🇴🇲"],["Pakistan","🇵🇰"],["Palau","🇵🇼"],["Palestine","🇵🇸"],
+        ["Panama","🇵🇦"],["Papua New Guinea","🇵🇬"],["Paraguay","🇵🇾"],["Peru","🇵🇪"],
+        ["Philippines","🇵🇭"],["Poland","🇵🇱"],["Portugal","🇵🇹"],["Qatar","🇶🇦"],
+        ["Romania","🇷🇴"],["Russia","🇷🇺"],["Rwanda","🇷🇼"],["Saint Kitts & Nevis","🇰🇳"],
+        ["Saint Lucia","🇱🇨"],["Saint Vincent","🇻🇨"],["Samoa","🇼🇸"],["San Marino","🇸🇲"],
+        ["São Tomé & Príncipe","🇸🇹"],["Saudi Arabia","🇸🇦"],["Senegal","🇸🇳"],["Serbia","🇷🇸"],
+        ["Seychelles","🇸🇨"],["Sierra Leone","🇸🇱"],["Singapore","🇸🇬"],["Slovakia","🇸🇰"],
+        ["Slovenia","🇸🇮"],["Solomon Islands","🇸🇧"],["Somalia","🇸🇴"],["South Africa","🇿🇦"],
+        ["South Korea","🇰🇷"],["South Sudan","🇸🇸"],["Spain","🇪🇸"],["Sri Lanka","🇱🇰"],
+        ["Sudan","🇸🇩"],["Suriname","🇸🇷"],["Sweden","🇸🇪"],["Switzerland","🇨🇭"],
+        ["Syria","🇸🇾"],["Taiwan","🇹🇼"],["Tajikistan","🇹🇯"],["Tanzania","🇹🇿"],
+        ["Thailand","🇹🇭"],["Timor-Leste","🇹🇱"],["Togo","🇹🇬"],["Tonga","🇹🇴"],
+        ["Trinidad & Tobago","🇹🇹"],["Tunisia","🇹🇳"],["Turkey","🇹🇷"],["Turkmenistan","🇹🇲"],
+        ["Tuvalu","🇹🇻"],["Uganda","🇺🇬"],["Ukraine","🇺🇦"],["United Arab Emirates","🇦🇪"],
+        ["United Kingdom","🇬🇧"],["United States","🇺🇸"],["Uruguay","🇺🇾"],["Uzbekistan","🇺🇿"],
+        ["Vanuatu","🇻🇺"],["Vatican City","🇻🇦"],["Venezuela","🇻🇪"],["Vietnam","🇻🇳"],
+        ["Yemen","🇾🇪"],["Zambia","🇿🇲"],["Zimbabwe","🇿🇼"]
+    ];
+
+    const grid   = document.getElementById('countryGrid');
+    const search = document.getElementById('countrySearch');
+
+    function render() {
+        const q = search.value.toLowerCase().trim();
+        const filtered = q ? COUNTRIES.filter(c => c[0].toLowerCase().includes(q)) : COUNTRIES;
+        grid.innerHTML = '';
+        filtered.forEach(([name, flag]) => {
+            const isAdded = added.has(name);
+            const div = document.createElement('div');
+            div.style.cssText = 'display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.6rem;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:0.85rem;transition:all 0.15s;' +
+                (isAdded ? 'opacity:0.4;cursor:default;background:#f3f4f6;' : 'background:#fff;');
+            div.innerHTML = `<span style="font-size:1.2rem;">${flag}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>`
+                + (isAdded ? '<span style="font-size:0.7rem;color:var(--success);">✓</span>' : '<span style="font-size:0.7rem;color:var(--primary);">+</span>');
+            if (!isAdded) {
+                div.onmouseenter = () => { div.style.background='#eef2ff'; div.style.borderColor='var(--primary)'; };
+                div.onmouseleave = () => { div.style.background='#fff'; div.style.borderColor='var(--border)'; };
+                div.onclick = () => {
+                    document.getElementById('acName').value = name;
+                    document.getElementById('acFlag').value = flag;
+                    document.getElementById('addCountryForm').submit();
+                };
+            }
+            grid.appendChild(div);
+        });
+    }
+
+    search.addEventListener('input', render);
+    render();
+
+    // ── Wheel ──────────────────────────────────────────────────────
     if (!countries || countries.length === 0) return;
 
     const canvas = document.getElementById('wheelCanvas');
@@ -51,11 +192,10 @@
     const cy = size / 2;
     const radius = size / 2 - 4;
 
-    // Color palette for segments
     const COLORS = [
-        '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
-        '#f59e0b', '#10b981', '#3b82f6', '#14b8a6',
-        '#f97316', '#84cc16', '#06b6d4', '#a855f7'
+        '#6366f1','#8b5cf6','#ec4899','#ef4444',
+        '#f59e0b','#10b981','#3b82f6','#14b8a6',
+        '#f97316','#84cc16','#06b6d4','#a855f7'
     ];
 
     let currentAngle = 0;
@@ -64,57 +204,42 @@
     function drawWheel(angle) {
         const n = countries.length;
         const arc = (2 * Math.PI) / n;
-
         ctx.clearRect(0, 0, size, size);
-
-        // Draw segments
         for (let i = 0; i < n; i++) {
             const start = angle + i * arc;
             const end = start + arc;
             const mid = start + arc / 2;
-            const color = COLORS[i % COLORS.length];
-
-            // Segment fill
             ctx.beginPath();
             ctx.moveTo(cx, cy);
             ctx.arc(cx, cy, radius, start, end);
             ctx.closePath();
-            ctx.fillStyle = color;
+            ctx.fillStyle = COLORS[i % COLORS.length];
             ctx.fill();
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Text (flag + name) — positioned in middle of segment
             const textR = radius * 0.62;
             const tx = cx + textR * Math.cos(mid);
             const ty = cy + textR * Math.sin(mid);
-
             ctx.save();
             ctx.translate(tx, ty);
             ctx.rotate(mid + Math.PI / 2);
-
-            // Flag emoji
             ctx.font = n <= 8 ? '20px Arial' : '14px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#fff';
             ctx.shadowColor = 'rgba(0,0,0,0.5)';
             ctx.shadowBlur = 3;
-
             const flag = countries[i].flag_emoji;
             const name = countries[i].name;
             const maxLen = n <= 6 ? 10 : n <= 10 ? 7 : 5;
             const displayName = name.length > maxLen ? name.substring(0, maxLen) + '…' : name;
-
             ctx.fillText(flag, 0, n <= 8 ? -12 : -8);
             ctx.font = n <= 8 ? 'bold 11px Arial' : 'bold 9px Arial';
             ctx.fillText(displayName, 0, n <= 8 ? 8 : 5);
-
             ctx.restore();
         }
-
-        // Center circle
         ctx.beginPath();
         ctx.arc(cx, cy, 22, 0, 2 * Math.PI);
         ctx.fillStyle = '#fff';
@@ -122,7 +247,6 @@
         ctx.strokeStyle = '#e5e7eb';
         ctx.lineWidth = 2;
         ctx.stroke();
-
         ctx.font = 'bold 18px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -131,39 +255,14 @@
         ctx.fillText('🌍', cx, cy);
     }
 
-    function getSelectedIndex(angle) {
-        // Arrow points to top (angle = -PI/2 in canvas coords, which is 3*PI/2)
-        const n = countries.length;
-        const arc = (2 * Math.PI) / n;
-        // Normalize angle so 0 = top of wheel
-        // Top of canvas is at -PI/2 from standard. The arrow is at the top.
-        // The pointer is at -PI/2 (top). We need to find which segment is at -PI/2.
-        let normalised = ((-Math.PI / 2) - angle % (2 * Math.PI) + 4 * Math.PI) % (2 * Math.PI);
-        const idx = Math.floor(normalised / arc) % n;
-        return idx;
-    }
-
-    function easeOut(t) {
-        return 1 - Math.pow(1 - t, 4);
-    }
-
     function spin(targetIndex) {
         const n = countries.length;
         const arc = (2 * Math.PI) / n;
-
-        // We want segment targetIndex to be at the top (-PI/2)
-        // Center of segment targetIndex starts at: currentAngle + targetIndex * arc + arc/2
-        // We want that center at -PI/2 (top)
-        // So we need to add delta such that:
-        //   currentAngle + delta + targetIndex * arc + arc/2 = -PI/2 (mod 2PI)
-        // Plus a few full rotations for effect
         const targetMid = -Math.PI / 2 - (targetIndex * arc + arc / 2);
         let delta = (targetMid - currentAngle) % (2 * Math.PI);
         if (delta > 0) delta -= 2 * Math.PI;
-        // Add 5-8 full rotations
         const extraSpins = (5 + Math.floor(Math.random() * 3)) * 2 * Math.PI;
         const totalDelta = delta - extraSpins;
-
         const duration = 4000 + Math.random() * 1500;
         const startAngle = currentAngle;
         const startTime = performance.now();
@@ -171,9 +270,8 @@
         function animate(now) {
             const elapsed = now - startTime;
             const t = Math.min(elapsed / duration, 1);
-            currentAngle = startAngle + totalDelta * easeOut(t);
+            currentAngle = startAngle + totalDelta * (1 - Math.pow(1 - t, 4));
             drawWheel(currentAngle);
-
             if (t < 1) {
                 requestAnimationFrame(animate);
             } else {
@@ -191,36 +289,28 @@
     function showResult(index) {
         const c = countries[index];
         const resultDiv = document.getElementById('result');
-        const contentDiv = document.getElementById('resultContent');
-        contentDiv.innerHTML = `
-            <div style="padding: 1.5rem;">
+        document.getElementById('resultContent').innerHTML = `
+            <div style="padding: 1.5rem; text-align:center;">
                 <div style="font-size: 4rem; margin-bottom: 0.5rem;">${c.flag_emoji}</div>
                 <h2 style="color: var(--primary); margin-bottom: 0.25rem;">${c.name}</h2>
                 <p class="text-muted">Your next destination is set! 🎉</p>
-            </div>
-        `;
+            </div>`;
         resultDiv.style.display = 'block';
         resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         launchConfetti();
     }
 
     function launchConfetti() {
-        const colors = ['#ff6b6b', '#ffd700', '#6366f1', '#10b981', '#f59e0b', '#ec4899'];
+        const colors = ['#ff6b6b','#ffd700','#6366f1','#10b981','#f59e0b','#ec4899'];
         for (let i = 0; i < 60; i++) {
             const el = document.createElement('div');
-            el.style.cssText = `
-                position:fixed;width:10px;height:10px;
-                background:${colors[Math.floor(Math.random() * colors.length)]};
-                left:${Math.random() * 100}vw;top:-10px;
-                border-radius:${Math.random() > 0.5 ? '50%' : '2px'};
-                animation:confetti-fall ${1 + Math.random() * 2}s linear forwards;
-                z-index:9999;
-            `;
+            el.style.cssText = `position:fixed;width:10px;height:10px;background:${colors[Math.floor(Math.random()*colors.length)]};left:${Math.random()*100}vw;top:-10px;border-radius:${Math.random()>.5?'50%':'2px'};animation:confetti-fall ${1+Math.random()*2}s linear forwards;z-index:9999;`;
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 3000);
         }
     }
 
+    // Single click handler — guard with spinning flag to prevent double-spin
     spinBtn.addEventListener('click', () => {
         if (spinning) return;
         spinning = true;
@@ -238,7 +328,6 @@
                     alert('Error: ' + data.error);
                     return;
                 }
-                // Find index of returned country
                 const idx = countries.findIndex(c => c.id === data.id);
                 spin(idx >= 0 ? idx : 0);
             })
@@ -250,11 +339,9 @@
             });
     });
 
-    // Initial draw
     drawWheel(currentAngle);
 })();
 </script>
-
 <style>
 @keyframes confetti-fall {
     to { transform: translateY(100vh) rotate(720deg); opacity: 0; }

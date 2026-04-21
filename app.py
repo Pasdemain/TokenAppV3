@@ -336,9 +336,6 @@ def admin():
         ORDER BY u.username, sp.id
     """)
     prizes = cur.fetchall()
-    cur.execute("SELECT id, name, flag_emoji, is_active FROM wheel_countries ORDER BY name")
-    wheel_countries = cur.fetchall()
-
     # Flashcard admin data
     cur.execute("SELECT id, code, name, flag_emoji FROM languages ORDER BY name")
     fc_languages = cur.fetchall()
@@ -380,7 +377,6 @@ def admin():
 
     from auth import ALL_FEATURES as admin_all_features
     return render_template('admin.html', users=users, prizes=prizes,
-                           wheel_countries=wheel_countries,
                            fc_languages=fc_languages,
                            fc_categories=fc_categories,
                            leitner_intervals=leitner_intervals,
