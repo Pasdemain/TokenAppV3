@@ -24,7 +24,6 @@
                 'santa': '🎅 Santa'
             } %}
 
-            {% if users %}
             <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
                     <thead>
@@ -36,6 +35,31 @@
                         </tr>
                     </thead>
                     <tbody>
+                        <!-- Default row -->
+                        <tr style="border-bottom:2px solid var(--primary);background:#eef2ff;">
+                            <td style="padding:0.6rem 0.75rem;font-weight:700;color:var(--primary);">
+                                ⭐ Défaut<br>
+                                <span style="font-size:0.75rem;font-weight:400;color:#6366f1;">Nouveaux comptes</span>
+                            </td>
+                            {% for feat in all_features %}
+                            {% set is_on = feature_defaults.get(feat, True) %}
+                            <td style="text-align:center;padding:0.4rem;">
+                                <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="action" value="set_feature_default">
+                                    <input type="hidden" name="feature_name" value="{{ feat }}">
+                                    <input type="hidden" name="is_enabled" value="{{ '0' if is_on else '1' }}">
+                                    <input type="hidden" name="password" class="admin-pw-toggle">
+                                    <button type="button"
+                                        style="background:none;border:none;cursor:pointer;font-size:1.4rem;line-height:1;"
+                                        title="{{ 'Désactiver par défaut' if is_on else 'Activer par défaut' }}"
+                                        onclick="promptAndSubmitToggle(this)">
+                                        {{ '✅' if is_on else '❌' }}
+                                    </button>
+                                </form>
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% if users %}
                         {% for user in users %}
                         <tr style="border-bottom:1px solid var(--border);">
                             <td style="padding:0.6rem 0.75rem;font-weight:600;">{{ user.username }}</td>
@@ -59,179 +83,12 @@
                             {% endfor %}
                         </tr>
                         {% endfor %}
+                        {% else %}
+                        <tr><td colspan="{{ all_features | length + 1 }}" style="padding:1rem;text-align:center;color:#6b7280;">Aucun utilisateur enregistré.</td></tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
-
-            <!-- Scratch partner assignment -->
-            <div style="margin-top:2rem;">
-                <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem;">🎰 Partenaire Scratch par utilisateur</h3>
-                <p class="text-muted mb-2" style="font-size:0.875rem;">
-                    Quand un utilisateur gagne au scratch, le token est créé entre lui et son partenaire assigné.
-                    Sans partenaire configuré, aucun token n'est généré.
-                </p>
-                <div class="grid grid-2" style="gap:1rem;">
-                    {% for user in users %}
-                    {% set scratch_data = user_features_map.get(user.id, {}).get('scratch', {}) %}
-                    <div style="border:1px solid var(--border);border-radius:8px;padding:1rem;">
-                        <div style="font-weight:600;margin-bottom:0.75rem;">👤 {{ user.username }}</div>
-                        <form method="POST">
-                            <input type="hidden" name="action" value="set_scratch_partner">
-                            <input type="hidden" name="target_user_id" value="{{ user.id }}">
-                            <div class="form-group" style="margin-bottom:0.75rem;">
-                                <label style="font-size:0.875rem;">Partenaire actuel :
-                                    <strong>{{ scratch_data.partner_username or '— non configuré —' }}</strong>
-                                </label>
-                                <select name="partner_id" style="margin-top:0.4rem;">
-                                    <option value="">— Aucun partenaire —</option>
-                                    {% for other in users %}
-                                    {% if other.id != user.id %}
-                                    <option value="{{ other.id }}"
-                                        {{ 'selected' if scratch_data.partner_id == other.id else '' }}>
-                                        {{ other.username }}
-                                    </option>
-                                    {% endif %}
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom:0.75rem;">
-                                <input type="password" name="password" placeholder="Mot de passe admin" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-sm">💾 Enregistrer</button>
-                        </form>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            {% else %}
-            <div class="alert alert-info">ℹ️ Aucun utilisateur enregistré.</div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- ── Scratch ticket prizes ─────────────────────────────────────────── -->
-    <div class="card mb-3">
-        <div class="card-header">
-            <span class="card-title">🎰 Scratch Ticket Prizes</span>
-        </div>
-        <div style="padding: 1.5rem;">
-            <p class="mb-3 text-muted">
-                Configure the prize list for each user. The sum of percentages
-                can exceed 100% — selection is weighted proportionally.
-                Don't forget to add a <strong>"Lost"</strong> prize with ~70%.
-            </p>
-
-            {% if users %}
-            <!-- Prize list per user -->
-            {% for user in users %}
-            <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:1.5rem;overflow:hidden;">
-                <div style="background:var(--light);padding:0.75rem 1rem;font-weight:600;display:flex;justify-content:space-between;align-items:center;">
-                    <span>👤 {{ user.username }}</span>
-                    {% set user_prizes = prizes | selectattr('user_id', 'equalto', user.id) | list %}
-                    {% set total_pct = user_prizes | sum(attribute='probability') %}
-                    <span class="badge {% if total_pct > 0 %}badge-primary{% else %}" style="background:#6b7280;color:#fff;{% endif %}">
-                        Total: {{ total_pct | round(1) }} %
-                    </span>
-                </div>
-
-                <div style="padding:1rem;">
-                    {% if user_prizes %}
-                    <table style="width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:0.9rem;">
-                        <thead>
-                            <tr style="border-bottom:2px solid var(--border);">
-                                <th style="text-align:left;padding:0.4rem 0.5rem;">Prize name</th>
-                                <th style="text-align:left;padding:0.4rem 0.5rem;">Generated token</th>
-                                <th style="text-align:center;padding:0.4rem 0.5rem;">Duration</th>
-                                <th style="text-align:center;padding:0.4rem 0.5rem;">%</th>
-                                <th style="text-align:center;padding:0.4rem 0.5rem;">Loser?</th>
-                                <th style="padding:0.4rem 0.5rem;"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for prize in user_prizes %}
-                            <tr style="border-bottom:1px solid var(--border);">
-                                <td style="padding:0.5rem;">
-                                    {% if prize.is_loser %}💀{% else %}🎁{% endif %}
-                                    {{ prize.name }}
-                                </td>
-                                <td style="padding:0.5rem;color:#6b7280;">{{ prize.token_name or '—' }}</td>
-                                <td style="padding:0.5rem;text-align:center;">
-                                    {% if not prize.is_loser %}{{ prize.token_duration_minutes }} min{% else %}—{% endif %}
-                                </td>
-                                <td style="padding:0.5rem;text-align:center;font-weight:600;">{{ prize.probability }} %</td>
-                                <td style="padding:0.5rem;text-align:center;">
-                                    {% if prize.is_loser %}<span class="badge" style="background:#ef4444;color:#fff;">Yes</span>{% else %}No{% endif %}
-                                </td>
-                                <td style="padding:0.5rem;text-align:right;">
-                                    <form method="POST" action="{{ url_for('scratch.admin_delete_prize', prize_id=prize.id) }}"
-                                          onsubmit="return confirm('Delete this prize?');" style="display:inline;">
-                                        <input type="hidden" name="password" id="del-pw-{{ prize.id }}">
-                                        <button type="button" class="btn btn-sm btn-danger"
-                                            onclick="promptAndSubmit('del-pw-{{ prize.id }}', this.closest('form'))">
-                                            🗑️
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                    <p class="text-muted mb-2" style="font-size:0.9rem;">No prizes configured for this user.</p>
-                    {% endif %}
-
-                    <!-- Add prize form for this user -->
-                    <details>
-                        <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">
-                            ➕ Add a prize for {{ user.username }}
-                        </summary>
-                        <form method="POST" action="{{ url_for('scratch.admin_add_prize') }}" style="margin-top:0.75rem;">
-                            <input type="hidden" name="user_id" value="{{ user.id }}">
-                            <div class="grid grid-2" style="gap:0.75rem;">
-                                <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Display name *</label>
-                                    <input type="text" name="name" placeholder="e.g. Massage, Lost..." required maxlength="100">
-                                </div>
-                                <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Probability (%) *</label>
-                                    <input type="number" name="probability" placeholder="e.g. 15" min="0.1" step="0.1" required>
-                                </div>
-                                <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Generated token name</label>
-                                    <input type="text" name="token_name" placeholder="e.g. 30 min Massage" maxlength="50">
-                                </div>
-                                <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Token duration (minutes)</label>
-                                    <input type="number" name="token_duration" value="30" min="1">
-                                </div>
-                                <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label>Token description</label>
-                                    <input type="text" name="token_description" placeholder="e.g. A 30-minute massage">
-                                </div>
-                                <div class="form-group" style="margin-bottom:0.75rem;">
-                                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:normal;">
-                                        <input type="checkbox" name="is_loser" style="width:auto;">
-                                        This is a losing ticket (no token)
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="form-group" style="margin-bottom:0.75rem;">
-                                <label>Admin password *</label>
-                                <input type="password" name="password" placeholder="Admin password" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-sm">✅ Add this prize</button>
-                        </form>
-                    </details>
-                </div>
-            </div>
-            {% endfor %}
-
-            {% else %}
-            <div class="alert alert-info">
-                ℹ️ No users registered. Create accounts first.
-            </div>
-            {% endif %}
         </div>
     </div>
 
