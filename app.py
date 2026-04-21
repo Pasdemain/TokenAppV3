@@ -8,7 +8,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
 from database import get_db_connection, init_db
-from auth import auth_bp, login_required
+from auth import auth_bp, login_required, feature_required
 from token_routes import token_bp
 from shopping_routes import shopping_bp
 from scratch_routes import scratch_bp
@@ -39,6 +39,24 @@ app.register_blueprint(santa_bp)
 # Initialize database on startup
 with app.app_context():
     init_db()
+
+
+@app.context_processor
+def inject_user_features():
+    if 'user_id' in session:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        try:
+            cur.execute(
+                "SELECT feature_name, is_enabled FROM user_features WHERE user_id = %s",
+                (session['user_id'],)
+            )
+            features = {row['feature_name']: row['is_enabled'] for row in cur.fetchall()}
+        finally:
+            cur.close()
+            conn.close()
+        return {'user_features': features}
+    return {'user_features': {}}
 
 # PWA routes - serve manifest and service worker at root
 @app.route('/manifest.json')
@@ -198,6 +216,58 @@ def admin():
                 session.clear()
                 return redirect(url_for('auth.login'))
 
+            elif action == 'toggle_feature':
+                target_user_id = request.form.get('target_user_id', type=int)
+                feature_name = request.form.get('feature_name', '').strip()
+                is_enabled = request.form.get('is_enabled') == '1'
+                if not target_user_id or not feature_name:
+                    flash('Données invalides.', 'error')
+                else:
+                    conn = get_db_connection()
+                    cur = conn.cursor()
+                    try:
+                        cur.execute("""
+                            INSERT INTO user_features (user_id, feature_name, is_enabled)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (user_id, feature_name)
+                            DO UPDATE SET is_enabled = EXCLUDED.is_enabled
+                        """, (target_user_id, feature_name, is_enabled))
+                        conn.commit()
+                        state = 'activée' if is_enabled else 'désactivée'
+                        flash(f'Feature "{feature_name}" {state} pour l\'utilisateur.', 'success')
+                    except Exception as e:
+                        conn.rollback()
+                        flash('Erreur lors de la mise à jour.', 'error')
+                        print(f"Toggle feature error: {e}")
+                    finally:
+                        cur.close()
+                        conn.close()
+
+            elif action == 'set_scratch_partner':
+                target_user_id = request.form.get('target_user_id', type=int)
+                partner_id = request.form.get('partner_id', type=int) or None
+                if not target_user_id:
+                    flash('Utilisateur invalide.', 'error')
+                else:
+                    conn = get_db_connection()
+                    cur = conn.cursor()
+                    try:
+                        cur.execute("""
+                            INSERT INTO user_features (user_id, feature_name, is_enabled, partner_id)
+                            VALUES (%s, 'scratch', TRUE, %s)
+                            ON CONFLICT (user_id, feature_name)
+                            DO UPDATE SET partner_id = EXCLUDED.partner_id
+                        """, (target_user_id, partner_id))
+                        conn.commit()
+                        flash('Partenaire scratch mis à jour !', 'success')
+                    except Exception as e:
+                        conn.rollback()
+                        flash('Erreur lors de la mise à jour.', 'error')
+                        print(f"Set scratch partner error: {e}")
+                    finally:
+                        cur.close()
+                        conn.close()
+
             elif action == 'change_password':
                 from flask import request as _req
                 target_username = _req.form.get('target_username', '').strip()
@@ -236,6 +306,25 @@ def admin():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT id, username FROM users ORDER BY username")
     users = cur.fetchall()
+
+    # User features: {user_id: {feature_name: {is_enabled, partner_id}}}
+    cur.execute("""
+        SELECT uf.user_id, uf.feature_name, uf.is_enabled, uf.partner_id, u2.username as partner_username
+        FROM user_features uf
+        LEFT JOIN users u2 ON uf.partner_id = u2.id
+        ORDER BY uf.user_id, uf.feature_name
+    """)
+    user_features_rows = cur.fetchall()
+    user_features_map = {}
+    for row in user_features_rows:
+        uid = row['user_id']
+        if uid not in user_features_map:
+            user_features_map[uid] = {}
+        user_features_map[uid][row['feature_name']] = {
+            'is_enabled': row['is_enabled'],
+            'partner_id': row['partner_id'],
+            'partner_username': row['partner_username'],
+        }
     cur.execute("""
         SELECT sp.*, u.username
         FROM scratch_prizes sp
@@ -285,13 +374,16 @@ def admin():
     cur.close()
     conn.close()
 
+    from auth import ALL_FEATURES as admin_all_features
     return render_template('admin.html', users=users, prizes=prizes,
                            wheel_countries=wheel_countries,
                            fc_languages=fc_languages,
                            fc_categories=fc_categories,
                            leitner_intervals=leitner_intervals,
                            fc_reports=fc_reports,
-                           cq_stats=cq_stats)
+                           cq_stats=cq_stats,
+                           user_features_map=user_features_map,
+                           all_features=admin_all_features)
 
 @app.route('/profile')
 @login_required

@@ -3,13 +3,13 @@ from datetime import date, datetime
 from flask import Blueprint, render_template, redirect, url_for, session, flash, request, jsonify
 from psycopg2.extras import RealDictCursor
 from database import get_db_connection
-from auth import login_required
+from auth import feature_required
 
 scratch_bp = Blueprint('scratch', __name__)
 
 
 @scratch_bp.route('/scratch')
-@login_required
+@feature_required('scratch')
 def scratch_page():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -33,7 +33,7 @@ def scratch_page():
 
 
 @scratch_bp.route('/scratch/play', methods=['POST'])
-@login_required
+@feature_required('scratch')
 def play_scratch():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -75,15 +75,20 @@ def play_scratch():
 
     won_token = False
     if not selected['is_loser']:
-        # Find partner (other user in system)
-        cur.execute("SELECT id FROM users WHERE id != %s LIMIT 1", (session['user_id'],))
-        other = cur.fetchone()
-        if other:
+        # Find configured scratch partner for this user
+        cur.execute(
+            "SELECT partner_id FROM user_features WHERE user_id = %s AND feature_name = 'scratch'",
+            (session['user_id'],)
+        )
+        feature_row = cur.fetchone()
+        partner_id = feature_row['partner_id'] if feature_row and feature_row['partner_id'] else None
+
+        if partner_id:
             cur.execute("""
                 INSERT INTO tokens (creator_id, recipient_id, name, description, duration_minutes, status)
                 VALUES (%s, %s, %s, %s, %s, 'available')
             """, (
-                other['id'],
+                partner_id,
                 session['user_id'],
                 selected['token_name'] or selected['name'],
                 selected['token_description'] or '🎰 Token gagné par ticket à gratter !',

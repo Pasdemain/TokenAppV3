@@ -325,6 +325,31 @@ def init_db():
         )
     """)
 
+    # ── User Features table ──────────────────────────────────────────────────
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_features (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            feature_name VARCHAR(30) NOT NULL,
+            is_enabled BOOLEAN DEFAULT TRUE,
+            partner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            UNIQUE(user_id, feature_name)
+        )
+    """)
+
+    # Migrate existing users: insert default feature rows if missing
+    ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa']
+    cur.execute("SELECT id FROM users")
+    existing_users = cur.fetchall()
+    for u in existing_users:
+        for feat in ALL_FEATURES:
+            cur.execute("""
+                INSERT INTO user_features (user_id, feature_name, is_enabled)
+                VALUES (%s, %s, TRUE)
+                ON CONFLICT (user_id, feature_name) DO NOTHING
+            """, (u['id'], feat))
+
     # Seed default Leitner intervals if empty
     cur.execute("SELECT COUNT(*) as cnt FROM leitner_intervals")
     if cur.fetchone()['cnt'] == 0:

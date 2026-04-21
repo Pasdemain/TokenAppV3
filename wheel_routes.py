@@ -1,7 +1,7 @@
 import random
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from database import get_db_connection
-from auth import login_required
+from auth import feature_required
 from psycopg2.extras import RealDictCursor
 
 wheel_bp = Blueprint('wheel', __name__)
@@ -10,7 +10,7 @@ ADMIN_PASSWORD = 'Tom123'
 
 
 @wheel_bp.route('/wheel')
-@login_required
+@feature_required('wheel')
 def wheel_page():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -29,7 +29,7 @@ def wheel_page():
 
 
 @wheel_bp.route('/wheel/spin', methods=['POST'])
-@login_required
+@feature_required('wheel')
 def spin_wheel():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)

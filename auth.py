@@ -13,36 +13,70 @@ REMEMBER_DAYS = 30
 IS_HTTPS = os.environ.get('RENDER_EXTERNAL_URL', '').startswith('https')
 
 
+ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa']
+
+
+def _restore_session_from_cookie():
+    """Try to restore session from remember-me cookie. Returns True if session restored."""
+    token = request.cookies.get(REMEMBER_COOKIE)
+    if not token:
+        return False
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("SELECT id, username FROM users WHERE remember_token = %s", (token,))
+        user = cur.fetchone()
+        if user:
+            session.permanent = True
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            return True
+    except Exception as e:
+        print(f"Remember me error: {e}")
+    finally:
+        cur.close()
+        conn.close()
+    return False
+
+
 def login_required(f):
     """Decorator to require login for routes"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            # Try remember_me cookie
-            token = request.cookies.get(REMEMBER_COOKIE)
-            if token:
-                conn = get_db_connection()
-                cur = conn.cursor(cursor_factory=RealDictCursor)
-                try:
-                    cur.execute(
-                        "SELECT id, username FROM users WHERE remember_token = %s",
-                        (token,)
-                    )
-                    user = cur.fetchone()
-                    if user:
-                        session.permanent = True
-                        session['user_id'] = user['id']
-                        session['username'] = user['username']
-                        return f(*args, **kwargs)
-                except Exception as e:
-                    print(f"Remember me error: {e}")
-                finally:
-                    cur.close()
-                    conn.close()
-            flash('Please log in to access this page.', 'warning')
-            return redirect(url_for('auth.login'))
+            if not _restore_session_from_cookie():
+                flash('Please log in to access this page.', 'warning')
+                return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
+
+
+def feature_required(feature_name):
+    """Decorator to require login AND that the feature is enabled for the user."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' not in session:
+                if not _restore_session_from_cookie():
+                    flash('Please log in to access this page.', 'warning')
+                    return redirect(url_for('auth.login'))
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            try:
+                cur.execute(
+                    "SELECT is_enabled FROM user_features WHERE user_id = %s AND feature_name = %s",
+                    (session['user_id'], feature_name)
+                )
+                row = cur.fetchone()
+            finally:
+                cur.close()
+                conn.close()
+            if not row or not row['is_enabled']:
+                flash("Vous n'avez pas accès à cette fonctionnalité.", 'error')
+                return redirect(url_for('dashboard'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
@@ -83,6 +117,12 @@ def register():
                 (username, password_hash)
             )
             user_id = cur.fetchone()['id']
+
+            for feat in ALL_FEATURES:
+                cur.execute(
+                    "INSERT INTO user_features (user_id, feature_name, is_enabled) VALUES (%s, %s, TRUE)",
+                    (user_id, feat)
+                )
             conn.commit()
 
             session['user_id'] = user_id
