@@ -52,6 +52,11 @@ def inject_user_features():
                 (session['user_id'],)
             )
             features = {row['feature_name']: row['is_enabled'] for row in cur.fetchall()}
+            if not session.get('is_admin'):
+                cur.execute("SELECT is_admin FROM users WHERE id = %s", (session['user_id'],))
+                row = cur.fetchone()
+                if row and row['is_admin']:
+                    session['is_admin'] = True
         finally:
             cur.close()
             conn.close()
