@@ -2,6 +2,16 @@
 {% block title %}Mölkky – Configuration{% endblock %}
 
 {% block content %}
+<style>
+.player-card {
+    background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;
+    padding:.6rem 1rem; display:flex; justify-content:space-between;
+    align-items:center; margin-bottom:.5rem; cursor:grab;
+}
+.player-card:active { cursor:grabbing; }
+.drop-zone.drag-over { background:#e0e7ff !important; border:2px dashed #6366f1; }
+</style>
+
 <div class="content-wrapper">
     <div class="card-header" style="margin-bottom:1.5rem;">
         <div>
@@ -22,32 +32,31 @@
         <div>
             <h2 style="font-size:1rem;margin-bottom:1rem;">Joueurs</h2>
 
-            <!-- Add app user -->
-            {% set available_users = other_users|selectattr('id', 'in', in_game_ids)|list %}
             <div style="display:flex;gap:.5rem;margin-bottom:.75rem;">
                 <select id="userSelect" style="flex:1;" onchange="addUser()">
                     <option value="">Ajouter un utilisateur…</option>
                     {% for u in other_users %}
                     {% if u.id not in in_game_ids %}
-                    <option value="{{ u.id }}">{{ u.username }}</option>
+                    <option value="{{ u.id }}" data-name="{{ u.username }}">{{ u.username }}</option>
                     {% endif %}
                     {% endfor %}
                 </select>
             </div>
 
-            <!-- Add guest -->
             <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;">
-                <input type="text" id="guestInput" placeholder="Nom d'un invité…" style="flex:1;">
+                <input type="text" id="guestInput" placeholder="Nom d'un invité…" style="flex:1;"
+                       onkeydown="if(event.key==='Enter') addGuest()">
                 <button class="btn btn-secondary btn-sm" onclick="addGuest()">+ Invité</button>
             </div>
 
             <div id="unassignedList">
                 {% for m in unassigned %}
-                <div class="player-card" data-id="{{ m.id }}" draggable="true"
-                     style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:.6rem 1rem;
-                            display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;cursor:grab;">
+                <div class="player-card" data-id="{{ m.id }}"
+                     data-user-id="{{ m.user_id or '' }}" data-name="{{ m.display_name }}"
+                     draggable="true">
                     <span>{{ m.display_name }}{% if not m.user_id %} 👤{% endif %}</span>
-                    <button onclick="removePlayer({{ m.id }}, this)" style="background:none;border:none;cursor:pointer;color:#ef4444;">✕</button>
+                    <button onclick="removePlayer({{ m.id }}, this)"
+                            style="background:none;border:none;cursor:pointer;color:#ef4444;">✕</button>
                 </div>
                 {% endfor %}
             </div>
@@ -73,13 +82,13 @@
                     </div>
                     <div class="drop-zone" data-team-id="{{ t.id }}"
                          style="min-height:50px;background:#f9fafb;border-radius:6px;padding:.5rem;"
-                         ondragover="event.preventDefault()" ondrop="onDrop(event, {{ t.id }})">
+                         ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+                         ondrop="onDrop(event, {{ t.id }})">
                         {% if t.members %}
-                        {% set members = t.members if t.members is not string else (t.members|fromjson) %}
                         {% for m in (t.members if t.members is iterable and t.members is not string else []) %}
-                        <div class="player-card" data-id="{{ m.id }}" draggable="true"
-                             style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:.5rem .75rem;
-                                    display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;cursor:grab;">
+                        <div class="player-card" data-id="{{ m.id }}"
+                             data-user-id="{{ m.user_id or '' }}" data-name="{{ m.display_name }}"
+                             draggable="true">
                             <span>{{ m.display_name }}</span>
                             <button onclick="removePlayer({{ m.id }}, this)"
                                     style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:.8rem;">✕</button>
@@ -87,16 +96,13 @@
                         {% endfor %}
                         {% endif %}
                     </div>
-                    <button onclick="unassignDrop(null, {{ t.id }}, this.closest('.team-column').querySelector('.drop-zone'))"
-                            style="display:none;"></button>
                 </div>
                 {% endfor %}
             </div>
 
-            <!-- Unassigned drop zone -->
             <div style="margin-top:1rem;padding:.75rem;background:#f3f4f6;border-radius:8px;border:2px dashed #d1d5db;"
-                 ondragover="event.preventDefault()" ondrop="onDrop(event, null)">
-                <span style="color:#9ca3af;font-size:.875rem;">Déposer ici pour désaffecter</span>
+                 ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, null)">
+                <span style="color:#9ca3af;font-size:.875rem;">⬆ Déposer ici pour désaffecter</span>
             </div>
         </div>
         {% endif %}
@@ -107,24 +113,9 @@
 {% block scripts %}
 <script>
 const GAME_ID = {{ game.id }};
-const MODE = '{{ game.mode }}';
-
-// Drag & drop
 let draggedId = null;
 
-document.addEventListener('dragstart', e => {
-    const card = e.target.closest('.player-card');
-    if (card) {
-        draggedId = parseInt(card.dataset.id);
-        e.dataTransfer.effectAllowed = 'move';
-    }
-});
-
-function onDrop(e, teamId) {
-    e.preventDefault();
-    if (!draggedId) return;
-    assignTeam(draggedId, teamId);
-}
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 async function api(action, extra = {}) {
     const res = await fetch(`/molkky/setup/${GAME_ID}/action`, {
@@ -135,16 +126,75 @@ async function api(action, extra = {}) {
     return res.json();
 }
 
+function makeCard(member) {
+    const div = document.createElement('div');
+    div.className = 'player-card';
+    div.dataset.id = member.id;
+    div.dataset.userId = member.user_id || '';
+    div.dataset.name = member.display_name;
+    div.draggable = true;
+    div.innerHTML = `<span>${member.display_name}${!member.user_id ? ' 👤' : ''}</span>
+        <button onclick="removePlayer(${member.id}, this)"
+                style="background:none;border:none;cursor:pointer;color:#ef4444;">✕</button>`;
+    return div;
+}
+
+function makeTeamCol(team) {
+    const div = document.createElement('div');
+    div.className = 'team-column';
+    div.dataset.id = team.id;
+    div.style.cssText = `border:2px solid ${team.color};border-radius:10px;padding:1rem;margin-bottom:1rem;`;
+    div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+            <span style="font-weight:600;color:${team.color};cursor:pointer;"
+                  ondblclick="renameTeam(${team.id}, this)">${team.name}</span>
+            <button onclick="removeTeam(${team.id}, this.closest('.team-column'))"
+                    style="background:none;border:none;cursor:pointer;color:#9ca3af;">✕</button>
+        </div>
+        <div class="drop-zone" data-team-id="${team.id}"
+             style="min-height:50px;background:#f9fafb;border-radius:6px;padding:.5rem;"
+             ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event, ${team.id})">
+        </div>`;
+    return div;
+}
+
+// ── Drag & drop ────────────────────────────────────────────────────────────
+
+document.addEventListener('dragstart', e => {
+    const card = e.target.closest('.player-card');
+    if (card) { draggedId = parseInt(card.dataset.id); e.dataTransfer.effectAllowed = 'move'; }
+});
+document.addEventListener('dragend', () => {
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+});
+
+function onDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function onDrop(e, teamId) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    if (!draggedId) return;
+    assignTeam(draggedId, teamId);
+    draggedId = null;
+}
+
+// ── Actions (no page reload) ───────────────────────────────────────────────
+
 async function addUser() {
     const sel = document.getElementById('userSelect');
     const userId = parseInt(sel.value);
     if (!userId) return;
+    const opt = sel.querySelector(`option[value="${userId}"]`);
     sel.value = '';
-    const data = await api('add_player', {user_id: userId});
-    if (data.ok) {
-        location.reload();
+
+    const resp = await api('add_player', {user_id: userId});
+    if (resp.ok) {
+        if (opt) opt.remove();  // can't add same user twice
+        document.getElementById('unassignedList').appendChild(makeCard(resp.member));
     } else {
-        alert(data.error || 'Erreur');
+        alert(resp.error || 'Erreur');
+        if (opt) sel.appendChild(opt);  // restore option on error
     }
 }
 
@@ -153,51 +203,76 @@ async function addGuest() {
     const name = inp.value.trim();
     if (!name) return;
     inp.value = '';
-    const data = await api('add_player', {guest_name: name});
-    if (data.ok) {
-        location.reload();
+
+    const resp = await api('add_player', {guest_name: name});
+    if (resp.ok) {
+        document.getElementById('unassignedList').appendChild(makeCard(resp.member));
     } else {
-        alert(data.error || 'Erreur');
+        alert(resp.error || 'Erreur');
+        inp.value = name;  // restore on error
     }
 }
 
 async function removePlayer(memberId, btn) {
     if (!confirm('Retirer ce joueur ?')) return;
-    const data = await api('remove_player', {member_id: memberId});
-    if (data.ok) {
-        const card = btn.closest('.player-card');
-        if (card) card.remove();
+    const card = btn.closest('.player-card');
+    const resp = await api('remove_player', {member_id: memberId});
+    if (resp.ok) {
+        // Re-add app user to dropdown so they can be added again
+        const userId = card?.dataset.userId;
+        const name = card?.dataset.name;
+        if (userId) {
+            const sel = document.getElementById('userSelect');
+            const opt = document.createElement('option');
+            opt.value = userId;
+            opt.dataset.name = name;
+            opt.textContent = name;
+            sel.appendChild(opt);
+        }
+        card?.remove();
     }
 }
 
 async function addTeam() {
-    const name = prompt('Nom de l\'équipe ?') || '';
-    if (!name.trim()) return;
-    const data = await api('add_team', {name: name.trim()});
-    if (data.ok) {
-        location.reload();
+    const name = (prompt('Nom de l\'équipe ?') || '').trim();
+    if (!name) return;
+    const resp = await api('add_team', {name});
+    if (resp.ok) {
+        document.getElementById('teamsList').appendChild(makeTeamCol(resp.team));
     } else {
-        alert(data.error || 'Erreur');
+        alert(resp.error || 'Erreur');
     }
 }
 
 async function removeTeam(teamId, el) {
     if (!confirm('Supprimer cette équipe ? Les joueurs seront désaffectés.')) return;
-    const data = await api('remove_team', {team_id: teamId});
-    if (data.ok && el) el.remove();
+    const resp = await api('remove_team', {team_id: teamId});
+    if (resp.ok && el) {
+        // Move member cards back to unassigned
+        const unassigned = document.getElementById('unassignedList');
+        el.querySelectorAll('.player-card').forEach(card => unassigned.appendChild(card));
+        el.remove();
+    }
 }
 
 async function renameTeam(teamId, el) {
-    const name = prompt('Nouveau nom :', el.textContent.trim());
-    if (!name || !name.trim()) return;
-    const data = await api('rename_team', {team_id: teamId, name: name.trim()});
-    if (data.ok) el.textContent = name.trim();
+    const name = (prompt('Nouveau nom :', el.textContent.trim()) || '').trim();
+    if (!name) return;
+    const resp = await api('rename_team', {team_id: teamId, name});
+    if (resp.ok) el.textContent = name;
 }
 
 async function assignTeam(memberId, teamId) {
-    const data = await api('assign_team', {member_id: memberId, team_id: teamId});
-    if (data.ok) {
-        location.reload();
+    const resp = await api('assign_team', {member_id: memberId, team_id: teamId});
+    if (resp.ok) {
+        const card = document.querySelector(`.player-card[data-id="${memberId}"]`);
+        if (!card) return;
+        if (teamId === null) {
+            document.getElementById('unassignedList').appendChild(card);
+        } else {
+            const zone = document.querySelector(`.drop-zone[data-team-id="${teamId}"]`);
+            if (zone) zone.appendChild(card);
+        }
     }
 }
 
@@ -205,11 +280,11 @@ async function startGame() {
     const btn = document.getElementById('startBtn');
     btn.disabled = true;
     btn.textContent = 'Démarrage…';
-    const data = await api('start');
-    if (data.ok && data.redirect) {
-        window.location.href = data.redirect;
+    const resp = await api('start');
+    if (resp.ok && resp.redirect) {
+        window.location.href = resp.redirect;
     } else {
-        alert(data.error || 'Erreur lors du démarrage.');
+        alert(resp.error || 'Erreur lors du démarrage.');
         btn.disabled = false;
         btn.textContent = '▶ Démarrer';
     }

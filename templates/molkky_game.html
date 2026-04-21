@@ -7,16 +7,15 @@
 .team-score {
     flex:1; min-width:110px; padding:.85rem;
     border-radius:10px; border:3px solid transparent;
-    text-align:center; transition:all .3s; background:#f9fafb;
+    text-align:center; transition:border-color .2s, background .2s; background:#f9fafb;
 }
 .team-score.current { border-color:var(--warning); background:#fffbeb; box-shadow:0 0 0 3px rgba(245,158,11,.2); }
 .team-score.eliminated { opacity:.4; }
 .team-score.winner { border-color:var(--success); background:#d1fae5; }
 .team-name { font-weight:600; font-size:.8rem; margin-bottom:.25rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.team-points { font-size:2rem; font-weight:800; line-height:1; }
+.team-points { font-size:2rem; font-weight:800; line-height:1; transition:color .15s; }
 .team-zeros { font-size:.7rem; color:#9ca3af; margin-top:.25rem; min-height:1rem; }
 
-/* Pin formation */
 .pin-formation {
     display:flex; flex-direction:column; align-items:center;
     gap:14px; margin:1.5rem auto; max-width:340px;
@@ -25,22 +24,15 @@
 .pin-btn, .pin-zero {
     width:54px; height:54px; border-radius:50%;
     font-size:1.15rem; font-weight:700; cursor:pointer;
-    transition:all .15s; display:flex; align-items:center; justify-content:center;
+    transition:all .12s; display:flex; align-items:center; justify-content:center;
     -webkit-tap-highlight-color:transparent; user-select:none;
 }
-.pin-btn {
-    border:3px solid #d1d5db; background:#fff; color:#374151;
-    box-shadow:0 2px 5px rgba(0,0,0,.12);
-}
-.pin-zero {
-    border:3px dashed #d1d5db; background:#f9fafb; color:#9ca3af;
-}
+.pin-btn { border:3px solid #d1d5db; background:#fff; color:#374151; box-shadow:0 2px 5px rgba(0,0,0,.12); }
+.pin-zero { border:3px dashed #d1d5db; background:#f9fafb; color:#9ca3af; }
 .pin-btn:active, .pin-zero:active { transform:scale(.92); }
 .pin-btn:hover:not(:disabled) { border-color:#6366f1; background:#eef2ff; }
 .pin-zero:hover:not(:disabled) { border-color:#ef4444; color:#ef4444; background:#fef2f2; }
 .pin-btn:disabled, .pin-zero:disabled { opacity:.4; cursor:not-allowed; }
-
-/* Selected state (pin just thrown, shown while waiting for server) */
 .pin-btn.thrown, .pin-zero.thrown {
     background:#6366f1; border-color:#4f46e5 !important;
     color:#fff; transform:scale(1.08);
@@ -48,7 +40,6 @@
     opacity:1 !important; cursor:default;
 }
 
-/* History */
 .throw-history { margin-top:1.5rem; }
 .throw-entry {
     display:flex; justify-content:space-between; align-items:center;
@@ -57,16 +48,12 @@
 }
 .throw-entry:nth-child(odd) { background:#f9fafb; }
 
-/* Winner overlay */
 #winnerOverlay {
     display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
     z-index:2000; align-items:center; justify-content:center;
 }
 #winnerOverlay.show { display:flex; }
-.winner-box {
-    background:#fff; border-radius:16px; padding:2.5rem 3rem;
-    text-align:center; max-width:340px; width:90%;
-}
+.winner-box { background:#fff; border-radius:16px; padding:2.5rem 3rem; text-align:center; max-width:340px; width:90%; }
 </style>
 
 <div class="content-wrapper">
@@ -79,11 +66,8 @@
     <div class="scoreboard" id="scoreboard">
         {% for t in state.teams %}
         {% set is_current = game.current_team_id == t.id and game.status == 'active' and t.consecutive_zeros == 0 %}
-        <div class="team-score
-            {% if game.status == 'finished' and game.winner_team_id == t.id %}winner
-            {% elif t.is_eliminated %}eliminated
-            {% elif is_current %}current
-            {% endif %}" id="team-{{ t.id }}">
+        <div class="team-score {% if game.status == 'finished' and game.winner_team_id == t.id %}winner{% elif t.is_eliminated %}eliminated{% elif is_current %}current{% endif %}"
+             id="team-{{ t.id }}">
             <div class="team-name" style="color:{{ t.color }};">{{ t.name }}</div>
             <div class="team-points" id="score-{{ t.id }}" style="color:{{ t.color }};">{{ t.score }}</div>
             <div class="progress" style="margin:.4rem 0;">
@@ -91,15 +75,13 @@
                      style="width:{{ [(t.score / 50 * 100), 100]|min }}%;background:{{ t.color }};"></div>
             </div>
             <div class="team-zeros" id="zeros-{{ t.id }}">
-                {% if t.is_eliminated %}❌ Éliminé
-                {% elif t.consecutive_zeros > 0 %}⚠️ {{ t.consecutive_zeros }}/3{% endif %}
+                {% if t.is_eliminated %}❌ Éliminé{% elif t.consecutive_zeros > 0 %}⚠️ {{ t.consecutive_zeros }}/3{% endif %}
             </div>
         </div>
         {% endfor %}
     </div>
 
     {% if game.status == 'active' %}
-    <!-- Turn + undo -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
         <div id="turnIndicator" style="font-weight:600;font-size:1rem;">
             {% for t in state.teams %}{% if t.id == game.current_team_id %}
@@ -116,33 +98,29 @@
     </div>
 
     {% if is_controller %}
-    <!-- Pin formation — single click = immediate throw -->
     <div class="pin-formation" id="pinFormation">
         <div class="pin-row">
-            <button class="pin-btn" data-pin="7" onclick="quickThrow(7, this)">7</button>
-            <button class="pin-btn" data-pin="9" onclick="quickThrow(9, this)">9</button>
-            <button class="pin-btn" data-pin="8" onclick="quickThrow(8, this)">8</button>
+            <button class="pin-btn" onclick="quickThrow(7, this)">7</button>
+            <button class="pin-btn" onclick="quickThrow(9, this)">9</button>
+            <button class="pin-btn" onclick="quickThrow(8, this)">8</button>
         </div>
         <div class="pin-row">
-            <button class="pin-btn" data-pin="5" onclick="quickThrow(5, this)">5</button>
-            <button class="pin-btn" data-pin="11" onclick="quickThrow(11, this)">11</button>
-            <button class="pin-btn" data-pin="12" onclick="quickThrow(12, this)">12</button>
-            <button class="pin-btn" data-pin="6" onclick="quickThrow(6, this)">6</button>
+            <button class="pin-btn" onclick="quickThrow(5, this)">5</button>
+            <button class="pin-btn" onclick="quickThrow(11, this)">11</button>
+            <button class="pin-btn" onclick="quickThrow(12, this)">12</button>
+            <button class="pin-btn" onclick="quickThrow(6, this)">6</button>
         </div>
         <div class="pin-row">
-            <button class="pin-btn" data-pin="3" onclick="quickThrow(3, this)">3</button>
-            <button class="pin-btn" data-pin="10" onclick="quickThrow(10, this)">10</button>
-            <button class="pin-btn" data-pin="4" onclick="quickThrow(4, this)">4</button>
+            <button class="pin-btn" onclick="quickThrow(3, this)">3</button>
+            <button class="pin-btn" onclick="quickThrow(10, this)">10</button>
+            <button class="pin-btn" onclick="quickThrow(4, this)">4</button>
         </div>
-        <!-- Front row: 1 & 2 centred, 0 anchored to the right edge of the formation -->
-        <div style="display:flex; align-items:center; justify-content:center;
-                    position:relative; width:258px;">
-            <div style="display:flex; gap:14px;">
-                <button class="pin-btn" data-pin="1" onclick="quickThrow(1, this)">1</button>
-                <button class="pin-btn" data-pin="2" onclick="quickThrow(2, this)">2</button>
+        <div style="display:flex;align-items:center;justify-content:center;position:relative;width:258px;">
+            <div style="display:flex;gap:14px;">
+                <button class="pin-btn" onclick="quickThrow(1, this)">1</button>
+                <button class="pin-btn" onclick="quickThrow(2, this)">2</button>
             </div>
-            <button class="pin-zero" onclick="quickThrow(0, this)"
-                    style="position:absolute; right:0;">0</button>
+            <button class="pin-zero" onclick="quickThrow(0, this)" style="position:absolute;right:0;">0</button>
         </div>
     </div>
     {% else %}
@@ -153,17 +131,12 @@
     </div>
     {% endif %}
 
-    <!-- Throw history -->
     <div class="throw-history" id="throwHistory">
         <h3 style="font-size:.85rem;color:#9ca3af;margin-bottom:.5rem;">Historique</h3>
         {% for th in state.recent_throws %}
         <div class="throw-entry" style="border-left-color:{{ th.team_color }};">
-            <span>
-                <strong style="color:{{ th.team_color }};">{{ th.team_name }}</strong>
-                {% if th.score_gained == 0 %} — Raté
-                {% elif th.pins_knocked|length == 1 %} — Quille {{ th.pins_knocked[0] }}
-                {% else %} — {{ th.pins_knocked|length }} quilles{% endif %}
-            </span>
+            <span><strong style="color:{{ th.team_color }};">{{ th.team_name }}</strong>
+            {% if th.score_gained == 0 %} — Raté{% elif th.pins_knocked|length == 1 %} — Quille {{ th.pins_knocked[0] }}{% else %} — {{ th.pins_knocked|length }} quilles{% endif %}</span>
             <span style="font-weight:700;">+{{ th.score_gained }} → {{ th.score_after }}</span>
         </div>
         {% endfor %}
@@ -187,8 +160,7 @@
             <form method="POST" action="{{ url_for('molkky.molkky_rematch', game_id=game.id) }}">
                 <button type="submit" class="btn btn-primary">🔄 Revanche</button>
             </form>
-            <button onclick="undoThrow()" class="btn btn-sm"
-                    style="background:#f3f4f6;color:#374151;">↩ Annuler dernier lancer</button>
+            <button onclick="undoThrow()" class="btn btn-sm" style="background:#f3f4f6;color:#374151;">↩ Annuler dernier lancer</button>
         </div>
         {% endif %}
     </div>
@@ -196,12 +168,8 @@
         <h3 style="font-size:.85rem;color:#9ca3af;margin-bottom:.5rem;">Historique</h3>
         {% for th in state.recent_throws %}
         <div class="throw-entry" style="border-left-color:{{ th.team_color }};">
-            <span>
-                <strong style="color:{{ th.team_color }};">{{ th.team_name }}</strong>
-                {% if th.score_gained == 0 %} — Raté
-                {% elif th.pins_knocked|length == 1 %} — Quille {{ th.pins_knocked[0] }}
-                {% else %} — {{ th.pins_knocked|length }} quilles{% endif %}
-            </span>
+            <span><strong style="color:{{ th.team_color }};">{{ th.team_name }}</strong>
+            {% if th.score_gained == 0 %} — Raté{% elif th.pins_knocked|length == 1 %} — Quille {{ th.pins_knocked[0] }}{% else %} — {{ th.pins_knocked|length }} quilles{% endif %}</span>
             <span style="font-weight:700;">+{{ th.score_gained }} → {{ th.score_after }}</span>
         </div>
         {% endfor %}
@@ -209,7 +177,6 @@
     {% endif %}
 </div>
 
-<!-- Winner overlay -->
 <div id="winnerOverlay">
     <div class="winner-box">
         <div style="font-size:3rem;">🏆</div>
@@ -221,9 +188,7 @@
         </form>
         {% endif %}
         <button onclick="document.getElementById('winnerOverlay').classList.remove('show')"
-                style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:.875rem;">
-            Fermer
-        </button>
+                style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:.875rem;">Fermer</button>
     </div>
 </div>
 {% endblock %}
@@ -232,31 +197,137 @@
 <script>
 const GAME_ID = {{ game.id }};
 const IS_CONTROLLER = {{ 'true' if is_controller else 'false' }};
+const PENALTY_RULE = '{{ game.penalty_rule }}';
+// Teams in turn order — used to compute next player optimistically
+const TURN_ORDER = [{% for t in state.teams %}{{ t.id }}{% if not loop.last %},{% endif %}{% endfor %}];
 
-let throwing = false;
-let activeBtn = null;  // pin button currently highlighted while waiting for server
+// ── Local state (mirrors server, used for optimistic updates) ──────────────
+let local = {
+    {% for t in state.teams %}
+    {{ t.id }}: {score:{{ t.score }}, zeros:{{ t.consecutive_zeros }}, elim:{{ t.is_eliminated|lower }},
+                 color:'{{ t.color }}', name:'{{ t.name|replace("'", "\\'") }}'},
+    {% endfor %}
+};
+let localCurrentId = {{ game.current_team_id or 'null' }};
+
+// Sync local state from a server state object
+function syncFromServer(state) {
+    state.teams.forEach(t => {
+        if (local[t.id]) {
+            local[t.id].score = t.score;
+            local[t.id].zeros = t.consecutive_zeros;
+            local[t.id].elim  = t.is_eliminated;
+        }
+    });
+    localCurrentId = state.game.current_team_id;
+}
+
+// ── Optimistic scoring (mirrors Python throw logic exactly) ────────────────
+function calcThrow(teamId, pins) {
+    const t = local[teamId];
+    const gained = pins.length === 0 ? 0 : pins.length === 1 ? pins[0] : pins.length;
+    let score = t.score + gained;
+    let zeros = gained === 0 ? t.zeros + 1 : 0;
+    let elim  = t.elim;
+
+    if (score > 50) score = 25;
+
+    if (zeros >= 3) {
+        zeros = 0;
+        if (PENALTY_RULE === 'elimination') elim = true;
+        else if (PENALTY_RULE === 'halve')  score = Math.floor(score / 2);
+        else if (PENALTY_RULE === 'conditional') score = score < 25 ? 0 : 25;
+    }
+
+    const winner = score === 50 && !elim;
+
+    // Compute next team in turn order (among non-eliminated)
+    let nextId = null;
+    if (!winner) {
+        const active = TURN_ORDER.filter(id => id === teamId ? !elim : !local[id].elim);
+        if (active.length > 1) {
+            const idx = active.indexOf(teamId);
+            nextId = active[(idx + 1) % active.length];
+        }
+        // If only 1 active and it's not eliminated, they win — server will handle it
+    }
+
+    return {gained, score, zeros, elim, winner, nextId};
+}
+
+function applyOptimistic(teamId, pins) {
+    const prev = JSON.parse(JSON.stringify(local));
+    const prevCurrentId = localCurrentId;
+
+    const r = calcThrow(teamId, pins);
+    local[teamId] = {...local[teamId], score: r.score, zeros: r.zeros, elim: r.elim};
+    localCurrentId = r.nextId;
+
+    applyLocalToDOM();
+
+    return {prev, prevCurrentId, winner: r.winner};
+}
+
+function rollback(prev, prevCurrentId) {
+    local = prev;
+    localCurrentId = prevCurrentId;
+    applyLocalToDOM();
+}
+
+function applyLocalToDOM() {
+    for (const [id, t] of Object.entries(local)) {
+        const tid = parseInt(id);
+        const el      = document.getElementById(`team-${id}`);
+        const scoreEl = document.getElementById(`score-${id}`);
+        const barEl   = document.getElementById(`bar-${id}`);
+        const zerosEl = document.getElementById(`zeros-${id}`);
+        if (!el) continue;
+
+        el.className = 'team-score';
+        if (t.elim) el.classList.add('eliminated');
+        else if (tid === localCurrentId && t.zeros === 0) el.classList.add('current');
+
+        if (scoreEl) scoreEl.textContent = t.score;
+        if (barEl)   barEl.style.width = Math.min(t.score / 50 * 100, 100) + '%';
+        if (zerosEl) {
+            zerosEl.textContent = t.elim ? '❌ Éliminé' : t.zeros > 0 ? `⚠️ ${t.zeros}/3` : '';
+        }
+    }
+
+    const turnEl = document.getElementById('turnIndicator');
+    if (turnEl && localCurrentId) {
+        const t = local[localCurrentId];
+        if (t) turnEl.innerHTML = `Tour de <span style="color:${t.color};">${t.name}</span>`;
+    }
+}
+
+// ── Pin interaction ────────────────────────────────────────────────────────
+let throwing  = false;
+let activeBtn = null;
 
 function setPinsDisabled(disabled) {
     document.querySelectorAll('.pin-btn, .pin-zero').forEach(b => b.disabled = disabled);
 }
-
 function clearActiveBtn() {
-    if (activeBtn) {
-        activeBtn.classList.remove('thrown');
-        activeBtn = null;
-    }
+    if (activeBtn) { activeBtn.classList.remove('thrown'); activeBtn = null; }
 }
 
 async function quickThrow(pin, btn) {
     if (throwing) return;
     throwing = true;
 
-    // Highlight the clicked pin immediately
+    const pins = pin === 0 ? [] : [pin];
+    const teamId = localCurrentId;
+
+    // 1. Optimistic: update DOM immediately
+    const {prev, prevCurrentId, winner: optimisticWinner} = applyOptimistic(teamId, pins);
+
+    // 2. Highlight clicked pin
     btn.classList.add('thrown');
     activeBtn = btn;
     setPinsDisabled(true);
 
-    const pins = pin === 0 ? [] : [pin];
+    // 3. Background sync with server
     try {
         const res = await fetch(`/molkky/game/${GAME_ID}/throw`, {
             method: 'POST',
@@ -264,27 +335,27 @@ async function quickThrow(pin, btn) {
             body: JSON.stringify({pins})
         });
         const resp = await res.json();
-
         clearActiveBtn();
 
         if (!resp.ok) {
+            rollback(prev, prevCurrentId);
             showToast('Erreur : ' + (resp.error || '?'), '#ef4444');
             setPinsDisabled(false);
-            throwing = false;
-            return;
-        }
-
-        renderState(resp.state);
-
-        if (resp.penalty_applied) showToast('⚠️ 3 zéros consécutifs — pénalité !', '#f59e0b');
-        if (resp.game_over) {
-            const winner = resp.state.teams.find(t => t.id === resp.state.game.winner_team_id);
-            setTimeout(() => showWinner(winner), 400);
         } else {
-            setPinsDisabled(false);
+            // Server is authoritative (handles edge cases exactly)
+            syncFromServer(resp.state);
+            renderState(resp.state);
+            if (resp.penalty_applied) showToast('⚠️ 3 zéros consécutifs — pénalité !', '#f59e0b');
+            if (resp.game_over) {
+                const w = resp.state.teams.find(t => t.id === resp.state.game.winner_team_id);
+                setTimeout(() => showWinner(w), 300);
+            } else {
+                setPinsDisabled(false);
+            }
         }
     } catch (e) {
         clearActiveBtn();
+        rollback(prev, prevCurrentId);
         showToast('Erreur réseau.', '#ef4444');
         setPinsDisabled(false);
     }
@@ -298,11 +369,12 @@ async function undoThrow() {
     throwing = true;
     clearActiveBtn();
     try {
-        const res = await fetch(`/molkky/game/${GAME_ID}/undo`, {method: 'POST'});
+        const res  = await fetch(`/molkky/game/${GAME_ID}/undo`, {method: 'POST'});
         const resp = await res.json();
         if (!resp.ok) {
             showToast(resp.error || 'Impossible d\'annuler.', '#ef4444');
         } else {
+            syncFromServer(resp.state);
             renderState(resp.state);
             document.getElementById('winnerOverlay')?.classList.remove('show');
             setPinsDisabled(false);
@@ -314,32 +386,28 @@ async function undoThrow() {
     throwing = false;
 }
 
+// ── Full render from server state (history + authoritative scores) ─────────
 function renderState(state) {
     const game = state.game;
 
     state.teams.forEach(t => {
-        const el = document.getElementById(`team-${t.id}`);
+        const el      = document.getElementById(`team-${t.id}`);
         const scoreEl = document.getElementById(`score-${t.id}`);
-        const barEl = document.getElementById(`bar-${t.id}`);
+        const barEl   = document.getElementById(`bar-${t.id}`);
         const zerosEl = document.getElementById(`zeros-${t.id}`);
         if (!el) return;
 
         el.className = 'team-score';
-        if (game.status === 'finished' && game.winner_team_id === t.id) {
-            el.classList.add('winner');
-        } else if (t.is_eliminated) {
-            el.classList.add('eliminated');
-        } else if (game.current_team_id === t.id && game.status === 'active' && t.consecutive_zeros === 0) {
-            // Only show current-player border when they have no consecutive zeros
+        if (game.status === 'finished' && game.winner_team_id === t.id) el.classList.add('winner');
+        else if (t.is_eliminated) el.classList.add('eliminated');
+        else if (game.current_team_id === t.id && game.status === 'active' && t.consecutive_zeros === 0)
             el.classList.add('current');
-        }
 
         if (scoreEl) scoreEl.textContent = t.score;
-        if (barEl) barEl.style.width = Math.min(t.score / 50 * 100, 100) + '%';
+        if (barEl)   barEl.style.width = Math.min(t.score / 50 * 100, 100) + '%';
         if (zerosEl) {
-            if (t.is_eliminated) zerosEl.textContent = '❌ Éliminé';
-            else if (t.consecutive_zeros > 0) zerosEl.textContent = `⚠️ ${t.consecutive_zeros}/3`;
-            else zerosEl.textContent = '';
+            zerosEl.textContent = t.is_eliminated ? '❌ Éliminé'
+                                : t.consecutive_zeros > 0 ? `⚠️ ${t.consecutive_zeros}/3` : '';
         }
     });
 
@@ -353,10 +421,9 @@ function renderState(state) {
     if (hist && state.recent_throws) {
         const rows = state.recent_throws.map(th => {
             const pins = Array.isArray(th.pins_knocked) ? th.pins_knocked : [];
-            let desc;
-            if (th.score_gained === 0) desc = ' — Raté';
-            else if (pins.length === 1) desc = ` — Quille ${pins[0]}`;
-            else desc = ` — ${pins.length} quilles`;
+            const desc = th.score_gained === 0 ? ' — Raté'
+                       : pins.length === 1     ? ` — Quille ${pins[0]}`
+                       : ` — ${pins.length} quilles`;
             return `<div class="throw-entry" style="border-left-color:${th.team_color};">
                 <span><strong style="color:${th.team_color};">${th.team_name}</strong>${desc}</span>
                 <span style="font-weight:700;">+${th.score_gained} → ${th.score_after}</span>
@@ -372,7 +439,7 @@ function showWinner(winner) {
     const overlay = document.getElementById('winnerOverlay');
     if (!overlay) return;
     document.getElementById('overlayTitle').textContent = winner ? `${winner.name} gagne ! 🏆` : 'Partie terminée';
-    document.getElementById('overlayMsg').textContent = winner ? `Score final : ${winner.score}` : '';
+    document.getElementById('overlayMsg').textContent   = winner ? `Score final : ${winner.score}` : '';
     overlay.classList.add('show');
 }
 
@@ -386,22 +453,22 @@ function showToast(msg, color) {
     setTimeout(() => el.remove(), 3000);
 }
 
-// Polling for non-controllers
+// ── Polling for spectators ────────────────────────────────────────────────
 let lastStateHash = '{{ game.current_team_id }}_{{ game.status }}';
 
 {% if not is_controller and game.status == 'active' %}
 const pollInterval = setInterval(async () => {
     try {
         const res = await fetch(`/molkky/game/${GAME_ID}/state`);
-        const st = await res.json();
+        const st  = await res.json();
         if (st.error) return;
-        const newHash = st.game.current_team_id + '_' + st.game.status;
-        if (newHash !== lastStateHash) {
-            lastStateHash = newHash;
+        const h = st.game.current_team_id + '_' + st.game.status;
+        if (h !== lastStateHash) {
+            lastStateHash = h;
+            syncFromServer(st);
             renderState(st);
             if (st.game.status === 'finished') {
-                const w = st.teams.find(t => t.id === st.game.winner_team_id);
-                showWinner(w);
+                showWinner(st.teams.find(t => t.id === st.game.winner_team_id));
                 clearInterval(pollInterval);
             }
         }
