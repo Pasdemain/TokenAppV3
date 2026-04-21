@@ -48,11 +48,9 @@
                                     <input type="hidden" name="action" value="set_feature_default">
                                     <input type="hidden" name="feature_name" value="{{ feat }}">
                                     <input type="hidden" name="is_enabled" value="{{ '0' if is_on else '1' }}">
-                                    <input type="hidden" name="password" class="admin-pw-toggle">
-                                    <button type="button"
+                                    <button type="submit"
                                         style="background:none;border:none;cursor:pointer;font-size:1.4rem;line-height:1;"
-                                        title="{{ 'Désactiver par défaut' if is_on else 'Activer par défaut' }}"
-                                        onclick="promptAndSubmitToggle(this)">
+                                        title="{{ 'Désactiver par défaut' if is_on else 'Activer par défaut' }}">
                                         {{ '✅' if is_on else '❌' }}
                                     </button>
                                 </form>
@@ -71,11 +69,9 @@
                                     <input type="hidden" name="target_user_id" value="{{ user.id }}">
                                     <input type="hidden" name="feature_name" value="{{ feat }}">
                                     <input type="hidden" name="is_enabled" value="{{ '0' if feat_data.is_enabled else '1' }}">
-                                    <input type="hidden" name="password" class="admin-pw-toggle">
-                                    <button type="button"
+                                    <button type="submit"
                                         style="background:none;border:none;cursor:pointer;font-size:1.4rem;line-height:1;"
-                                        title="{{ 'Désactiver' if feat_data.is_enabled else 'Activer' }}"
-                                        onclick="promptAndSubmitToggle(this)">
+                                        title="{{ 'Désactiver' if feat_data.is_enabled else 'Activer' }}">
                                         {{ '✅' if feat_data.is_enabled else '❌' }}
                                     </button>
                                 </form>
@@ -115,10 +111,6 @@
                         <input type="password" name="new_password" placeholder="New password" required minlength="6">
                     </div>
                 </div>
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                    <label>Admin Password *</label>
-                    <input type="password" name="password" placeholder="Admin password" required>
-                </div>
                 <button type="submit" class="btn btn-primary btn-sm">🔑 Change Password</button>
             </form>
         </div>
@@ -148,11 +140,8 @@
                         <td style="padding:0.5rem;">{{ country.name }}</td>
                         <td style="padding:0.5rem;text-align:right;">
                             <form method="POST" action="{{ url_for('wheel.delete_country', country_id=country.id) }}"
-                                  style="display:inline;">
-                                <button type="submit" class="btn btn-sm btn-danger"
-                                        onclick="return confirm('Remove {{ country.name }}?')">
-                                    🗑️
-                                </button>
+                                  style="display:inline;" onsubmit="return confirm('Remove {{ country.name }}?')">
+                                <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
                             </form>
                         </td>
                     </tr>
@@ -292,10 +281,8 @@
                         <td style="padding:0.5rem;font-weight:600;">{{ lang.code }}</td>
                         <td style="padding:0.5rem;">{{ lang.name }}</td>
                         <td style="padding:0.5rem;text-align:right;">
-                            <form method="POST" action="{{ url_for('flashcards.admin_delete_language', lang_id=lang.id) }}" style="display:inline;">
-                                <input type="hidden" name="password" id="del-lang-pw-{{ lang.id }}">
-                                <button type="button" class="btn btn-sm btn-danger"
-                                    onclick="promptAndSubmit('del-lang-pw-{{ lang.id }}', this.closest('form'))">🗑️</button>
+                            <form method="POST" action="{{ url_for('flashcards.admin_delete_language', lang_id=lang.id) }}" style="display:inline;" onsubmit="return confirm('Delete language {{ lang.code }}?')">
+                                <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
                             </form>
                         </td>
                     </tr>
@@ -322,10 +309,6 @@
                             <label>Flag emoji</label>
                             <input type="text" name="flag_emoji" placeholder="🇫🇷" maxlength="10">
                         </div>
-                    </div>
-                    <div class="form-group" style="margin-bottom:0.75rem;">
-                        <label>Admin Password *</label>
-                        <input type="password" name="password" required placeholder="Admin password">
                     </div>
                     <button type="submit" class="btn btn-primary btn-sm">✅ Add Language</button>
                 </form>
@@ -387,10 +370,6 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
                     <label>JSON Data *</label>
                     <textarea name="json_data" rows="8" required placeholder='[{"category":"...","translations":{...},"distractors":{...}}]' style="font-family:monospace;font-size:0.85rem;"></textarea>
                 </div>
-                <div class="form-group" style="margin-bottom:0.75rem;">
-                    <label>Admin Password *</label>
-                    <input type="password" name="password" required placeholder="Admin password">
-                </div>
                 <button type="submit" class="btn btn-primary btn-sm">📥 Import Cards</button>
             </form>
         </div>
@@ -414,10 +393,6 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
                         <div style="font-size:0.75rem;color:#6b7280;">days</div>
                     </div>
                     {% endfor %}
-                </div>
-                <div class="form-group" style="margin-bottom:0.75rem;">
-                    <label>Admin Password *</label>
-                    <input type="password" name="password" required placeholder="Admin password">
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm">💾 Save Intervals</button>
             </form>
@@ -462,10 +437,8 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
                         </td>
                         <td style="padding:0.5rem;text-align:right;font-size:0.8rem;color:#6b7280;">{{ report.created_at.strftime('%Y-%m-%d') if report.created_at else '' }}</td>
                         <td style="padding:0.5rem;text-align:right;">
-                            <form method="POST" action="{{ url_for('flashcards.admin_delete_report', report_id=report.id) }}" style="display:inline;">
-                                <input type="hidden" name="password" id="del-report-pw-{{ report.id }}">
-                                <button type="button" class="btn btn-sm btn-danger"
-                                    onclick="promptAndSubmit('del-report-pw-{{ report.id }}', this.closest('form'))">🗑️</button>
+                            <form method="POST" action="{{ url_for('flashcards.admin_delete_report', report_id=report.id) }}" style="display:inline;" onsubmit="return confirm('Delete this report?')">
+                                <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
                             </form>
                         </td>
                     </tr>
@@ -517,10 +490,6 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
                     <label>JSON Data *</label>
                     <textarea name="json_data" rows="8" required placeholder='[{"id":"READ_A1_001","skill":"reading",...}]' style="font-family:monospace;font-size:0.85rem;"></textarea>
                 </div>
-                <div class="form-group" style="margin-bottom:0.75rem;">
-                    <label>Admin Password *</label>
-                    <input type="password" name="password" required placeholder="Admin password">
-                </div>
                 <button type="submit" class="btn btn-primary btn-sm">📥 Import Questions</button>
             </form>
         </div>
@@ -541,11 +510,6 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
             </ul>
 
             <form method="POST" onsubmit="return confirmClearAll()">
-                <div class="form-group">
-                    <label for="password">Admin Password</label>
-                    <input type="password" id="password" name="password" required
-                           placeholder="Enter admin password to continue">
-                </div>
                 <input type="hidden" name="action" value="clear_all">
                 <div class="flex gap-1">
                     <button type="submit" class="btn btn-danger">🗑️ Delete All Data</button>
@@ -563,21 +527,6 @@ function confirmClearAll() {
         return confirm("🚨 FINAL CONFIRMATION: This action is irreversible!\n\nClick OK to proceed with deletion.");
     }
     return false;
-}
-
-function promptAndSubmit(inputId, form) {
-    const pw = prompt('Enter admin password to delete this prize:');
-    if (pw === null) return;
-    document.getElementById(inputId).value = pw;
-    form.submit();
-}
-
-function promptAndSubmitToggle(btn) {
-    const form = btn.closest('form');
-    const pw = prompt('Mot de passe admin :');
-    if (pw === null) return;
-    form.querySelector('.admin-pw-toggle').value = pw;
-    form.submit();
 }
 </script>
 {% endblock %}

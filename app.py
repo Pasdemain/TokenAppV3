@@ -8,7 +8,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
 from database import get_db_connection, init_db
-from auth import auth_bp, login_required, feature_required
+from auth import auth_bp, login_required, feature_required, admin_required
 from token_routes import token_bp
 from shopping_routes import shopping_bp
 from scratch_routes import scratch_bp
@@ -176,15 +176,14 @@ def dashboard():
                            santa_groups=santa_groups)
 
 @app.route('/admin', methods=['GET', 'POST'])
+@admin_required
 def admin():
     from flask import request
 
     if request.method == 'POST':
-        password = request.form.get('password')
         action = request.form.get('action')
 
-        if password == 'Tom123':
-            if action == 'clear_all':
+        if action == 'clear_all':
                 conn = get_db_connection()
                 cur = conn.cursor()
 
@@ -300,8 +299,6 @@ def admin():
                         conn.close()
             else:
                 flash('Action invalide !', 'error')
-        else:
-            flash('Mot de passe admin incorrect !', 'error')
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)

@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, session, flash, request, jsonify
 from psycopg2.extras import RealDictCursor, execute_values
 from database import get_db_connection
-from auth import feature_required
+from auth import feature_required, admin_required
 
 flashcard_bp = Blueprint('flashcards', __name__)
 
@@ -451,10 +451,8 @@ def report_card():
 # ── Admin: Delete a report ──────────────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards/admin/reports/<int:report_id>/delete', methods=['POST'])
+@admin_required
 def admin_delete_report(report_id):
-    if request.form.get('password') != 'Tom123':
-        flash('Incorrect admin password!', 'error')
-        return redirect(url_for('admin'))
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -532,10 +530,8 @@ def add_cards(category_id):
 # ── Admin: Import JSON ───────────────────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards/admin/import', methods=['POST'])
+@admin_required
 def admin_import():
-    if request.form.get('password') != 'Tom123':
-        flash('Incorrect admin password!', 'error')
-        return redirect(url_for('admin'))
 
     json_data = request.form.get('json_data', '').strip()
     if not json_data:
@@ -641,11 +637,9 @@ def admin_import():
 # ── Admin: Manage Leitner intervals ─────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards/admin/intervals', methods=['GET', 'POST'])
+@admin_required
 def admin_intervals():
     if request.method == 'POST':
-        if request.form.get('password') != 'Tom123':
-            flash('Incorrect admin password!', 'error')
-            return redirect(url_for('admin'))
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -673,10 +667,8 @@ def admin_intervals():
 # ── Admin: Manage languages ─────────────────────────────────────────────────
 
 @flashcard_bp.route('/flashcards/admin/languages/add', methods=['POST'])
+@admin_required
 def admin_add_language():
-    if request.form.get('password') != 'Tom123':
-        flash('Incorrect admin password!', 'error')
-        return redirect(url_for('admin'))
 
     code = request.form.get('code', '').strip().lower()
     name = request.form.get('name', '').strip()
@@ -707,10 +699,8 @@ def admin_add_language():
 
 
 @flashcard_bp.route('/flashcards/admin/languages/<int:lang_id>/delete', methods=['POST'])
+@admin_required
 def admin_delete_language(lang_id):
-    if request.form.get('password') != 'Tom123':
-        flash('Incorrect admin password!', 'error')
-        return redirect(url_for('admin'))
 
     conn = get_db_connection()
     cur = conn.cursor()

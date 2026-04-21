@@ -1,7 +1,7 @@
 import random
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from database import get_db_connection
-from auth import feature_required
+from auth import feature_required, admin_required
 from psycopg2.extras import RealDictCursor
 
 wheel_bp = Blueprint('wheel', __name__)
@@ -57,6 +57,7 @@ def spin_wheel():
 
 
 @wheel_bp.route('/admin/wheel/countries/add', methods=['POST'])
+@admin_required
 def add_country():
     name = request.form.get('name', '').strip()
     flag_emoji = request.form.get('flag_emoji', '').strip()
@@ -86,6 +87,7 @@ def add_country():
 
 
 @wheel_bp.route('/admin/wheel/countries/<int:country_id>/delete', methods=['POST'])
+@admin_required
 def delete_country(country_id):
     conn = get_db_connection()
     cur = conn.cursor()

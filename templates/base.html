@@ -424,6 +424,9 @@
                         <a href="#" onclick="event.preventDefault()">👤 {{ session.username }} ▼</a>
                         <div class="dropdown-content">
                             <a href="{{ url_for('profile') }}">Profile</a>
+                            {% if session.is_admin %}
+                            <a href="{{ url_for('admin') }}">🔐 Admin</a>
+                            {% endif %}
                             <a href="{{ url_for('auth.logout') }}">Logout</a>
                         </div>
                     </li>
