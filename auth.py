@@ -63,6 +63,20 @@ def admin_required(f):
                 flash('Please log in to access this page.', 'warning')
                 return redirect(url_for('auth.login'))
         if not session.get('is_admin'):
+            # Re-check DB in case is_admin was set after login
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            try:
+                cur.execute("SELECT is_admin FROM users WHERE id = %s", (session['user_id'],))
+                row = cur.fetchone()
+                if row and row['is_admin']:
+                    session['is_admin'] = True
+            except Exception as e:
+                print(f"Admin check error: {e}")
+            finally:
+                cur.close()
+                conn.close()
+        if not session.get('is_admin'):
             flash("Accès réservé aux administrateurs.", 'error')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
