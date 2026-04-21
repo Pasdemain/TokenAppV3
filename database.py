@@ -360,9 +360,11 @@ def init_db():
             score INTEGER DEFAULT 0,
             consecutive_zeros INTEGER DEFAULT 0,
             is_eliminated BOOLEAN DEFAULT FALSE,
-            turn_order INTEGER NOT NULL
+            turn_order INTEGER NOT NULL,
+            current_member_idx INTEGER DEFAULT 0
         )
     """)
+    cur.execute("ALTER TABLE molkky_teams ADD COLUMN IF NOT EXISTS current_member_idx INTEGER DEFAULT 0")
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS molkky_members (
@@ -386,12 +388,14 @@ def init_db():
             score_after INTEGER NOT NULL,
             consecutive_zeros_before INTEGER NOT NULL DEFAULT 0,
             is_eliminated_before BOOLEAN NOT NULL DEFAULT FALSE,
+            member_idx_before INTEGER NOT NULL DEFAULT 0,
             threw_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS score_before INTEGER NOT NULL DEFAULT 0")
     cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS consecutive_zeros_before INTEGER NOT NULL DEFAULT 0")
     cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS is_eliminated_before BOOLEAN NOT NULL DEFAULT FALSE")
+    cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS member_idx_before INTEGER NOT NULL DEFAULT 0")
 
     # ── Feature defaults table ────────────────────────────────────────────────
 

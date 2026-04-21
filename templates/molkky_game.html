@@ -85,7 +85,14 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
         <div id="turnIndicator" style="font-weight:600;font-size:1rem;">
             {% for t in state.teams %}{% if t.id == game.current_team_id %}
-            Tour de <span style="color:{{ t.color }};">{{ t.name }}</span>
+            {% set members = t.members if (t.members is iterable and t.members is not string) else [] %}
+            {% if members|length > 1 %}
+                {% set idx = (t.current_member_idx or 0) % (members|length) %}
+                Tour de <span style="color:{{ t.color }};">{{ members[idx].display_name }}</span>
+                <span style="font-size:.75rem;font-weight:400;color:#9ca3af;">({{ t.name }})</span>
+            {% else %}
+                Tour de <span style="color:{{ t.color }};">{{ t.name }}</span>
+            {% endif %}
             {% endif %}{% endfor %}
         </div>
         {% if is_controller %}
@@ -204,8 +211,16 @@ const TURN_ORDER = [{% for t in state.teams %}{{ t.id }}{% if not loop.last %},{
 // ── Local state (mirrors server, used for optimistic updates) ──────────────
 let local = {
     {% for t in state.teams %}
-    {{ t.id }}: {score:{{ t.score }}, zeros:{{ t.consecutive_zeros }}, elim:{{ t.is_eliminated|lower }},
-                 color:'{{ t.color }}', name:'{{ t.name|replace("'", "\\'") }}'},
+    {% set mlist = t.members if (t.members is iterable and t.members is not string) else [] %}
+    {{ t.id }}: {
+        score: {{ t.score }},
+        zeros: {{ t.consecutive_zeros }},
+        elim:  {{ t.is_eliminated|lower }},
+        color: '{{ t.color }}',
+        name:  '{{ t.name|replace("'", "\\'") }}',
+        memberIdx: {{ t.current_member_idx or 0 }},
+        members: {{ mlist|tojson }}
+    },
     {% endfor %}
 };
 let localCurrentId = {{ game.current_team_id or 'null' }};
@@ -214,9 +229,11 @@ let localCurrentId = {{ game.current_team_id or 'null' }};
 function syncFromServer(state) {
     state.teams.forEach(t => {
         if (local[t.id]) {
-            local[t.id].score = t.score;
-            local[t.id].zeros = t.consecutive_zeros;
-            local[t.id].elim  = t.is_eliminated;
+            local[t.id].score      = t.score;
+            local[t.id].zeros      = t.consecutive_zeros;
+            local[t.id].elim       = t.is_eliminated;
+            local[t.id].memberIdx  = t.current_member_idx || 0;
+            if (Array.isArray(t.members)) local[t.id].members = t.members;
         }
     });
     localCurrentId = state.game.current_team_id;
@@ -241,6 +258,12 @@ function calcThrow(teamId, pins) {
 
     const winner = score === 50 && !elim;
 
+    // Advance within-team member rotation
+    const members = local[teamId].members || [];
+    const newMemberIdx = members.length > 0
+        ? (local[teamId].memberIdx + 1) % members.length
+        : 0;
+
     // Compute next team in turn order (among non-eliminated)
     let nextId = null;
     if (!winner) {
@@ -249,10 +272,9 @@ function calcThrow(teamId, pins) {
             const idx = active.indexOf(teamId);
             nextId = active[(idx + 1) % active.length];
         }
-        // If only 1 active and it's not eliminated, they win — server will handle it
     }
 
-    return {gained, score, zeros, elim, winner, nextId};
+    return {gained, score, zeros, elim, winner, nextId, newMemberIdx};
 }
 
 function applyOptimistic(teamId, pins) {
@@ -260,7 +282,7 @@ function applyOptimistic(teamId, pins) {
     const prevCurrentId = localCurrentId;
 
     const r = calcThrow(teamId, pins);
-    local[teamId] = {...local[teamId], score: r.score, zeros: r.zeros, elim: r.elim};
+    local[teamId] = {...local[teamId], score: r.score, zeros: r.zeros, elim: r.elim, memberIdx: r.newMemberIdx};
     localCurrentId = r.nextId;
 
     applyLocalToDOM();
@@ -297,8 +319,19 @@ function applyLocalToDOM() {
     const turnEl = document.getElementById('turnIndicator');
     if (turnEl && localCurrentId) {
         const t = local[localCurrentId];
-        if (t) turnEl.innerHTML = `Tour de <span style="color:${t.color};">${t.name}</span>`;
+        if (t) turnEl.innerHTML = currentPlayerHTML(t);
     }
+}
+
+function currentPlayerHTML(t) {
+    const members = t.members || [];
+    if (members.length > 1) {
+        const m = members[t.memberIdx % members.length];
+        const name = m ? m.display_name : t.name;
+        return `Tour de <span style="color:${t.color};">${name}</span> `
+             + `<span style="font-size:.75rem;font-weight:400;color:#9ca3af;">(${t.name})</span>`;
+    }
+    return `Tour de <span style="color:${t.color};">${t.name}</span>`;
 }
 
 // ── Pin interaction ────────────────────────────────────────────────────────
@@ -414,7 +447,7 @@ function renderState(state) {
     const turnEl = document.getElementById('turnIndicator');
     if (turnEl && game.status === 'active') {
         const cur = state.teams.find(t => t.id === game.current_team_id);
-        if (cur) turnEl.innerHTML = `Tour de <span style="color:${cur.color};">${cur.name}</span>`;
+        if (cur) turnEl.innerHTML = currentPlayerHTML(local[cur.id] || cur);
     }
 
     const hist = document.getElementById('throwHistory');
