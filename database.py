@@ -31,6 +31,7 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
+    ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa']
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -356,7 +357,6 @@ def init_db():
     """)
 
     # Migrate existing users: insert default feature rows if missing
-    ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa']
     cur.execute("SELECT id FROM users")
     existing_users = cur.fetchall()
     for u in existing_users:
