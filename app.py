@@ -184,121 +184,118 @@ def admin():
         action = request.form.get('action')
 
         if action == 'clear_all':
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM competency_answers")
+            cur.execute("DELETE FROM competency_tests")
+            cur.execute("DELETE FROM competency_questions")
+            cur.execute("DELETE FROM flashcard_reports")
+            cur.execute("DELETE FROM user_flashcards")
+            cur.execute("DELETE FROM flashcard_distractors")
+            cur.execute("DELETE FROM flashcards")
+            cur.execute("DELETE FROM flashcard_categories")
+            cur.execute("DELETE FROM languages")
+            cur.execute("DELETE FROM scratch_tickets")
+            cur.execute("DELETE FROM scratch_prizes")
+            cur.execute("DELETE FROM shopping_items")
+            cur.execute("DELETE FROM shopping_list_members")
+            cur.execute("DELETE FROM shopping_lists")
+            cur.execute("DELETE FROM tokens")
+            cur.execute("DELETE FROM santa_members")
+            cur.execute("DELETE FROM santa_groups")
+            cur.execute("DELETE FROM wheel_countries")
+            cur.execute("DELETE FROM users")
+            conn.commit()
+            cur.close()
+            conn.close()
+            flash('Toutes les données ont été supprimées !', 'success')
+            session.clear()
+            return redirect(url_for('auth.login'))
+
+        elif action == 'toggle_feature':
+            target_user_id = request.form.get('target_user_id', type=int)
+            feature_name = request.form.get('feature_name', '').strip()
+            is_enabled = request.form.get('is_enabled') == '1'
+            if not target_user_id or not feature_name:
+                flash('Données invalides.', 'error')
+            else:
                 conn = get_db_connection()
                 cur = conn.cursor()
+                try:
+                    cur.execute("""
+                        INSERT INTO user_features (user_id, feature_name, is_enabled)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (user_id, feature_name)
+                        DO UPDATE SET is_enabled = EXCLUDED.is_enabled
+                    """, (target_user_id, feature_name, is_enabled))
+                    conn.commit()
+                    state = 'activée' if is_enabled else 'désactivée'
+                    flash(f'Feature "{feature_name}" {state} pour l\'utilisateur.', 'success')
+                except Exception as e:
+                    conn.rollback()
+                    flash('Erreur lors de la mise à jour.', 'error')
+                    print(f"Toggle feature error: {e}")
+                finally:
+                    cur.close()
+                    conn.close()
 
-                cur.execute("DELETE FROM competency_answers")
-                cur.execute("DELETE FROM competency_tests")
-                cur.execute("DELETE FROM competency_questions")
-                cur.execute("DELETE FROM flashcard_reports")
-                cur.execute("DELETE FROM user_flashcards")
-                cur.execute("DELETE FROM flashcard_distractors")
-                cur.execute("DELETE FROM flashcards")
-                cur.execute("DELETE FROM flashcard_categories")
-                cur.execute("DELETE FROM languages")
-                cur.execute("DELETE FROM scratch_tickets")
-                cur.execute("DELETE FROM scratch_prizes")
-                cur.execute("DELETE FROM shopping_items")
-                cur.execute("DELETE FROM shopping_list_members")
-                cur.execute("DELETE FROM shopping_lists")
-                cur.execute("DELETE FROM tokens")
-                cur.execute("DELETE FROM santa_members")
-                cur.execute("DELETE FROM santa_groups")
-                cur.execute("DELETE FROM wheel_countries")
-                cur.execute("DELETE FROM users")
-
-                conn.commit()
-                cur.close()
-                conn.close()
-
-                flash('Toutes les données ont été supprimées !', 'success')
-                session.clear()
-                return redirect(url_for('auth.login'))
-
-            elif action == 'toggle_feature':
-                target_user_id = request.form.get('target_user_id', type=int)
-                feature_name = request.form.get('feature_name', '').strip()
-                is_enabled = request.form.get('is_enabled') == '1'
-                if not target_user_id or not feature_name:
-                    flash('Données invalides.', 'error')
-                else:
-                    conn = get_db_connection()
-                    cur = conn.cursor()
-                    try:
-                        cur.execute("""
-                            INSERT INTO user_features (user_id, feature_name, is_enabled)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (user_id, feature_name)
-                            DO UPDATE SET is_enabled = EXCLUDED.is_enabled
-                        """, (target_user_id, feature_name, is_enabled))
-                        conn.commit()
-                        state = 'activée' if is_enabled else 'désactivée'
-                        flash(f'Feature "{feature_name}" {state} pour l\'utilisateur.', 'success')
-                    except Exception as e:
-                        conn.rollback()
-                        flash('Erreur lors de la mise à jour.', 'error')
-                        print(f"Toggle feature error: {e}")
-                    finally:
-                        cur.close()
-                        conn.close()
-
-            elif action == 'set_feature_default':
-                feature_name = request.form.get('feature_name', '').strip()
-                is_enabled = request.form.get('is_enabled') == '1'
-                if not feature_name:
-                    flash('Feature invalide.', 'error')
-                else:
-                    conn = get_db_connection()
-                    cur = conn.cursor()
-                    try:
-                        cur.execute("""
-                            INSERT INTO feature_defaults (feature_name, is_enabled)
-                            VALUES (%s, %s)
-                            ON CONFLICT (feature_name)
-                            DO UPDATE SET is_enabled = EXCLUDED.is_enabled
-                        """, (feature_name, is_enabled))
-                        conn.commit()
-                        state = 'activée' if is_enabled else 'désactivée'
-                        flash(f'Valeur par défaut de "{feature_name}" {state}.', 'success')
-                    except Exception as e:
-                        conn.rollback()
-                        flash('Erreur lors de la mise à jour.', 'error')
-                        print(f"Set feature default error: {e}")
-                    finally:
-                        cur.close()
-                        conn.close()
-
-            elif action == 'change_password':
-                from flask import request as _req
-                target_username = _req.form.get('target_username', '').strip()
-                new_password = _req.form.get('new_password', '')
-                if not target_username or not new_password:
-                    flash('Username and new password are required.', 'error')
-                elif len(new_password) < 6:
-                    flash('Password must be at least 6 characters.', 'error')
-                else:
-                    conn = get_db_connection()
-                    cur = conn.cursor()
-                    try:
-                        new_hash = generate_password_hash(new_password)
-                        cur.execute(
-                            "UPDATE users SET password_hash = %s, remember_token = NULL WHERE username = %s",
-                            (new_hash, target_username)
-                        )
-                        if cur.rowcount == 0:
-                            flash(f'User "{target_username}" not found.', 'error')
-                        else:
-                            conn.commit()
-                            flash(f'Password changed for "{target_username}"!', 'success')
-                    except Exception as e:
-                        conn.rollback()
-                        flash('Error changing password.', 'error')
-                        print(f"Change password error: {e}")
-                    finally:
-                        cur.close()
-                        conn.close()
+        elif action == 'set_feature_default':
+            feature_name = request.form.get('feature_name', '').strip()
+            is_enabled = request.form.get('is_enabled') == '1'
+            if not feature_name:
+                flash('Feature invalide.', 'error')
             else:
-                flash('Action invalide !', 'error')
+                conn = get_db_connection()
+                cur = conn.cursor()
+                try:
+                    cur.execute("""
+                        INSERT INTO feature_defaults (feature_name, is_enabled)
+                        VALUES (%s, %s)
+                        ON CONFLICT (feature_name)
+                        DO UPDATE SET is_enabled = EXCLUDED.is_enabled
+                    """, (feature_name, is_enabled))
+                    conn.commit()
+                    state = 'activée' if is_enabled else 'désactivée'
+                    flash(f'Valeur par défaut de "{feature_name}" {state}.', 'success')
+                except Exception as e:
+                    conn.rollback()
+                    flash('Erreur lors de la mise à jour.', 'error')
+                    print(f"Set feature default error: {e}")
+                finally:
+                    cur.close()
+                    conn.close()
+
+        elif action == 'change_password':
+            target_username = request.form.get('target_username', '').strip()
+            new_password = request.form.get('new_password', '')
+            if not target_username or not new_password:
+                flash('Username and new password are required.', 'error')
+            elif len(new_password) < 6:
+                flash('Password must be at least 6 characters.', 'error')
+            else:
+                conn = get_db_connection()
+                cur = conn.cursor()
+                try:
+                    new_hash = generate_password_hash(new_password)
+                    cur.execute(
+                        "UPDATE users SET password_hash = %s, remember_token = NULL WHERE username = %s",
+                        (new_hash, target_username)
+                    )
+                    if cur.rowcount == 0:
+                        flash(f'User "{target_username}" not found.', 'error')
+                    else:
+                        conn.commit()
+                        flash(f'Password changed for "{target_username}"!', 'success')
+                except Exception as e:
+                    conn.rollback()
+                    flash('Error changing password.', 'error')
+                    print(f"Change password error: {e}")
+                finally:
+                    cur.close()
+                    conn.close()
+
+        else:
+            flash('Action invalide !', 'error')
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
