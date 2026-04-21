@@ -22,36 +22,31 @@
     gap:14px; margin:1.5rem auto; max-width:340px;
 }
 .pin-row { display:flex; gap:14px; justify-content:center; }
-.pin-btn {
+.pin-btn, .pin-zero {
     width:54px; height:54px; border-radius:50%;
-    border:3px solid #d1d5db; background:#fff;
     font-size:1.15rem; font-weight:700; cursor:pointer;
-    transition:all .1s; color:#374151;
-    box-shadow:0 2px 5px rgba(0,0,0,.12);
-    display:flex; align-items:center; justify-content:center;
-    -webkit-tap-highlight-color:transparent;
-    user-select:none;
-}
-.pin-btn:active { transform:scale(.92); }
-.pin-btn:hover:not(:disabled) { border-color:#6366f1; background:#eef2ff; }
-.pin-btn:disabled { opacity:.45; cursor:not-allowed; }
-.pin-zero {
-    width:54px; height:54px; border-radius:50%;
-    border:3px dashed #d1d5db; background:#f9fafb;
-    font-size:1.15rem; font-weight:700; cursor:pointer;
-    color:#9ca3af; display:flex; align-items:center; justify-content:center;
-    transition:all .1s; box-shadow:0 2px 5px rgba(0,0,0,.06);
+    transition:all .15s; display:flex; align-items:center; justify-content:center;
     -webkit-tap-highlight-color:transparent; user-select:none;
 }
-.pin-zero:active { transform:scale(.92); }
+.pin-btn {
+    border:3px solid #d1d5db; background:#fff; color:#374151;
+    box-shadow:0 2px 5px rgba(0,0,0,.12);
+}
+.pin-zero {
+    border:3px dashed #d1d5db; background:#f9fafb; color:#9ca3af;
+}
+.pin-btn:active, .pin-zero:active { transform:scale(.92); }
+.pin-btn:hover:not(:disabled) { border-color:#6366f1; background:#eef2ff; }
 .pin-zero:hover:not(:disabled) { border-color:#ef4444; color:#ef4444; background:#fef2f2; }
-.pin-zero:disabled { opacity:.45; cursor:not-allowed; }
+.pin-btn:disabled, .pin-zero:disabled { opacity:.4; cursor:not-allowed; }
 
-/* Feedback flash */
-@keyframes flashGreen { 0%,100%{background:#fff} 30%{background:#d1fae5} }
-@keyframes flashRed   { 0%,100%{background:#fff} 30%{background:#fee2e2} }
-.flash-good { animation:flashGreen .5s ease; }
-.flash-bad  { animation:flashRed .5s ease; }
+/* Selected state (pin just thrown, shown while waiting for server) */
+.pin-btn.thrown, .pin-zero.thrown {
+    background:#6366f1; border-color:#4f46e5 !important;
+    color:#fff; transform:scale(1.08);
+    box-shadow:0 4px 14px rgba(99,102,241,.45);
+    opacity:1 !important; cursor:default;
+}
 
 /* History */
 .throw-history { margin-top:1.5rem; }
@@ -83,10 +78,11 @@
     <!-- Scoreboard -->
     <div class="scoreboard" id="scoreboard">
         {% for t in state.teams %}
+        {% set is_current = game.current_team_id == t.id and game.status == 'active' and t.consecutive_zeros == 0 %}
         <div class="team-score
             {% if game.status == 'finished' and game.winner_team_id == t.id %}winner
             {% elif t.is_eliminated %}eliminated
-            {% elif game.current_team_id == t.id and game.status == 'active' %}current
+            {% elif is_current %}current
             {% endif %}" id="team-{{ t.id }}">
             <div class="team-name" style="color:{{ t.color }};">{{ t.name }}</div>
             <div class="team-points" id="score-{{ t.id }}" style="color:{{ t.color }};">{{ t.score }}</div>
@@ -111,7 +107,7 @@
             {% endif %}{% endfor %}
         </div>
         {% if is_controller %}
-        <button id="undoBtn" onclick="undoThrow()"
+        <button onclick="undoThrow()"
                 style="background:none;border:1px solid #d1d5db;border-radius:6px;
                        padding:.3rem .75rem;cursor:pointer;color:#6b7280;font-size:.85rem;">
             ↩ Annuler
@@ -120,32 +116,33 @@
     </div>
 
     {% if is_controller %}
-    <!-- Pin formation — click = immediate throw -->
+    <!-- Pin formation — single click = immediate throw -->
     <div class="pin-formation" id="pinFormation">
-        <!-- Row 4 back -->
         <div class="pin-row">
-            <button class="pin-btn" onclick="quickThrow(7)">7</button>
-            <button class="pin-btn" onclick="quickThrow(9)">9</button>
-            <button class="pin-btn" onclick="quickThrow(8)">8</button>
+            <button class="pin-btn" data-pin="7" onclick="quickThrow(7, this)">7</button>
+            <button class="pin-btn" data-pin="9" onclick="quickThrow(9, this)">9</button>
+            <button class="pin-btn" data-pin="8" onclick="quickThrow(8, this)">8</button>
         </div>
-        <!-- Row 3 -->
         <div class="pin-row">
-            <button class="pin-btn" onclick="quickThrow(5)">5</button>
-            <button class="pin-btn" onclick="quickThrow(11)">11</button>
-            <button class="pin-btn" onclick="quickThrow(12)">12</button>
-            <button class="pin-btn" onclick="quickThrow(6)">6</button>
+            <button class="pin-btn" data-pin="5" onclick="quickThrow(5, this)">5</button>
+            <button class="pin-btn" data-pin="11" onclick="quickThrow(11, this)">11</button>
+            <button class="pin-btn" data-pin="12" onclick="quickThrow(12, this)">12</button>
+            <button class="pin-btn" data-pin="6" onclick="quickThrow(6, this)">6</button>
         </div>
-        <!-- Row 2 -->
         <div class="pin-row">
-            <button class="pin-btn" onclick="quickThrow(3)">3</button>
-            <button class="pin-btn" onclick="quickThrow(10)">10</button>
-            <button class="pin-btn" onclick="quickThrow(4)">4</button>
+            <button class="pin-btn" data-pin="3" onclick="quickThrow(3, this)">3</button>
+            <button class="pin-btn" data-pin="10" onclick="quickThrow(10, this)">10</button>
+            <button class="pin-btn" data-pin="4" onclick="quickThrow(4, this)">4</button>
         </div>
-        <!-- Row 1 front + 0 -->
-        <div class="pin-row">
-            <button class="pin-btn" onclick="quickThrow(1)">1</button>
-            <button class="pin-btn" onclick="quickThrow(2)">2</button>
-            <button class="pin-zero" onclick="quickThrow(0)">0</button>
+        <!-- Front row: 1 & 2 centred, 0 anchored to the right edge of the formation -->
+        <div style="display:flex; align-items:center; justify-content:center;
+                    position:relative; width:258px;">
+            <div style="display:flex; gap:14px;">
+                <button class="pin-btn" data-pin="1" onclick="quickThrow(1, this)">1</button>
+                <button class="pin-btn" data-pin="2" onclick="quickThrow(2, this)">2</button>
+            </div>
+            <button class="pin-zero" onclick="quickThrow(0, this)"
+                    style="position:absolute; right:0;">0</button>
         </div>
     </div>
     {% else %}
@@ -190,12 +187,11 @@
             <form method="POST" action="{{ url_for('molkky.molkky_rematch', game_id=game.id) }}">
                 <button type="submit" class="btn btn-primary">🔄 Revanche</button>
             </form>
-            <button id="undoBtn" onclick="undoThrow()" class="btn btn-sm"
+            <button onclick="undoThrow()" class="btn btn-sm"
                     style="background:#f3f4f6;color:#374151;">↩ Annuler dernier lancer</button>
         </div>
         {% endif %}
     </div>
-
     <div class="throw-history" style="margin-top:1.5rem;" id="throwHistory">
         <h3 style="font-size:.85rem;color:#9ca3af;margin-bottom:.5rem;">Historique</h3>
         {% for th in state.recent_throws %}
@@ -238,14 +234,26 @@ const GAME_ID = {{ game.id }};
 const IS_CONTROLLER = {{ 'true' if is_controller else 'false' }};
 
 let throwing = false;
+let activeBtn = null;  // pin button currently highlighted while waiting for server
 
 function setPinsDisabled(disabled) {
     document.querySelectorAll('.pin-btn, .pin-zero').forEach(b => b.disabled = disabled);
 }
 
-async function quickThrow(pin) {
+function clearActiveBtn() {
+    if (activeBtn) {
+        activeBtn.classList.remove('thrown');
+        activeBtn = null;
+    }
+}
+
+async function quickThrow(pin, btn) {
     if (throwing) return;
     throwing = true;
+
+    // Highlight the clicked pin immediately
+    btn.classList.add('thrown');
+    activeBtn = btn;
     setPinsDisabled(true);
 
     const pins = pin === 0 ? [] : [pin];
@@ -255,51 +263,55 @@ async function quickThrow(pin) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({pins})
         });
-        const data = await res.json();
-        if (!data.ok) {
-            showToast('Erreur : ' + (data.error || '?'), '#ef4444');
+        const resp = await res.json();
+
+        clearActiveBtn();
+
+        if (!resp.ok) {
+            showToast('Erreur : ' + (resp.error || '?'), '#ef4444');
             setPinsDisabled(false);
             throwing = false;
             return;
         }
 
-        renderState(data.state);
+        renderState(resp.state);
 
-        if (data.penalty_applied) {
-            showToast('⚠️ 3 zéros consécutifs — pénalité !', '#f59e0b');
-        }
-        if (data.game_over) {
-            const winner = data.state.teams.find(t => t.id === data.state.game.winner_team_id);
+        if (resp.penalty_applied) showToast('⚠️ 3 zéros consécutifs — pénalité !', '#f59e0b');
+        if (resp.game_over) {
+            const winner = resp.state.teams.find(t => t.id === resp.state.game.winner_team_id);
             setTimeout(() => showWinner(winner), 400);
+        } else {
+            setPinsDisabled(false);
         }
     } catch (e) {
+        clearActiveBtn();
         showToast('Erreur réseau.', '#ef4444');
+        setPinsDisabled(false);
     }
 
     throwing = false;
-    if (IS_CONTROLLER && data && data.state && data.state.game.status === 'active') {
-        setPinsDisabled(false);
-    }
 }
 
 async function undoThrow() {
     if (throwing) return;
     if (!confirm('Annuler le dernier lancer ?')) return;
     throwing = true;
+    clearActiveBtn();
     try {
         const res = await fetch(`/molkky/game/${GAME_ID}/undo`, {method: 'POST'});
-        const data = await res.json();
-        if (!data.ok) {
-            showToast(data.error || 'Impossible d\'annuler.', '#ef4444');
+        const resp = await res.json();
+        if (!resp.ok) {
+            showToast(resp.error || 'Impossible d\'annuler.', '#ef4444');
         } else {
-            renderState(data.state);
+            renderState(resp.state);
             document.getElementById('winnerOverlay')?.classList.remove('show');
+            setPinsDisabled(false);
         }
     } catch (e) {
         showToast('Erreur réseau.', '#ef4444');
+        setPinsDisabled(false);
     }
     throwing = false;
-    setPinsDisabled(false);
 }
 
 function renderState(state) {
@@ -313,9 +325,14 @@ function renderState(state) {
         if (!el) return;
 
         el.className = 'team-score';
-        if (game.status === 'finished' && game.winner_team_id === t.id) el.classList.add('winner');
-        else if (t.is_eliminated) el.classList.add('eliminated');
-        else if (game.current_team_id === t.id && game.status === 'active') el.classList.add('current');
+        if (game.status === 'finished' && game.winner_team_id === t.id) {
+            el.classList.add('winner');
+        } else if (t.is_eliminated) {
+            el.classList.add('eliminated');
+        } else if (game.current_team_id === t.id && game.status === 'active' && t.consecutive_zeros === 0) {
+            // Only show current-player border when they have no consecutive zeros
+            el.classList.add('current');
+        }
 
         if (scoreEl) scoreEl.textContent = t.score;
         if (barEl) barEl.style.width = Math.min(t.score / 50 * 100, 100) + '%';
@@ -371,7 +388,6 @@ function showToast(msg, color) {
 
 // Polling for non-controllers
 let lastStateHash = '{{ game.current_team_id }}_{{ game.status }}';
-let data; // keep last response in scope for setPinsDisabled logic
 
 {% if not is_controller and game.status == 'active' %}
 const pollInterval = setInterval(async () => {
