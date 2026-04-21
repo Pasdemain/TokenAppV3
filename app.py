@@ -59,11 +59,16 @@ def inject_user_features():
                 row = cur.fetchone()
                 if row and row['is_admin']:
                     session['is_admin'] = True
+            cur.execute("""
+                SELECT COUNT(*) as cnt FROM scratch_prize_proposals
+                WHERE reviewer_id = %s AND status = 'pending'
+            """, (session['user_id'],))
+            pending_proposals = cur.fetchone()['cnt']
         finally:
             cur.close()
             conn.close()
-        return {'user_features': features}
-    return {'user_features': {}}
+        return {'user_features': features, 'pending_scratch_proposals': pending_proposals}
+    return {'user_features': {}, 'pending_scratch_proposals': 0}
 
 # PWA routes - serve manifest and service worker at root
 @app.route('/manifest.json')
