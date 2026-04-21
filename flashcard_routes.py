@@ -1,7 +1,7 @@
 import random
 import json
 from datetime import date, datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, session, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, session, flash, request, jsonify, Response
 from psycopg2.extras import RealDictCursor, execute_values
 from database import get_db_connection
 from auth import feature_required, admin_required
@@ -527,7 +527,65 @@ def add_cards(category_id):
     return redirect(url_for('flashcards.flashcards_home'))
 
 
+# ── Admin: Export JSON ───────────────────────────────────────────────────────
+
+@flashcard_bp.route('/flashcards/admin/export')
+@admin_required
+def admin_export():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            SELECT f.id, f.translations, f.difficulty, f.card_type,
+                   fc.name as category
+            FROM flashcards f
+            JOIN flashcard_categories fc ON f.category_id = fc.id
+            ORDER BY fc.name, f.id
+        """)
+        cards = cur.fetchall()
+
+        cur.execute("""
+            SELECT flashcard_id, language_code, distractor_text
+            FROM flashcard_distractors
+            ORDER BY flashcard_id, language_code
+        """)
+        dist_rows = cur.fetchall()
+
+        dist_map = {}
+        for row in dist_rows:
+            fid, lc = row['flashcard_id'], row['language_code']
+            dist_map.setdefault(fid, {}).setdefault(lc, []).append(row['distractor_text'])
+
+        export = []
+        for card in cards:
+            t = card['translations'] if isinstance(card['translations'], dict) else json.loads(card['translations'])
+            export.append({
+                'category':     card['category'],
+                'translations': t,
+                'difficulty':   card['difficulty'],
+                'card_type':    card['card_type'],
+                'distractors':  dist_map.get(card['id'], {}),
+            })
+
+        return Response(
+            json.dumps(export, ensure_ascii=False, indent=2),
+            mimetype='application/json',
+            headers={'Content-Disposition': 'attachment; filename=flashcards_export.json'}
+        )
+    except Exception as e:
+        flash(f'Export error: {e}', 'error')
+        return redirect(url_for('admin'))
+    finally:
+        cur.close()
+        conn.close()
+
+
 # ── Admin: Import JSON ───────────────────────────────────────────────────────
+
+def _translations_fingerprint(translations):
+    """Canonical JSON string used as dedup key for a translations dict."""
+    return json.dumps(dict(sorted(translations.items())), ensure_ascii=False)
+
 
 @flashcard_bp.route('/flashcards/admin/import', methods=['POST'])
 @admin_required
@@ -550,32 +608,39 @@ def admin_import():
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    imported = 0
+    inserted_count = 0
+    updated_count = 0
 
     try:
-        # Pre-collect all unique categories and languages
+        # Build fingerprint → id map from all existing cards
+        cur.execute("SELECT id, translations FROM flashcards")
+        existing = {}
+        for row in cur.fetchall():
+            t = row['translations'] if isinstance(row['translations'], dict) else json.loads(row['translations'])
+            existing[_translations_fingerprint(t)] = row['id']
+
+        # Collect categories and languages needed
         all_categories = set()
         all_lang_codes = set()
         for item in cards:
             cat = item.get('category', '').strip()
             if cat:
                 all_categories.add(cat)
-            for lang_code in item.get('translations', {}).keys():
-                all_lang_codes.add(lang_code)
+            for lc in item.get('translations', {}).keys():
+                all_lang_codes.add(lc)
+            for lc in item.get('distractors', {}).keys():
+                all_lang_codes.add(lc)
 
-        # Bulk upsert languages (single query)
         if all_lang_codes:
             execute_values(cur,
                 "INSERT INTO languages (code, name) VALUES %s ON CONFLICT (code) DO NOTHING",
                 [(lc, lc.upper()) for lc in all_lang_codes])
 
-        # Bulk upsert categories (single query)
         if all_categories:
             execute_values(cur,
                 "INSERT INTO flashcard_categories (name) VALUES %s ON CONFLICT (name) DO NOTHING",
                 [(c,) for c in all_categories])
 
-        # Fetch all category IDs in one query
         cat_map = {}
         if all_categories:
             cur.execute("SELECT id, name FROM flashcard_categories WHERE name = ANY(%s)",
@@ -583,9 +648,6 @@ def admin_import():
             for row in cur.fetchall():
                 cat_map[row['name']] = row['id']
 
-        # Prepare bulk data: flashcards rows and deferred distractors
-        flashcard_rows = []
-        distractor_meta = []  # list of (index_in_batch, distractors_dict)
         for item in cards:
             category_name = item.get('category', '').strip()
             translations = item.get('translations', {})
@@ -595,35 +657,52 @@ def admin_import():
             card_type = item.get('card_type', 'reading').strip().lower()
             if card_type not in ('reading', 'listening'):
                 card_type = 'reading'
+            distractors = item.get('distractors', {})
+
             if not category_name or not translations or category_name not in cat_map:
                 continue
+
             cat_id = cat_map[category_name]
-            flashcard_rows.append((cat_id, json.dumps(translations), difficulty, card_type))
-            distractor_meta.append(item.get('distractors', {}))
+            fp = _translations_fingerprint(translations)
 
-        if flashcard_rows:
-            inserted = execute_values(cur,
-                "INSERT INTO flashcards (category_id, translations, difficulty, card_type) VALUES %s RETURNING id",
-                flashcard_rows, fetch=True)
-            flashcard_ids = [row['id'] for row in inserted]
-
-            # Build all distractor rows referencing the new IDs
-            distractor_rows = []
-            for idx, fid in enumerate(flashcard_ids):
-                for lang_code, dlist in distractor_meta[idx].items():
+            if fp in existing:
+                # Card already exists — update metadata and replace distractors
+                fid = existing[fp]
+                cur.execute("""
+                    UPDATE flashcards SET category_id = %s, difficulty = %s, card_type = %s
+                    WHERE id = %s
+                """, (cat_id, difficulty, card_type, fid))
+                cur.execute("DELETE FROM flashcard_distractors WHERE flashcard_id = %s", (fid,))
+                for lc, dlist in distractors.items():
                     for d_text in dlist:
-                        distractor_rows.append((fid, lang_code, d_text))
-
-            # Bulk insert all distractors in one query
-            if distractor_rows:
-                execute_values(cur,
-                    "INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text) VALUES %s",
-                    distractor_rows)
-
-            imported = len(flashcard_ids)
+                        cur.execute(
+                            "INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text) VALUES (%s, %s, %s)",
+                            (fid, lc, d_text)
+                        )
+                updated_count += 1
+            else:
+                # New card — insert
+                cur.execute("""
+                    INSERT INTO flashcards (category_id, translations, difficulty, card_type)
+                    VALUES (%s, %s, %s, %s) RETURNING id
+                """, (cat_id, json.dumps(translations), difficulty, card_type))
+                fid = cur.fetchone()['id']
+                for lc, dlist in distractors.items():
+                    for d_text in dlist:
+                        cur.execute(
+                            "INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text) VALUES (%s, %s, %s)",
+                            (fid, lc, d_text)
+                        )
+                existing[fp] = fid  # prevent duplicates within the same import batch
+                inserted_count += 1
 
         conn.commit()
-        flash(f'Successfully imported {imported} flashcards!', 'success')
+        parts = []
+        if inserted_count:
+            parts.append(f'{inserted_count} ajoutée(s)')
+        if updated_count:
+            parts.append(f'{updated_count} mise(s) à jour')
+        flash(f'Import terminé : {", ".join(parts) if parts else "aucune modification"}.', 'success')
     except Exception as e:
         conn.rollback()
         flash(f'Import error: {e}', 'error')
