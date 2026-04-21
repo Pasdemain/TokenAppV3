@@ -31,7 +31,7 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
-    ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa']
+    ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa', 'molkky']
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -330,6 +330,60 @@ def init_db():
             assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
             joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(group_id, user_id)
+        )
+    """)
+
+    # ── Mölkky tables ────────────────────────────────────────────────────────
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS molkky_games (
+            id SERIAL PRIMARY KEY,
+            created_by INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name VARCHAR(100) NOT NULL,
+            mode VARCHAR(10) DEFAULT 'teams' CHECK (mode IN ('solo', 'teams')),
+            penalty_rule VARCHAR(20) DEFAULT 'halve' CHECK (penalty_rule IN ('elimination', 'halve', 'conditional')),
+            stop_on_winner BOOLEAN DEFAULT TRUE,
+            status VARCHAR(10) DEFAULT 'setup' CHECK (status IN ('setup', 'active', 'finished')),
+            current_team_id INTEGER,
+            winner_team_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            finished_at TIMESTAMP
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS molkky_teams (
+            id SERIAL PRIMARY KEY,
+            game_id INTEGER REFERENCES molkky_games(id) ON DELETE CASCADE,
+            name VARCHAR(100) NOT NULL,
+            color VARCHAR(20) DEFAULT '#6366f1',
+            score INTEGER DEFAULT 0,
+            consecutive_zeros INTEGER DEFAULT 0,
+            is_eliminated BOOLEAN DEFAULT FALSE,
+            turn_order INTEGER NOT NULL
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS molkky_members (
+            id SERIAL PRIMARY KEY,
+            game_id INTEGER REFERENCES molkky_games(id) ON DELETE CASCADE,
+            team_id INTEGER REFERENCES molkky_teams(id) ON DELETE SET NULL,
+            user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            guest_name VARCHAR(100),
+            display_name VARCHAR(100) NOT NULL
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS molkky_throws (
+            id SERIAL PRIMARY KEY,
+            game_id INTEGER REFERENCES molkky_games(id) ON DELETE CASCADE,
+            team_id INTEGER REFERENCES molkky_teams(id) ON DELETE CASCADE,
+            pins_knocked JSONB NOT NULL,
+            score_gained INTEGER NOT NULL,
+            score_after INTEGER NOT NULL,
+            threw_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
 

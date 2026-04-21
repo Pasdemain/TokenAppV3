@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+{% block title %}Mölkky – {{ game.name }}{% endblock %}
+
+{% block content %}
+<style>
+.scoreboard { display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+.team-score {
+    flex:1; min-width:120px; padding:1rem;
+    border-radius:10px; border:3px solid transparent;
+    text-align:center; transition:all .3s;
+    background:#f9fafb;
+}
+.team-score.current { border-color:var(--warning); background:#fffbeb; box-shadow:0 0 0 3px rgba(245,158,11,.2); }
+.team-score.eliminated { opacity:.4; text-decoration:line-through; }
+.team-score.winner { border-color:var(--success); background:#d1fae5; }
+.team-name { font-weight:600; font-size:.875rem; margin-bottom:.25rem; }
+.team-points { font-size:2rem; font-weight:800; line-height:1; }
+.team-zeros { font-size:.75rem; color:#9ca3af; margin-top:.25rem; }
+
+/* Pin formation */
+.pin-formation {
+    display:flex; flex-direction:column; align-items:center;
+    gap:12px; margin:1.5rem auto; max-width:320px;
+}
+.pin-row { display:flex; gap:12px; justify-content:center; }
+.pin-btn {
+    width:52px; height:52px; border-radius:50%;
+    border:3px solid #d1d5db; background:#fff;
+    font-size:1.1rem; font-weight:700; cursor:pointer;
+    transition:all .15s; position:relative;
+    display:flex; align-items:center; justify-content:center;
+    color:#374151; box-shadow:0 2px 4px rgba(0,0,0,.1);
+}
+.pin-btn:hover { border-color:#6366f1; background:#eef2ff; }
+.pin-btn.selected {
+    background:#6366f1; border-color:#4f46e5;
+    color:#fff; transform:scale(1.1);
+    box-shadow:0 4px 12px rgba(99,102,241,.4);
+}
+.pin-btn.knocked { background:#e5e7eb; border-color:#9ca3af; color:#9ca3af; cursor:default; }
+
+.throw-panel {
+    text-align:center; margin-top:1.5rem;
+}
+.score-preview {
+    font-size:1rem; color:#6b7280; margin-bottom:1rem; min-height:1.5rem;
+}
+.miss-btn {
+    background:none; border:2px solid #d1d5db; border-radius:8px;
+    padding:.6rem 1.4rem; font-size:1rem; cursor:pointer; margin-right:.75rem;
+    color:#6b7280; transition:all .15s;
+}
+.miss-btn:hover { border-color:#ef4444; color:#ef4444; }
+
+/* History */
+.throw-history { margin-top:1.5rem; }
+.throw-entry {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:.5rem .75rem; border-radius:6px;
+    font-size:.875rem; margin-bottom:.35rem;
+    border-left:3px solid transparent;
+}
+.throw-entry:nth-child(odd) { background:#f9fafb; }
+
+/* Winner overlay */
+#winnerOverlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+    z-index:2000; align-items:center; justify-content:center;
+}
+#winnerOverlay.show { display:flex; }
+.winner-box {
+    background:#fff; border-radius:16px; padding:2.5rem 3rem;
+    text-align:center; max-width:340px; width:90%;
+}
+.winner-box h2 { font-size:2rem; margin-bottom:.5rem; }
+.winner-box p { color:#6b7280; margin-bottom:1.5rem; }
+</style>
+
+<!-- Scoreboard -->
+<div class="content-wrapper">
+    <div class="card-header" style="margin-bottom:1rem;">
+        <h1 class="card-title">🎯 {{ game.name }}</h1>
+        <a href="{{ url_for('molkky.molkky_home') }}" class="btn btn-sm" style="background:#f3f4f6;color:#374151;">← Accueil</a>
+    </div>
+
+    <div class="scoreboard" id="scoreboard">
+        {% for t in state.teams %}
+        <div class="team-score
+            {% if game.status == 'finished' and game.winner_team_id == t.id %}winner
+            {% elif t.is_eliminated %}eliminated
+            {% elif game.current_team_id == t.id and game.status == 'active' %}current
+            {% endif %}"
+             id="team-{{ t.id }}"
+             style="border-color: {% if game.status == 'finished' and game.winner_team_id == t.id %}var(--success){% elif t.is_eliminated %}#d1d5db{% elif game.current_team_id == t.id %}var(--warning){% else %}transparent{% endif %};">
+            <div class="team-name" style="color:{{ t.color }};">{{ t.name }}</div>
+            <div class="team-points" id="score-{{ t.id }}" style="color:{{ t.color }};">{{ t.score }}</div>
+            <div class="progress" style="margin:.5rem 0;">
+                <div class="progress-bar" id="bar-{{ t.id }}"
+                     style="width:{{ [(t.score / 50 * 100), 100]|min }}%;background:{{ t.color }};"></div>
+            </div>
+            <div class="team-zeros" id="zeros-{{ t.id }}">
+                {% if t.is_eliminated %}❌ Éliminé
+                {% elif t.consecutive_zeros > 0 %}⚠️ {{ t.consecutive_zeros }}/3 zéros{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if game.status == 'active' %}
+    <!-- Turn indicator -->
+    <div id="turnIndicator" style="text-align:center;margin-bottom:.5rem;font-weight:600;font-size:1rem;">
+        {% for t in state.teams %}{% if t.id == game.current_team_id %}
+        Tour de <span style="color:{{ t.color }};">{{ t.name }}</span>
+        {% endif %}{% endfor %}
+    </div>
+
+    {% if is_controller %}
+    <!-- Pin formation -->
+    <div class="pin-formation" id="pinFormation">
+        <!-- Row 4 back -->
+        <div class="pin-row">
+            <button class="pin-btn" data-pin="7" onclick="togglePin(7)">7</button>
+            <button class="pin-btn" data-pin="9" onclick="togglePin(9)">9</button>
+            <button class="pin-btn" data-pin="8" onclick="togglePin(8)">8</button>
+        </div>
+        <!-- Row 3 -->
+        <div class="pin-row">
+            <button class="pin-btn" data-pin="5" onclick="togglePin(5)">5</button>
+            <button class="pin-btn" data-pin="11" onclick="togglePin(11)">11</button>
+            <button class="pin-btn" data-pin="12" onclick="togglePin(12)">12</button>
+            <button class="pin-btn" data-pin="6" onclick="togglePin(6)">6</button>
+        </div>
+        <!-- Row 2 -->
+        <div class="pin-row">
+            <button class="pin-btn" data-pin="3" onclick="togglePin(3)">3</button>
+            <button class="pin-btn" data-pin="10" onclick="togglePin(10)">10</button>
+            <button class="pin-btn" data-pin="4" onclick="togglePin(4)">4</button>
+        </div>
+        <!-- Row 1 front -->
+        <div class="pin-row">
+            <button class="pin-btn" data-pin="1" onclick="togglePin(1)">1</button>
+            <button class="pin-btn" data-pin="2" onclick="togglePin(2)">2</button>
+        </div>
+    </div>
+
+    <div class="throw-panel">
+        <div class="score-preview" id="scorePreview">Sélectionner les quilles renversées ou lancer à 0</div>
+        <button class="miss-btn" onclick="throwMiss()">Raté (0)</button>
+        <button class="btn btn-primary" id="throwBtn" onclick="confirmThrow()" disabled>
+            Lancer !
+        </button>
+        <div style="margin-top:.75rem;">
+            <button onclick="clearSelection()" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:.875rem;">
+                Réinitialiser sélection
+            </button>
+        </div>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:2rem;color:#6b7280;">
+        <div style="font-size:2rem;margin-bottom:.5rem;">👁️</div>
+        <p>En attente du lanceur…</p>
+        <p style="font-size:.875rem;">La page se met à jour automatiquement.</p>
+    </div>
+    {% endif %}
+
+    <!-- Throw history -->
+    <div class="throw-history" id="throwHistory">
+        <h3 style="font-size:.9rem;color:#9ca3af;margin-bottom:.5rem;">Historique des lancers</h3>
+        {% for th in state.recent_throws %}
+        <div class="throw-entry" style="border-left-color:{{ th.team_color }};">
+            <span>
+                <strong style="color:{{ th.team_color }};">{{ th.team_name }}</strong>
+                {% set pins = th.pins_knocked if th.pins_knocked is iterable and th.pins_knocked is not string else [] %}
+                {% if th.score_gained == 0 %}— Raté
+                {% elif pins|length == 1 %}— Quille {{ pins[0] }}
+                {% else %}— {{ pins|length }} quilles [{{ pins|join(', ') }}]{% endif %}
+            </span>
+            <span style="font-weight:700;">+{{ th.score_gained }} → {{ th.score_after }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% elif game.status == 'finished' %}
+    <!-- Finished state -->
+    <div style="text-align:center;padding:2rem;">
+        {% if game.winner_team_id %}
+        {% for t in state.teams %}{% if t.id == game.winner_team_id %}
+        <div style="font-size:3rem;">🏆</div>
+        <h2 style="margin:.5rem 0;color:{{ t.color }};">{{ t.name }} gagne !</h2>
+        <p class="text-muted" style="margin-bottom:1.5rem;">Score final : {{ t.score }}</p>
+        {% endif %}{% endfor %}
+        {% else %}
+        <div style="font-size:3rem;">🎯</div>
+        <h2 style="margin:.5rem 0;">Partie terminée</h2>
+        <p class="text-muted" style="margin-bottom:1.5rem;">Aucun gagnant</p>
+        {% endif %}
+
+        {% if is_controller %}
+        <form method="POST" action="{{ url_for('molkky.molkky_rematch', game_id=game.id) }}">
+            <button type="submit" class="btn btn-primary">🔄 Revanche</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- Final scores -->
+    <div class="throw-history" style="margin-top:1.5rem;">
+        <h3 style="font-size:.9rem;color:#9ca3af;margin-bottom:.5rem;">Historique des lancers</h3>
+        {% for th in state.recent_throws %}
+        <div class="throw-entry" style="border-left-color:{{ th.team_color }};">
+            <span>
+                <strong style="color:{{ th.team_color }};">{{ th.team_name }}</strong>
+                {% set pins = th.pins_knocked if th.pins_knocked is iterable and th.pins_knocked is not string else [] %}
+                {% if th.score_gained == 0 %}— Raté
+                {% elif pins|length == 1 %}— Quille {{ pins[0] }}
+                {% else %}— {{ pins|length }} quilles{% endif %}
+            </span>
+            <span style="font-weight:700;">+{{ th.score_gained }} → {{ th.score_after }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Winner overlay (shown via JS when game ends mid-session) -->
+<div id="winnerOverlay">
+    <div class="winner-box">
+        <div style="font-size:3rem;">🏆</div>
+        <h2 id="overlayTitle">Victoire !</h2>
+        <p id="overlayMsg"></p>
+        {% if is_controller %}
+        <form method="POST" action="{{ url_for('molkky.molkky_rematch', game_id=game.id) }}">
+            <button type="submit" class="btn btn-primary" style="margin-right:.5rem;">🔄 Revanche</button>
+        </form>
+        {% endif %}
+        <button onclick="document.getElementById('winnerOverlay').classList.remove('show')"
+                style="background:none;border:none;color:#9ca3af;cursor:pointer;margin-top:.75rem;display:block;width:100%;">
+            Fermer
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const GAME_ID = {{ game.id }};
+const IS_CONTROLLER = {{ 'true' if is_controller else 'false' }};
+const IS_ACTIVE = {{ 'true' if game.status == 'active' else 'false' }};
+
+let selectedPins = new Set();
+let throwing = false;
+
+function togglePin(pin) {
+    if (throwing) return;
+    const btn = document.querySelector(`[data-pin="${pin}"]`);
+    if (!btn) return;
+    if (selectedPins.has(pin)) {
+        selectedPins.delete(pin);
+        btn.classList.remove('selected');
+    } else {
+        selectedPins.add(pin);
+        btn.classList.add('selected');
+    }
+    updatePreview();
+}
+
+function updatePreview() {
+    const preview = document.getElementById('scorePreview');
+    const throwBtn = document.getElementById('throwBtn');
+    if (!preview) return;
+    const pins = [...selectedPins];
+    if (pins.length === 0) {
+        preview.textContent = 'Sélectionner les quilles renversées ou lancer à 0';
+        if (throwBtn) throwBtn.disabled = true;
+    } else if (pins.length === 1) {
+        preview.textContent = `Quille ${pins[0]} → +${pins[0]} points`;
+        if (throwBtn) throwBtn.disabled = false;
+    } else {
+        preview.textContent = `${pins.length} quilles renversées → +${pins.length} points`;
+        if (throwBtn) throwBtn.disabled = false;
+    }
+}
+
+function clearSelection() {
+    selectedPins.clear();
+    document.querySelectorAll('.pin-btn.selected').forEach(b => b.classList.remove('selected'));
+    updatePreview();
+}
+
+async function throwMiss() {
+    await sendThrow([]);
+}
+
+async function confirmThrow() {
+    if (selectedPins.size === 0) return;
+    await sendThrow([...selectedPins]);
+}
+
+async function sendThrow(pins) {
+    if (throwing) return;
+    throwing = true;
+    const throwBtn = document.getElementById('throwBtn');
+    if (throwBtn) throwBtn.disabled = true;
+
+    try {
+        const res = await fetch(`/molkky/game/${GAME_ID}/throw`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({pins})
+        });
+        const data = await res.json();
+        if (!data.ok) {
+            alert(data.error || 'Erreur lors du lancer.');
+            throwing = false;
+            updatePreview();
+            return;
+        }
+        clearSelection();
+        renderState(data.state);
+
+        if (data.penalty_applied) {
+            showToast('⚠️ 3 zéros consécutifs — pénalité appliquée !', '#f59e0b');
+        }
+        if (data.game_over) {
+            const winner = data.state.teams.find(t => t.id === data.state.game.winner_team_id);
+            showWinner(winner);
+        }
+    } catch (e) {
+        alert('Erreur réseau.');
+    }
+    throwing = false;
+    if (throwBtn) updatePreview();
+}
+
+function renderState(state) {
+    const game = state.game;
+
+    // Update team score cards
+    state.teams.forEach(t => {
+        const el = document.getElementById(`team-${t.id}`);
+        const scoreEl = document.getElementById(`score-${t.id}`);
+        const barEl = document.getElementById(`bar-${t.id}`);
+        const zerosEl = document.getElementById(`zeros-${t.id}`);
+        if (!el) return;
+
+        el.className = 'team-score';
+        if (game.status === 'finished' && game.winner_team_id === t.id) el.classList.add('winner');
+        else if (t.is_eliminated) el.classList.add('eliminated');
+        else if (game.current_team_id === t.id && game.status === 'active') el.classList.add('current');
+
+        if (scoreEl) scoreEl.textContent = t.score;
+        if (barEl) barEl.style.width = Math.min(t.score / 50 * 100, 100) + '%';
+        if (zerosEl) {
+            if (t.is_eliminated) zerosEl.textContent = '❌ Éliminé';
+            else if (t.consecutive_zeros > 0) zerosEl.textContent = `⚠️ ${t.consecutive_zeros}/3 zéros`;
+            else zerosEl.textContent = '';
+        }
+    });
+
+    // Update turn indicator
+    const turnEl = document.getElementById('turnIndicator');
+    if (turnEl && game.status === 'active') {
+        const cur = state.teams.find(t => t.id === game.current_team_id);
+        if (cur) turnEl.innerHTML = `Tour de <span style="color:${cur.color};">${cur.name}</span>`;
+    }
+
+    // Update history
+    const hist = document.getElementById('throwHistory');
+    if (hist && state.recent_throws) {
+        const entries = state.recent_throws.map(th => {
+            const pins = Array.isArray(th.pins_knocked) ? th.pins_knocked : [];
+            let desc;
+            if (th.score_gained === 0) desc = '— Raté';
+            else if (pins.length === 1) desc = `— Quille ${pins[0]}`;
+            else desc = `— ${pins.length} quilles [${pins.join(', ')}]`;
+            return `<div class="throw-entry" style="border-left-color:${th.team_color};">
+                <span><strong style="color:${th.team_color};">${th.team_name}</strong> ${desc}</span>
+                <span style="font-weight:700;">+${th.score_gained} → ${th.score_after}</span>
+            </div>`;
+        }).join('');
+        hist.innerHTML = '<h3 style="font-size:.9rem;color:#9ca3af;margin-bottom:.5rem;">Historique des lancers</h3>' + entries;
+    }
+
+    lastStateHash = JSON.stringify({score: state.teams.map(t => t.score), current: game.current_team_id});
+}
+
+function showWinner(winner) {
+    const overlay = document.getElementById('winnerOverlay');
+    const title = document.getElementById('overlayTitle');
+    const msg = document.getElementById('overlayMsg');
+    if (!overlay) return;
+    if (winner) {
+        title.textContent = `${winner.name} gagne ! 🏆`;
+        msg.textContent = `Score final : ${winner.score}`;
+    } else {
+        title.textContent = 'Partie terminée';
+        msg.textContent = 'Aucun gagnant';
+    }
+    overlay.classList.add('show');
+}
+
+function showToast(msg, color) {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = `position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);
+        background:${color};color:#fff;padding:.75rem 1.5rem;border-radius:8px;
+        font-weight:600;z-index:3000;box-shadow:0 4px 12px rgba(0,0,0,.2);`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+}
+
+// Polling for non-controllers
+let lastStateHash = '{{ state.game.current_team_id }}_{{ state.game.status }}';
+
+{% if not is_controller and game.status == 'active' %}
+async function pollState() {
+    try {
+        const res = await fetch(`/molkky/game/${GAME_ID}/state`);
+        const data = await res.json();
+        if (data.error) return;
+        const newHash = JSON.stringify({
+            score: data.teams.map(t => t.score),
+            current: data.game.current_team_id,
+            status: data.game.status
+        });
+        if (newHash !== lastStateHash) {
+            lastStateHash = newHash;
+            renderState(data);
+            if (data.game.status === 'finished') {
+                const winner = data.teams.find(t => t.id === data.game.winner_team_id);
+                showWinner(winner);
+                clearInterval(pollInterval);
+            }
+        }
+    } catch (e) {}
+}
+const pollInterval = setInterval(pollState, 3000);
+{% endif %}
+</script>
+{% endblock %}
