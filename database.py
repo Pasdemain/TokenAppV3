@@ -49,6 +49,9 @@ def init_db():
     cur.execute("""
         ALTER TABLE users ADD COLUMN IF NOT EXISTS remember_token VARCHAR(64) UNIQUE;
     """)
+    cur.execute("""
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+    """)
 
     # Add card_type to flashcards (listening support)
     cur.execute("""

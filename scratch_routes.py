@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, session, flash,
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import check_password_hash
 from database import get_db_connection
-from auth import feature_required
+from auth import feature_required, admin_required
 
 GROUP_PCTS = {1: 15.0, 2: 7.5, 3: 4.5, 4: 2.0, 5: 1.0}
 
@@ -269,10 +269,8 @@ def play_scratch():
 # ── Admin routes ─────────────────────────────────────────────────────────────
 
 @scratch_bp.route('/admin/prizes/add', methods=['POST'])
+@admin_required
 def admin_add_prize():
-    if request.form.get('password') != 'Tom123':
-        flash('Mot de passe admin incorrect !', 'error')
-        return redirect(url_for('admin'))
 
     user_id = request.form.get('user_id', type=int)
     name = request.form.get('name', '').strip()
@@ -308,10 +306,8 @@ def admin_add_prize():
 
 
 @scratch_bp.route('/admin/prizes/<int:prize_id>/delete', methods=['POST'])
+@admin_required
 def admin_delete_prize(prize_id):
-    if request.form.get('password') != 'Tom123':
-        flash('Mot de passe admin incorrect !', 'error')
-        return redirect(url_for('admin'))
 
     conn = get_db_connection()
     cur = conn.cursor()

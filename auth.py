@@ -24,12 +24,15 @@ def _restore_session_from_cookie():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cur.execute("SELECT id, username FROM users WHERE remember_token = %s", (token,))
+        cur.execute(
+            "SELECT id, username, is_admin FROM users WHERE remember_token = %s", (token,)
+        )
         user = cur.fetchone()
         if user:
             session.permanent = True
             session['user_id'] = user['id']
             session['username'] = user['username']
+            session['is_admin'] = bool(user.get('is_admin', False))
             return True
     except Exception as e:
         print(f"Remember me error: {e}")
@@ -47,6 +50,21 @@ def login_required(f):
             if not _restore_session_from_cookie():
                 flash('Please log in to access this page.', 'warning')
                 return redirect(url_for('auth.login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def admin_required(f):
+    """Decorator to require admin role."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            if not _restore_session_from_cookie():
+                flash('Please log in to access this page.', 'warning')
+                return redirect(url_for('auth.login'))
+        if not session.get('is_admin'):
+            flash("Accès réservé aux administrateurs.", 'error')
+            return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -162,13 +180,17 @@ def login():
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
         try:
-            cur.execute("SELECT id, username, password_hash FROM users WHERE username = %s", (username,))
+            cur.execute(
+                "SELECT id, username, password_hash, is_admin FROM users WHERE username = %s",
+                (username,)
+            )
             user = cur.fetchone()
 
             if user and check_password_hash(user['password_hash'], password):
                 session.permanent = True
                 session['user_id'] = user['id']
                 session['username'] = user['username']
+                session['is_admin'] = bool(user.get('is_admin', False))
 
                 response = make_response(redirect(url_for('dashboard')))
 

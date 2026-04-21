@@ -6,14 +6,25 @@ from datetime import datetime
 
 token_bp = Blueprint('tokens', __name__)
 
+
+def _auto_complete_expired_tokens(conn, cur):
+    cur.execute("""
+        UPDATE tokens
+        SET status = 'completed'
+        WHERE status = 'in_progress'
+          AND used_at + (duration_minutes * interval '1 minute') <= NOW()
+    """)
+    conn.commit()
+
+
 @token_bp.route('/tokens')
 @feature_required('tokens')
 def tokens_page():
-    """Main tokens management page"""
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    
-    # Get tokens created by user
+
+    _auto_complete_expired_tokens(conn, cur)
+
     cur.execute("""
         SELECT t.*, u.username as recipient_username
         FROM tokens t
@@ -22,8 +33,7 @@ def tokens_page():
         ORDER BY t.created_at DESC
     """, (session['user_id'],))
     created_tokens = cur.fetchall()
-    
-    # Get tokens received by user
+
     cur.execute("""
         SELECT t.*, u.username as creator_username
         FROM tokens t
@@ -31,14 +41,22 @@ def tokens_page():
         WHERE t.recipient_id = %s
         ORDER BY t.created_at DESC
     """, (session['user_id'],))
-    received_tokens = cur.fetchall()
-    
+    all_received = cur.fetchall()
+
     cur.close()
     conn.close()
-    
-    return render_template('tokens.html', 
-                         created_tokens=created_tokens,
-                         received_tokens=received_tokens)
+
+    active_received = [t for t in all_received if t['status'] != 'completed']
+    completed_received = [t for t in all_received if t['status'] == 'completed']
+
+    active_created = [t for t in created_tokens if t['status'] != 'completed']
+    completed_created = [t for t in created_tokens if t['status'] == 'completed']
+
+    return render_template('tokens.html',
+                           active_created=active_created,
+                           completed_created=completed_created,
+                           active_received=active_received,
+                           completed_received=completed_received)
 
 @token_bp.route('/tokens/create', methods=['GET', 'POST'])
 @feature_required('tokens')

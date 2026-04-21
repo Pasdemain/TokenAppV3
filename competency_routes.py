@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, session, flash, request, jsonify
 from psycopg2.extras import RealDictCursor, execute_values
 from database import get_db_connection
-from auth import feature_required
+from auth import feature_required, admin_required
 
 competency_bp = Blueprint('competency', __name__)
 
@@ -421,10 +421,8 @@ def result_page(test_id):
 # ── Admin: Import questions JSON ────────────────────────────────────────────
 
 @competency_bp.route('/competency/admin/import', methods=['POST'])
+@admin_required
 def admin_import():
-    if request.form.get('password') != 'Tom123':
-        flash('Incorrect admin password!', 'error')
-        return redirect(url_for('admin'))
 
     json_data = request.form.get('json_data', '').strip()
     if not json_data:
