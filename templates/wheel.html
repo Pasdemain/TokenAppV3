@@ -8,7 +8,7 @@
 
     {% if not countries %}
     <div class="alert alert-warning mb-3">
-        ⚠️ Tu n'as pas encore de pays. Ajoute-en ci-dessous !
+        ⚠️ Tu n'as pas encore de pays. Sélectionnes-en ci-dessous et clique sur Enregistrer !
     </div>
     {% else %}
 
@@ -33,42 +33,41 @@
 
     {% endif %}
 
-    <!-- ── My Countries ────────────────────────────────────────────── -->
+    <!-- ── Country Manager ────────────────────────────────────────── -->
     <div class="card mb-3">
-        <div class="card-header">
-            <span class="card-title">🗺️ Mes pays ({{ countries|length }})</span>
+        <div class="card-header" style="flex-wrap:wrap;gap:0.5rem;">
+            <span class="card-title">🗺️ Mes pays</span>
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+                <span id="selCount" class="badge badge-primary">{{ countries|length }}</span>
+                <button id="clearAllBtn" class="btn btn-sm btn-danger" title="Tout supprimer" style="display:{% if countries %}inline-block{% else %}none{% endif %};">
+                    🗑️ Tout supprimer
+                </button>
+                <button id="saveBtn" class="btn btn-sm btn-success" disabled>
+                    💾 Enregistrer
+                </button>
+            </div>
         </div>
         <div style="padding: 1rem;">
-            {% if countries %}
-            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
-                {% for c in countries %}
-                <form method="POST" action="{{ url_for('wheel.delete_country', country_id=c.id) }}" style="display:inline;">
-                    <button type="submit" style="display:flex;align-items:center;gap:0.3rem;padding:0.35rem 0.7rem;border:1px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;font-size:0.9rem;transition:all 0.15s;"
-                        onmouseenter="this.style.background='#fee2e2';this.style.borderColor='var(--danger)'"
-                        onmouseleave="this.style.background='#fff';this.style.borderColor='var(--border)'">
-                        {{ c.flag_emoji }} {{ c.name }} ✕
-                    </button>
-                </form>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="text-muted mb-2">Aucun pays sélectionné.</p>
-            {% endif %}
 
-            <!-- Searchable picker -->
+            <!-- Selected chips -->
+            <div id="chipsContainer" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:1rem;min-height:2rem;">
+                <!-- rendered by JS -->
+            </div>
+
+            <!-- Search + grid -->
             <input type="text" id="countrySearch"
                    placeholder="🔍 Rechercher un pays…"
-                   style="width:100%;margin-bottom:0.75rem;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);font-size:0.95rem;">
-            <div id="countryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.4rem;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:0.6rem;"></div>
+                   style="width:100%;margin-bottom:0.6rem;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);font-size:0.95rem;">
+            <div id="countryGrid"
+                 style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:0.4rem;max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:0.6rem;">
+            </div>
 
-            <form id="addCountryForm" method="POST" action="{{ url_for('wheel.add_country') }}" style="display:none;">
-                <input type="hidden" name="name" id="acName">
-                <input type="hidden" name="flag_emoji" id="acFlag">
-            </form>
+            <!-- Save status -->
+            <p id="saveMsg" style="display:none;font-size:0.85rem;color:var(--success);margin-top:0.5rem;">✅ Modifications enregistrées !</p>
         </div>
     </div>
 
-    <!-- ── Import from another user ────────────────────────────────── -->
+    <!-- ── Import ─────────────────────────────────────────────────── -->
     {% if other_users %}
     <div class="card mb-3">
         <div class="card-header">
@@ -76,7 +75,7 @@
         </div>
         <div style="padding: 1rem;">
             <p class="text-muted mb-2" style="font-size:0.9rem;">Remplace ta sélection actuelle par celle d'un autre utilisateur.</p>
-            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
                 {% for u in other_users %}
                 <form method="POST" action="{{ url_for('wheel.import_countries', source_user_id=u.id) }}"
                       onsubmit="return confirm('Remplacer ta sélection par celle de {{ u.username }} ?')">
@@ -94,11 +93,99 @@
 {% block scripts %}
 <script>
 (function() {
-    const countries = {{ countries | tojson }};
-    const added = new Set(countries.map(c => c.name));
+    // ── State ──────────────────────────────────────────────────────
+    const INITIAL = {{ countries | tojson }};
+    // selection: Map of name -> {name, flag}
+    const selection = new Map(INITIAL.map(c => [c.name, {name: c.name, flag: c.flag_emoji}]));
+    let dirty = false;
 
-    // ── Country picker ─────────────────────────────────────────────
-    const COUNTRIES = [
+    const chipsContainer = document.getElementById('chipsContainer');
+    const selCount       = document.getElementById('selCount');
+    const saveBtn        = document.getElementById('saveBtn');
+    const clearAllBtn    = document.getElementById('clearAllBtn');
+    const saveMsg        = document.getElementById('saveMsg');
+    const grid           = document.getElementById('countryGrid');
+    const search         = document.getElementById('countrySearch');
+
+    // ── Render chips ───────────────────────────────────────────────
+    function renderChips() {
+        chipsContainer.innerHTML = '';
+        if (selection.size === 0) {
+            chipsContainer.innerHTML = '<span class="text-muted" style="font-size:0.9rem;">Aucun pays sélectionné.</span>';
+        }
+        selection.forEach(({name, flag}) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.cssText = 'display:flex;align-items:center;gap:0.3rem;padding:0.35rem 0.7rem;border:1px solid var(--border);border-radius:20px;background:#fff;cursor:pointer;font-size:0.85rem;transition:all 0.15s;';
+            btn.innerHTML = `${flag} ${name} <span style="color:var(--danger);font-size:0.75rem;margin-left:2px;">✕</span>`;
+            btn.onmouseenter = () => { btn.style.background='#fee2e2'; btn.style.borderColor='var(--danger)'; };
+            btn.onmouseleave = () => { btn.style.background='#fff'; btn.style.borderColor='var(--border)'; };
+            btn.onclick = () => toggle(name, flag);
+            chipsContainer.appendChild(btn);
+        });
+        selCount.textContent = selection.size;
+        clearAllBtn.style.display = selection.size > 0 ? 'inline-block' : 'none';
+    }
+
+    // ── Toggle a country ───────────────────────────────────────────
+    function toggle(name, flag) {
+        if (selection.has(name)) {
+            selection.delete(name);
+        } else {
+            selection.set(name, {name, flag});
+        }
+        markDirty();
+        renderChips();
+        renderGrid();
+    }
+
+    function markDirty() {
+        dirty = true;
+        saveBtn.disabled = false;
+        saveMsg.style.display = 'none';
+    }
+
+    // ── Save ───────────────────────────────────────────────────────
+    saveBtn.addEventListener('click', () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⏳ Enregistrement…';
+        const payload = Array.from(selection.values());
+        fetch('/wheel/countries/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({countries: payload})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                dirty = false;
+                saveBtn.textContent = '💾 Enregistrer';
+                saveMsg.style.display = 'block';
+                setTimeout(() => location.reload(), 800);
+            } else {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '💾 Enregistrer';
+                alert('Erreur lors de l\'enregistrement.');
+            }
+        })
+        .catch(() => {
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 Enregistrer';
+            alert('Erreur réseau.');
+        });
+    });
+
+    // ── Clear all ──────────────────────────────────────────────────
+    clearAllBtn.addEventListener('click', () => {
+        if (!confirm('Supprimer tous les pays de ta roue ?')) return;
+        selection.clear();
+        markDirty();
+        renderChips();
+        renderGrid();
+    });
+
+    // ── Country list ───────────────────────────────────────────────
+    const ALL_COUNTRIES = [
         ["Afghanistan","🇦🇫"],["Albania","🇦🇱"],["Algeria","🇩🇿"],["Andorra","🇦🇩"],
         ["Angola","🇦🇴"],["Antigua & Barbuda","🇦🇬"],["Argentina","🇦🇷"],["Armenia","🇦🇲"],
         ["Australia","🇦🇺"],["Austria","🇦🇹"],["Azerbaijan","🇦🇿"],["Bahamas","🇧🇸"],
@@ -150,192 +237,130 @@
         ["Yemen","🇾🇪"],["Zambia","🇿🇲"],["Zimbabwe","🇿🇼"]
     ];
 
-    const grid   = document.getElementById('countryGrid');
-    const search = document.getElementById('countrySearch');
-
-    function render() {
+    function renderGrid() {
         const q = search.value.toLowerCase().trim();
-        const filtered = q ? COUNTRIES.filter(c => c[0].toLowerCase().includes(q)) : COUNTRIES;
+        const filtered = q ? ALL_COUNTRIES.filter(c => c[0].toLowerCase().includes(q)) : ALL_COUNTRIES;
         grid.innerHTML = '';
         filtered.forEach(([name, flag]) => {
-            const isAdded = added.has(name);
+            const isSelected = selection.has(name);
             const div = document.createElement('div');
-            div.style.cssText = 'display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.6rem;border-radius:8px;cursor:pointer;border:1px solid var(--border);font-size:0.85rem;transition:all 0.15s;' +
-                (isAdded ? 'opacity:0.4;cursor:default;background:#f3f4f6;' : 'background:#fff;');
-            div.innerHTML = `<span style="font-size:1.2rem;">${flag}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>`
-                + (isAdded ? '<span style="font-size:0.7rem;color:var(--success);">✓</span>' : '<span style="font-size:0.7rem;color:var(--primary);">+</span>');
-            if (!isAdded) {
-                div.onmouseenter = () => { div.style.background='#eef2ff'; div.style.borderColor='var(--primary)'; };
-                div.onmouseleave = () => { div.style.background='#fff'; div.style.borderColor='var(--border)'; };
-                div.onclick = () => {
-                    document.getElementById('acName').value = name;
-                    document.getElementById('acFlag').value = flag;
-                    document.getElementById('addCountryForm').submit();
-                };
-            }
+            div.style.cssText = 'display:flex;align-items:center;gap:0.35rem;padding:0.4rem 0.55rem;border-radius:8px;cursor:pointer;border:1px solid;font-size:0.85rem;transition:all 0.12s;'
+                + (isSelected
+                    ? 'background:#eef2ff;border-color:var(--primary);'
+                    : 'background:#fff;border-color:var(--border);');
+            div.innerHTML = `<span style="font-size:1.1rem;">${flag}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>`
+                + (isSelected
+                    ? '<span style="font-size:0.75rem;color:var(--primary);flex-shrink:0;">✓</span>'
+                    : '<span style="font-size:0.75rem;color:#9ca3af;flex-shrink:0;">+</span>');
+            div.onclick = () => toggle(name, flag);
             grid.appendChild(div);
         });
     }
 
-    search.addEventListener('input', render);
-    render();
+    search.addEventListener('input', renderGrid);
 
-    // ── Wheel ──────────────────────────────────────────────────────
-    if (!countries || countries.length === 0) return;
+    // Initial render
+    renderChips();
+    renderGrid();
 
-    const canvas = document.getElementById('wheelCanvas');
-    const ctx = canvas.getContext('2d');
+    // ── Wheel canvas ───────────────────────────────────────────────
+    const wheelCountries = {{ countries | tojson }};
+    if (!wheelCountries || wheelCountries.length === 0) return;
+
+    const canvas  = document.getElementById('wheelCanvas');
+    const ctx     = canvas.getContext('2d');
     const spinBtn = document.getElementById('spinBtn');
-
-    const size = canvas.width;
-    const cx = size / 2;
-    const cy = size / 2;
-    const radius = size / 2 - 4;
-
-    const COLORS = [
-        '#6366f1','#8b5cf6','#ec4899','#ef4444',
-        '#f59e0b','#10b981','#3b82f6','#14b8a6',
-        '#f97316','#84cc16','#06b6d4','#a855f7'
-    ];
-
+    const size = canvas.width, cx = size/2, cy = size/2, radius = size/2 - 4;
+    const COLORS = ['#6366f1','#8b5cf6','#ec4899','#ef4444','#f59e0b','#10b981','#3b82f6','#14b8a6','#f97316','#84cc16','#06b6d4','#a855f7'];
     let currentAngle = 0;
     let spinning = false;
+    let animFrameId = null;   // track rAF to prevent duplicate loops
+    let lastSpinAt = 0;       // timestamp guard against double-event
 
     function drawWheel(angle) {
-        const n = countries.length;
-        const arc = (2 * Math.PI) / n;
+        const n = wheelCountries.length, arc = (2*Math.PI)/n;
         ctx.clearRect(0, 0, size, size);
         for (let i = 0; i < n; i++) {
-            const start = angle + i * arc;
-            const end = start + arc;
-            const mid = start + arc / 2;
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.arc(cx, cy, radius, start, end);
-            ctx.closePath();
-            ctx.fillStyle = COLORS[i % COLORS.length];
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            const textR = radius * 0.62;
-            const tx = cx + textR * Math.cos(mid);
-            const ty = cy + textR * Math.sin(mid);
-            ctx.save();
-            ctx.translate(tx, ty);
-            ctx.rotate(mid + Math.PI / 2);
-            ctx.font = n <= 8 ? '20px Arial' : '14px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#fff';
-            ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 3;
-            const flag = countries[i].flag_emoji;
-            const name = countries[i].name;
-            const maxLen = n <= 6 ? 10 : n <= 10 ? 7 : 5;
-            const displayName = name.length > maxLen ? name.substring(0, maxLen) + '…' : name;
-            ctx.fillText(flag, 0, n <= 8 ? -12 : -8);
-            ctx.font = n <= 8 ? 'bold 11px Arial' : 'bold 9px Arial';
-            ctx.fillText(displayName, 0, n <= 8 ? 8 : 5);
+            const start = angle + i*arc, end = start + arc, mid = start + arc/2;
+            ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,radius,start,end); ctx.closePath();
+            ctx.fillStyle = COLORS[i%COLORS.length]; ctx.fill();
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+            const tx = cx + radius*0.62*Math.cos(mid), ty = cy + radius*0.62*Math.sin(mid);
+            ctx.save(); ctx.translate(tx,ty); ctx.rotate(mid+Math.PI/2);
+            ctx.font = n<=8?'20px Arial':'14px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillStyle='#fff'; ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=3;
+            const maxLen = n<=6?10:n<=10?7:5;
+            const dn = wheelCountries[i].name.length>maxLen ? wheelCountries[i].name.substring(0,maxLen)+'…' : wheelCountries[i].name;
+            ctx.fillText(wheelCountries[i].flag_emoji, 0, n<=8?-12:-8);
+            ctx.font = n<=8?'bold 11px Arial':'bold 9px Arial';
+            ctx.fillText(dn, 0, n<=8?8:5);
             ctx.restore();
         }
-        ctx.beginPath();
-        ctx.arc(cx, cy, 22, 0, 2 * Math.PI);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.strokeStyle = '#e5e7eb';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.font = 'bold 18px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#6366f1';
-        ctx.shadowColor = 'transparent';
-        ctx.fillText('🌍', cx, cy);
+        ctx.beginPath(); ctx.arc(cx,cy,22,0,2*Math.PI); ctx.fillStyle='#fff'; ctx.fill();
+        ctx.strokeStyle='#e5e7eb'; ctx.lineWidth=2; ctx.stroke();
+        ctx.font='bold 18px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillStyle='#6366f1'; ctx.shadowColor='transparent'; ctx.fillText('🌍',cx,cy);
     }
 
-    function spin(targetIndex) {
-        const n = countries.length;
-        const arc = (2 * Math.PI) / n;
-        const targetMid = -Math.PI / 2 - (targetIndex * arc + arc / 2);
-        let delta = (targetMid - currentAngle) % (2 * Math.PI);
-        if (delta > 0) delta -= 2 * Math.PI;
-        const extraSpins = (5 + Math.floor(Math.random() * 3)) * 2 * Math.PI;
-        const totalDelta = delta - extraSpins;
-        const duration = 4000 + Math.random() * 1500;
-        const startAngle = currentAngle;
-        const startTime = performance.now();
-
+    function doSpin(targetIndex) {
+        // Cancel any previous animation loop before starting a new one
+        if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+        const n=wheelCountries.length, arc=(2*Math.PI)/n;
+        const targetMid = -Math.PI/2-(targetIndex*arc+arc/2);
+        let delta = (targetMid-currentAngle)%(2*Math.PI);
+        if (delta>0) delta -= 2*Math.PI;
+        const totalDelta = delta - (5+Math.floor(Math.random()*3))*2*Math.PI;
+        const duration = 4000+Math.random()*1500, startAngle=currentAngle, startTime=performance.now();
         function animate(now) {
-            const elapsed = now - startTime;
-            const t = Math.min(elapsed / duration, 1);
-            currentAngle = startAngle + totalDelta * (1 - Math.pow(1 - t, 4));
+            const t=Math.min((now-startTime)/duration,1);
+            currentAngle = startAngle + totalDelta*(1-Math.pow(1-t,4));
             drawWheel(currentAngle);
-            if (t < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                currentAngle = startAngle + totalDelta;
-                drawWheel(currentAngle);
-                spinning = false;
-                spinBtn.disabled = false;
-                spinBtn.textContent = '🎰 Spin Again!';
-                showResult(targetIndex);
-            }
+            if (t<1) { animFrameId = requestAnimationFrame(animate); return; }
+            animFrameId = null;
+            currentAngle = startAngle+totalDelta; drawWheel(currentAngle);
+            spinning=false; spinBtn.disabled=false; spinBtn.textContent='🎰 Spin Again!';
+            const c=wheelCountries[targetIndex];
+            document.getElementById('resultContent').innerHTML=`<div style="padding:1.5rem;text-align:center;"><div style="font-size:4rem;margin-bottom:0.5rem;">${c.flag_emoji}</div><h2 style="color:var(--primary);margin-bottom:0.25rem;">${c.name}</h2><p class="text-muted">Your next destination is set! 🎉</p></div>`;
+            document.getElementById('result').style.display='block';
+            document.getElementById('result').scrollIntoView({behavior:'smooth',block:'nearest'});
+            launchConfetti();
         }
-        requestAnimationFrame(animate);
-    }
-
-    function showResult(index) {
-        const c = countries[index];
-        const resultDiv = document.getElementById('result');
-        document.getElementById('resultContent').innerHTML = `
-            <div style="padding: 1.5rem; text-align:center;">
-                <div style="font-size: 4rem; margin-bottom: 0.5rem;">${c.flag_emoji}</div>
-                <h2 style="color: var(--primary); margin-bottom: 0.25rem;">${c.name}</h2>
-                <p class="text-muted">Your next destination is set! 🎉</p>
-            </div>`;
-        resultDiv.style.display = 'block';
-        resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        launchConfetti();
+        animFrameId = requestAnimationFrame(animate);
     }
 
     function launchConfetti() {
-        const colors = ['#ff6b6b','#ffd700','#6366f1','#10b981','#f59e0b','#ec4899'];
-        for (let i = 0; i < 60; i++) {
-            const el = document.createElement('div');
-            el.style.cssText = `position:fixed;width:10px;height:10px;background:${colors[Math.floor(Math.random()*colors.length)]};left:${Math.random()*100}vw;top:-10px;border-radius:${Math.random()>.5?'50%':'2px'};animation:confetti-fall ${1+Math.random()*2}s linear forwards;z-index:9999;`;
+        const colors=['#ff6b6b','#ffd700','#6366f1','#10b981','#f59e0b','#ec4899'];
+        for (let i=0;i<60;i++) {
+            const el=document.createElement('div');
+            el.style.cssText=`position:fixed;width:10px;height:10px;background:${colors[Math.floor(Math.random()*colors.length)]};left:${Math.random()*100}vw;top:-10px;border-radius:${Math.random()>.5?'50%':'2px'};animation:confetti-fall ${1+Math.random()*2}s linear forwards;z-index:9999;`;
             document.body.appendChild(el);
-            setTimeout(() => el.remove(), 3000);
+            setTimeout(()=>el.remove(),3000);
         }
     }
 
-    // Single click handler — guard with spinning flag to prevent double-spin
-    spinBtn.addEventListener('click', () => {
-        if (spinning) return;
+    spinBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const now = Date.now();
+        // Guard: already spinning OR less than 500ms since last spin start
+        if (spinning || now - lastSpinAt < 500) return;
+        lastSpinAt = now;
         spinning = true;
         spinBtn.disabled = true;
         spinBtn.textContent = '🌀 Spinning...';
         document.getElementById('result').style.display = 'none';
-
-        fetch('/wheel/spin', { method: 'POST' })
+        fetch('/wheel/spin', {method: 'POST'})
             .then(r => r.json())
             .then(data => {
                 if (data.error) {
-                    spinning = false;
-                    spinBtn.disabled = false;
-                    spinBtn.textContent = '🎰 Spin!';
-                    alert('Error: ' + data.error);
-                    return;
+                    spinning = false; spinBtn.disabled = false; spinBtn.textContent = '🎰 Spin!';
+                    alert('Error: ' + data.error); return;
                 }
-                const idx = countries.findIndex(c => c.id === data.id);
-                spin(idx >= 0 ? idx : 0);
+                const idx = wheelCountries.findIndex(c => c.id === data.id);
+                doSpin(idx >= 0 ? idx : 0);
             })
             .catch(() => {
-                spinning = false;
-                spinBtn.disabled = false;
-                spinBtn.textContent = '🎰 Spin!';
-                alert('Network error, please try again.');
+                spinning = false; spinBtn.disabled = false; spinBtn.textContent = '🎰 Spin!';
+                alert('Network error.');
             });
     });
 
@@ -343,9 +368,7 @@
 })();
 </script>
 <style>
-@keyframes confetti-fall {
-    to { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-}
+@keyframes confetti-fall { to { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
 </style>
 {% endblock %}
 {% endblock %}
