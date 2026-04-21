@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Mölkky – Configuration{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="card-header" style="margin-bottom:1.5rem;">
+        <div>
+            <h1 class="card-title">🎯 {{ game.name }}</h1>
+            <div style="color:#6b7280;font-size:.875rem;margin-top:.25rem;">
+                {{ 'Solo' if game.mode == 'solo' else 'Équipes' }} ·
+                {% if game.penalty_rule == 'elimination' %}Élimination
+                {% elif game.penalty_rule == 'halve' %}Score ÷ 2
+                {% else %}Conditionnel{% endif %} après 3 zéros
+            </div>
+        </div>
+        <button id="startBtn" class="btn btn-success" onclick="startGame()">▶ Démarrer</button>
+    </div>
+
+    <div class="grid" style="grid-template-columns:{% if game.mode == 'teams' %}1fr 1fr{% else %}1fr{% endif %};gap:1.5rem;">
+
+        <!-- Players panel -->
+        <div>
+            <h2 style="font-size:1rem;margin-bottom:1rem;">Joueurs</h2>
+
+            <!-- Add app user -->
+            {% set available_users = other_users|selectattr('id', 'in', in_game_ids)|list %}
+            <div style="display:flex;gap:.5rem;margin-bottom:.75rem;">
+                <select id="userSelect" style="flex:1;" onchange="addUser()">
+                    <option value="">Ajouter un utilisateur…</option>
+                    {% for u in other_users %}
+                    {% if u.id not in in_game_ids %}
+                    <option value="{{ u.id }}">{{ u.username }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Add guest -->
+            <div style="display:flex;gap:.5rem;margin-bottom:1.5rem;">
+                <input type="text" id="guestInput" placeholder="Nom d'un invité…" style="flex:1;">
+                <button class="btn btn-secondary btn-sm" onclick="addGuest()">+ Invité</button>
+            </div>
+
+            <div id="unassignedList">
+                {% for m in unassigned %}
+                <div class="player-card" data-id="{{ m.id }}" draggable="true"
+                     style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:.6rem 1rem;
+                            display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;cursor:grab;">
+                    <span>{{ m.display_name }}{% if not m.user_id %} 👤{% endif %}</span>
+                    <button onclick="removePlayer({{ m.id }}, this)" style="background:none;border:none;cursor:pointer;color:#ef4444;">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if game.mode == 'teams' %}
+        <!-- Teams panel -->
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                <h2 style="font-size:1rem;">Équipes</h2>
+                <button class="btn btn-secondary btn-sm" onclick="addTeam()">+ Équipe</button>
+            </div>
+
+            <div id="teamsList">
+                {% for t in teams %}
+                <div class="team-column" data-id="{{ t.id }}"
+                     style="border:2px solid {{ t.color }};border-radius:10px;padding:1rem;margin-bottom:1rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+                        <span style="font-weight:600;color:{{ t.color }};cursor:pointer;"
+                              ondblclick="renameTeam({{ t.id }}, this)">{{ t.name }}</span>
+                        <button onclick="removeTeam({{ t.id }}, this.closest('.team-column'))"
+                                style="background:none;border:none;cursor:pointer;color:#9ca3af;">✕</button>
+                    </div>
+                    <div class="drop-zone" data-team-id="{{ t.id }}"
+                         style="min-height:50px;background:#f9fafb;border-radius:6px;padding:.5rem;"
+                         ondragover="event.preventDefault()" ondrop="onDrop(event, {{ t.id }})">
+                        {% if t.members %}
+                        {% set members = t.members if t.members is not string else (t.members|fromjson) %}
+                        {% for m in (t.members if t.members is iterable and t.members is not string else []) %}
+                        <div class="player-card" data-id="{{ m.id }}" draggable="true"
+                             style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:.5rem .75rem;
+                                    display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;cursor:grab;">
+                            <span>{{ m.display_name }}</span>
+                            <button onclick="removePlayer({{ m.id }}, this)"
+                                    style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:.8rem;">✕</button>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    <button onclick="unassignDrop(null, {{ t.id }}, this.closest('.team-column').querySelector('.drop-zone'))"
+                            style="display:none;"></button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Unassigned drop zone -->
+            <div style="margin-top:1rem;padding:.75rem;background:#f3f4f6;border-radius:8px;border:2px dashed #d1d5db;"
+                 ondragover="event.preventDefault()" ondrop="onDrop(event, null)">
+                <span style="color:#9ca3af;font-size:.875rem;">Déposer ici pour désaffecter</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const GAME_ID = {{ game.id }};
+const MODE = '{{ game.mode }}';
+
+// Drag & drop
+let draggedId = null;
+
+document.addEventListener('dragstart', e => {
+    const card = e.target.closest('.player-card');
+    if (card) {
+        draggedId = parseInt(card.dataset.id);
+        e.dataTransfer.effectAllowed = 'move';
+    }
+});
+
+function onDrop(e, teamId) {
+    e.preventDefault();
+    if (!draggedId) return;
+    assignTeam(draggedId, teamId);
+}
+
+async function api(action, extra = {}) {
+    const res = await fetch(`/molkky/setup/${GAME_ID}/action`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action, ...extra})
+    });
+    return res.json();
+}
+
+async function addUser() {
+    const sel = document.getElementById('userSelect');
+    const userId = parseInt(sel.value);
+    if (!userId) return;
+    sel.value = '';
+    const data = await api('add_player', {user_id: userId});
+    if (data.ok) {
+        location.reload();
+    } else {
+        alert(data.error || 'Erreur');
+    }
+}
+
+async function addGuest() {
+    const inp = document.getElementById('guestInput');
+    const name = inp.value.trim();
+    if (!name) return;
+    inp.value = '';
+    const data = await api('add_player', {guest_name: name});
+    if (data.ok) {
+        location.reload();
+    } else {
+        alert(data.error || 'Erreur');
+    }
+}
+
+async function removePlayer(memberId, btn) {
+    if (!confirm('Retirer ce joueur ?')) return;
+    const data = await api('remove_player', {member_id: memberId});
+    if (data.ok) {
+        const card = btn.closest('.player-card');
+        if (card) card.remove();
+    }
+}
+
+async function addTeam() {
+    const name = prompt('Nom de l\'équipe ?') || '';
+    if (!name.trim()) return;
+    const data = await api('add_team', {name: name.trim()});
+    if (data.ok) {
+        location.reload();
+    } else {
+        alert(data.error || 'Erreur');
+    }
+}
+
+async function removeTeam(teamId, el) {
+    if (!confirm('Supprimer cette équipe ? Les joueurs seront désaffectés.')) return;
+    const data = await api('remove_team', {team_id: teamId});
+    if (data.ok && el) el.remove();
+}
+
+async function renameTeam(teamId, el) {
+    const name = prompt('Nouveau nom :', el.textContent.trim());
+    if (!name || !name.trim()) return;
+    const data = await api('rename_team', {team_id: teamId, name: name.trim()});
+    if (data.ok) el.textContent = name.trim();
+}
+
+async function assignTeam(memberId, teamId) {
+    const data = await api('assign_team', {member_id: memberId, team_id: teamId});
+    if (data.ok) {
+        location.reload();
+    }
+}
+
+async function startGame() {
+    const btn = document.getElementById('startBtn');
+    btn.disabled = true;
+    btn.textContent = 'Démarrage…';
+    const data = await api('start');
+    if (data.ok && data.redirect) {
+        window.location.href = data.redirect;
+    } else {
+        alert(data.error || 'Erreur lors du démarrage.');
+        btn.disabled = false;
+        btn.textContent = '▶ Démarrer';
+    }
+}
+</script>
+{% endblock %}

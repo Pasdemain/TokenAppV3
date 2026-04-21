@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Mölkky{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="card-header">
+        <h1 class="card-title">🎯 Mölkky</h1>
+    </div>
+
+    <!-- Create game form -->
+    <div class="card" style="margin-bottom:2rem;">
+        <h2 style="margin-bottom:1.5rem;font-size:1.1rem;">Nouvelle partie</h2>
+        <form method="POST" action="{{ url_for('molkky.molkky_create') }}">
+            <div class="grid grid-2" style="gap:1rem;margin-bottom:1rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Nom de la partie</label>
+                    <input type="text" name="name" placeholder="Mölkky du soir" maxlength="100">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Mode</label>
+                    <select name="mode">
+                        <option value="solo">Solo (chaque joueur joue seul)</option>
+                        <option value="teams" selected>Équipes</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-2" style="gap:1rem;margin-bottom:1rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Règle des 3 zéros consécutifs</label>
+                    <select name="penalty_rule">
+                        <option value="elimination">Élimination</option>
+                        <option value="halve" selected>Score ÷ 2</option>
+                        <option value="conditional">Conditionnel (&lt;25→0, ≥25→25)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;display:flex;align-items:flex-end;">
+                    <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:normal;">
+                        <input type="checkbox" name="stop_on_winner" value="1" checked
+                               style="width:auto;padding:0;">
+                        Arrêter dès qu'il y a un gagnant
+                    </label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Créer la partie →</button>
+        </form>
+    </div>
+
+    <!-- Recent games -->
+    {% if games %}
+    <h2 style="margin-bottom:1rem;font-size:1.1rem;">Parties récentes</h2>
+    <div class="grid grid-2">
+        {% for g in games %}
+        <div class="card" style="margin-bottom:0;">
+            <div class="card-header" style="margin-bottom:.5rem;">
+                <span style="font-weight:600;">{{ g.name }}</span>
+                <span class="badge {% if g.status == 'active' %}badge-success{% elif g.status == 'finished' %}badge-primary{% else %}badge-warning{% endif %}">
+                    {% if g.status == 'setup' %}Configuration
+                    {% elif g.status == 'active' %}En cours
+                    {% else %}Terminée{% endif %}
+                </span>
+            </div>
+            <div style="color:#6b7280;font-size:.875rem;margin-bottom:1rem;">
+                {{ g.team_count }} équipe{{ 's' if g.team_count != 1 else '' }} ·
+                {{ 'Équipes' if g.mode == 'teams' else 'Solo' }} ·
+                Par {{ g.creator_username }}
+            </div>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                {% if g.status == 'setup' and g.created_by == session.user_id %}
+                <a href="{{ url_for('molkky.molkky_setup', game_id=g.id) }}" class="btn btn-secondary btn-sm">Configurer</a>
+                {% elif g.status != 'setup' %}
+                <a href="{{ url_for('molkky.molkky_game', game_id=g.id) }}" class="btn btn-primary btn-sm">
+                    {% if g.status == 'active' %}Rejoindre{% else %}Voir{% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted text-center" style="margin-top:2rem;">Aucune partie pour l'instant. Créez-en une !</p>
+    {% endif %}
+</div>
+{% endblock %}

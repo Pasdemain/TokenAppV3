@@ -13,7 +13,7 @@ REMEMBER_DAYS = 30
 IS_HTTPS = os.environ.get('RENDER_EXTERNAL_URL', '').startswith('https')
 
 
-ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa']
+ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa', 'molkky']
 
 
 def _restore_session_from_cookie():

@@ -16,6 +16,7 @@ from wheel_routes import wheel_bp
 from flashcard_routes import flashcard_bp
 from competency_routes import competency_bp
 from santa_routes import santa_bp
+from molkky_routes import molkky_bp
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -35,6 +36,7 @@ app.register_blueprint(wheel_bp)
 app.register_blueprint(flashcard_bp)
 app.register_blueprint(competency_bp)
 app.register_blueprint(santa_bp)
+app.register_blueprint(molkky_bp)
 
 # Initialize database on startup
 with app.app_context():
@@ -209,6 +211,10 @@ def admin():
             cur.execute("DELETE FROM santa_members")
             cur.execute("DELETE FROM santa_groups")
             cur.execute("DELETE FROM wheel_countries")
+            cur.execute("DELETE FROM molkky_throws")
+            cur.execute("DELETE FROM molkky_members")
+            cur.execute("DELETE FROM molkky_teams")
+            cur.execute("DELETE FROM molkky_games")
             cur.execute("DELETE FROM users")
             conn.commit()
             cur.close()

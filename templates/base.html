@@ -420,6 +420,9 @@
                     {% if user_features.get('competency') %}
                     <li><a href="{{ url_for('competency.competency_home') }}" class="{% if 'competency' in request.endpoint %}active{% endif %}">📝 Test</a></li>
                     {% endif %}
+                    {% if user_features.get('molkky') %}
+                    <li><a href="{{ url_for('molkky.molkky_home') }}" class="{% if 'molkky' in request.endpoint %}active{% endif %}">🎯 Mölkky</a></li>
+                    {% endif %}
                     <li class="dropdown">
                         <a href="#" onclick="event.preventDefault()">👤 {{ session.username }} ▼</a>
                         <div class="dropdown-content">
