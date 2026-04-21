@@ -118,10 +118,15 @@ def register():
             )
             user_id = cur.fetchone()['id']
 
-            for feat in ALL_FEATURES:
+            cur.execute("SELECT feature_name, is_enabled FROM feature_defaults")
+            defaults = cur.fetchall()
+            # Fall back to all-enabled if no defaults configured yet
+            if not defaults:
+                defaults = [{'feature_name': f, 'is_enabled': True} for f in ALL_FEATURES]
+            for d in defaults:
                 cur.execute(
-                    "INSERT INTO user_features (user_id, feature_name, is_enabled) VALUES (%s, %s, TRUE)",
-                    (user_id, feat)
+                    "INSERT INTO user_features (user_id, feature_name, is_enabled) VALUES (%s, %s, %s)",
+                    (user_id, d['feature_name'], d['is_enabled'])
                 )
             conn.commit()
 

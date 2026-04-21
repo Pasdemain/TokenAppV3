@@ -243,27 +243,28 @@ def admin():
                         cur.close()
                         conn.close()
 
-            elif action == 'set_scratch_partner':
-                target_user_id = request.form.get('target_user_id', type=int)
-                partner_id = request.form.get('partner_id', type=int) or None
-                if not target_user_id:
-                    flash('Utilisateur invalide.', 'error')
+            elif action == 'set_feature_default':
+                feature_name = request.form.get('feature_name', '').strip()
+                is_enabled = request.form.get('is_enabled') == '1'
+                if not feature_name:
+                    flash('Feature invalide.', 'error')
                 else:
                     conn = get_db_connection()
                     cur = conn.cursor()
                     try:
                         cur.execute("""
-                            INSERT INTO user_features (user_id, feature_name, is_enabled, partner_id)
-                            VALUES (%s, 'scratch', TRUE, %s)
-                            ON CONFLICT (user_id, feature_name)
-                            DO UPDATE SET partner_id = EXCLUDED.partner_id
-                        """, (target_user_id, partner_id))
+                            INSERT INTO feature_defaults (feature_name, is_enabled)
+                            VALUES (%s, %s)
+                            ON CONFLICT (feature_name)
+                            DO UPDATE SET is_enabled = EXCLUDED.is_enabled
+                        """, (feature_name, is_enabled))
                         conn.commit()
-                        flash('Partenaire scratch mis à jour !', 'success')
+                        state = 'activée' if is_enabled else 'désactivée'
+                        flash(f'Valeur par défaut de "{feature_name}" {state}.', 'success')
                     except Exception as e:
                         conn.rollback()
                         flash('Erreur lors de la mise à jour.', 'error')
-                        print(f"Set scratch partner error: {e}")
+                        print(f"Set feature default error: {e}")
                     finally:
                         cur.close()
                         conn.close()
@@ -306,6 +307,10 @@ def admin():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT id, username FROM users ORDER BY username")
     users = cur.fetchall()
+
+    # Feature defaults
+    cur.execute("SELECT feature_name, is_enabled FROM feature_defaults ORDER BY feature_name")
+    feature_defaults = {row['feature_name']: row['is_enabled'] for row in cur.fetchall()}
 
     # User features: {user_id: {feature_name: {is_enabled, partner_id}}}
     cur.execute("""
@@ -383,7 +388,8 @@ def admin():
                            fc_reports=fc_reports,
                            cq_stats=cq_stats,
                            user_features_map=user_features_map,
-                           all_features=admin_all_features)
+                           all_features=admin_all_features,
+                           feature_defaults=feature_defaults)
 
 @app.route('/profile')
 @login_required

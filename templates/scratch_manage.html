@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Gérer les prix - Scratch{% endblock %}
+
+{% block content %}
+<div class="content-wrapper" style="max-width:900px;margin:2rem auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;">
+        <h1>🎁 Gérer les prix du scratch</h1>
+        <a href="{{ url_for('scratch.scratch_page') }}" class="btn btn-secondary btn-sm">← Retour</a>
+    </div>
+
+    {% if not partner %}
+    <div class="alert alert-warning">
+        ⚠️ Aucun partenaire sélectionné. <a href="{{ url_for('scratch.scratch_page') }}">Retourne sur la page scratch</a> pour en choisir un.
+    </div>
+    {% else %}
+
+    <!-- Info groups -->
+    <div class="card mb-3" style="background:linear-gradient(135deg,#eef2ff,#f5f3ff);">
+        <div style="padding:1rem 1.5rem;">
+            <p style="margin:0;font-size:0.9rem;color:#4338ca;">
+                <strong>Structure des prizes :</strong>
+                🔄 Try Again 70% (fixe) &nbsp;|&nbsp;
+                Groupe 1 : 15% &nbsp;|&nbsp;
+                Groupe 2 : 7.5% &nbsp;|&nbsp;
+                Groupe 3 : 4.5% &nbsp;|&nbsp;
+                Groupe 4 : 2% &nbsp;|&nbsp;
+                Groupe 5 : 1%
+            </p>
+            <p style="margin:0.5rem 0 0;font-size:0.85rem;color:#6366f1;">
+                Le pourcentage par prize d'un groupe = % du groupe ÷ nombre de prizes dans ce groupe.
+                Pour enregistrer, les deux mots de passe sont nécessaires.
+            </p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('scratch.save_prizes') }}" id="prizeForm">
+
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+        <!-- ── My prizes ──────────────────────────────────────── -->
+        <div>
+            <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:1rem;color:var(--primary);">
+                👤 Mes prix — {{ session.username }}
+            </h2>
+            {% set me_groups = my_groups %}
+            {% include 'scratch_manage_groups.html' with context %}
+        </div>
+
+        <!-- ── Partner prizes ─────────────────────────────────── -->
+        <div>
+            <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:1rem;color:var(--secondary);">
+                👤 Prix de {{ partner.username }}
+            </h2>
+            {% set me_groups = partner_groups %}
+            {% set is_partner = true %}
+            {% include 'scratch_manage_groups.html' with context %}
+        </div>
+
+    </div>
+
+    <!-- Passwords + save -->
+    <div class="card mt-3" style="border:2px solid var(--primary);">
+        <div class="card-header">
+            <span class="card-title">🔐 Confirmation — les deux mots de passe sont requis</span>
+        </div>
+        <div style="padding:1.5rem;">
+            <div class="grid grid-2" style="gap:1rem;">
+                <div class="form-group" style="margin:0;">
+                    <label>Mon mot de passe ({{ session.username }})</label>
+                    <input type="password" name="my_password" required placeholder="Ton mot de passe">
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label>Mot de passe de {{ partner.username }}</label>
+                    <input type="password" name="partner_password" required placeholder="Mot de passe du partenaire">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3" style="width:100%;font-size:1rem;">
+                💾 Enregistrer les prix pour les deux
+            </button>
+        </div>
+    </div>
+
+    </form>
+    {% endif %}
+</div>
+
+{% block scripts %}
+<script>
+const GROUP_PCTS = {{ group_pcts | tojson }};
+
+function addPrizeRow(groupEl, prefix, g) {
+    const list = groupEl.querySelector('.prize-list');
+    const idx = list.children.length;
+    const row = document.createElement('div');
+    row.className = 'prize-row';
+    row.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;';
+    row.innerHTML = `
+        <input type="text" name="${prefix}_g${g}_name" placeholder="Nom du prix *"
+               style="flex:2;min-width:120px;" oninput="updatePcts(${g}, '${prefix}')">
+        <input type="text" name="${prefix}_g${g}_token_name" placeholder="Nom du token"
+               style="flex:2;min-width:120px;">
+        <input type="number" name="${prefix}_g${g}_token_dur" placeholder="Durée (min)" value="30"
+               style="flex:0 0 90px;" min="1">
+        <button type="button" onclick="this.closest('.prize-row').remove(); updatePcts(${g}, '${prefix}')"
+                style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:1.2rem;flex:0 0 auto;">✕</button>
+    `;
+    list.appendChild(row);
+    updatePcts(g, prefix);
+}
+
+function updatePcts(g, prefix) {
+    const container = document.querySelector(`[data-g="${g}"][data-prefix="${prefix}"]`);
+    if (!container) return;
+    const names = container.querySelectorAll(`input[name="${prefix}_g${g}_name"]`);
+    const n = Array.from(names).filter(i => i.value.trim()).length;
+    const badge = container.querySelector('.pct-badge');
+    if (badge) {
+        if (n === 0) {
+            badge.textContent = GROUP_PCTS[g] + '%';
+            badge.style.background = '#e5e7eb';
+            badge.style.color = '#6b7280';
+        } else {
+            const each = (GROUP_PCTS[g] / n).toFixed(2);
+            badge.textContent = `${n} × ${each}%`;
+            badge.style.background = 'var(--primary)';
+            badge.style.color = '#fff';
+        }
+    }
+}
+</script>
+{% endblock %}
+{% endblock %}

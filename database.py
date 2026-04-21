@@ -110,7 +110,7 @@ def init_db():
         )
     """)
 
-    # Create scratch prizes table (prize list per user, configured by admin)
+    # Create scratch prizes table (prize list per user, configured by users)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS scratch_prizes (
             id SERIAL PRIMARY KEY,
@@ -121,9 +121,11 @@ def init_db():
             token_duration_minutes INTEGER DEFAULT 30,
             probability FLOAT NOT NULL,
             is_loser BOOLEAN DEFAULT FALSE,
+            group_number INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cur.execute("ALTER TABLE scratch_prizes ADD COLUMN IF NOT EXISTS group_number INTEGER DEFAULT 0")
 
     # Create scratch tickets table (one ticket per user per day)
     cur.execute("""
@@ -324,6 +326,21 @@ def init_db():
             UNIQUE(group_id, user_id)
         )
     """)
+
+    # ── Feature defaults table ────────────────────────────────────────────────
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS feature_defaults (
+            feature_name VARCHAR(30) PRIMARY KEY,
+            is_enabled BOOLEAN DEFAULT TRUE
+        )
+    """)
+    # Seed defaults (ON CONFLICT = keep existing admin choices)
+    for feat in ALL_FEATURES:
+        cur.execute("""
+            INSERT INTO feature_defaults (feature_name, is_enabled) VALUES (%s, TRUE)
+            ON CONFLICT (feature_name) DO NOTHING
+        """, (feat,))
 
     # ── User Features table ──────────────────────────────────────────────────
 
