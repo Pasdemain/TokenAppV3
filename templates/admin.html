@@ -174,15 +174,19 @@
         </div>
     </div>
 
-    <!-- ── Flashcard Import ──────────────────────────────────────────────── -->
+    <!-- ── Flashcard Import / Export ────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">📥 Import Flashcards (JSON)</span>
+            <span class="card-title">📥 Import / Export Flashcards (JSON)</span>
+            <a href="{{ url_for('flashcards.admin_export') }}" class="btn btn-sm btn-secondary">
+                📤 Exporter toutes les cartes
+            </a>
         </div>
         <div style="padding: 1.5rem;">
             <p class="text-muted mb-2">
                 Import cards as JSON array. Categories are auto-created. Languages in translations are auto-registered.
                 Optional <code>difficulty</code>: <span style="color:#065f46">beginner</span>, <span style="color:#92400e">medium</span> (default), <span style="color:#991b1b">confirmed</span>.
+                Les cartes existantes (même traductions) sont <strong>mises à jour</strong> sans duplication.
             </p>
             {% if fc_categories %}
             <p class="mb-3" style="font-size:0.9rem;">
