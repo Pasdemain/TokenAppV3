@@ -49,21 +49,51 @@
     </div>
     {% endif %}
 
-    <!-- Language Pairs -->
-    {% if lang_pairs %}
+    <!-- Language Pair selector -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">🌐 Your Language Pairs</span>
-        </div>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem;">
-            {% for pair in lang_pairs %}
-            <span class="badge badge-primary" style="font-size:1rem;padding:0.5rem 1rem;">
-                {{ pair.source_lang|upper }} → {{ pair.target_lang|upper }}
+            <span class="card-title">🌐 Active Language Pair</span>
+            {% if current_source and current_target %}
+            <span class="badge badge-primary" style="font-size:0.9rem;">
+                {{ current_source|upper }} → {{ current_target|upper }}
             </span>
+            {% endif %}
+        </div>
+        <form method="POST" action="{{ url_for('flashcards.switch_pair') }}"
+              style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-top:0.75rem;">
+            <select name="source_lang" required style="flex:1;min-width:120px;padding:0.5rem;border:1px solid var(--border);border-radius:8px;">
+                {% for lang in languages %}
+                <option value="{{ lang.code }}" {% if lang.code == current_source %}selected{% endif %}>
+                    {{ lang.flag_emoji or '' }} {{ lang.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <span style="font-size:1.2rem;">→</span>
+            <select name="target_lang" required style="flex:1;min-width:120px;padding:0.5rem;border:1px solid var(--border);border-radius:8px;">
+                {% for lang in languages %}
+                <option value="{{ lang.code }}" {% if lang.code == current_target %}selected{% endif %}>
+                    {{ lang.flag_emoji or '' }} {{ lang.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-primary">Switch</button>
+        </form>
+        {% if lang_pairs %}
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem;">
+            <span class="text-muted" style="font-size:0.85rem;align-self:center;">Your pairs :</span>
+            {% for pair in lang_pairs %}
+            <form method="POST" action="{{ url_for('flashcards.switch_pair') }}" style="display:inline;">
+                <input type="hidden" name="source_lang" value="{{ pair.source_lang }}">
+                <input type="hidden" name="target_lang" value="{{ pair.target_lang }}">
+                <button type="submit" class="badge badge-primary"
+                        style="font-size:0.85rem;padding:0.35rem 0.75rem;border:none;cursor:pointer;{% if pair.source_lang == current_source and pair.target_lang == current_target %}outline:2px solid #2563eb;{% endif %}">
+                    {{ pair.source_lang|upper }} → {{ pair.target_lang|upper }}
+                </button>
+            </form>
             {% endfor %}
         </div>
+        {% endif %}
     </div>
-    {% endif %}
 
     <!-- Categories & Add Cards -->
     {% macro cat_section(cats, label, color) %}

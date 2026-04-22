@@ -88,7 +88,29 @@ def flashcards_home():
                            reading_categories=reading_categories,
                            listening_categories=listening_categories,
                            languages=languages,
-                           lang_pairs=lang_pairs)
+                           lang_pairs=lang_pairs,
+                           current_source=session.get('fc_source_lang'),
+                           current_target=session.get('fc_target_lang'))
+
+
+# ── Switch active language pair ──────────────────────────────────────────────
+
+@flashcard_bp.route('/flashcards/switch-pair', methods=['POST'])
+@feature_required('flashcards')
+def switch_pair():
+    source_lang = request.form.get('source_lang', '').strip()
+    target_lang = request.form.get('target_lang', '').strip()
+
+    if not source_lang or not target_lang:
+        flash('Please select both languages.', 'error')
+    elif source_lang == target_lang:
+        flash('Source and target languages must be different.', 'error')
+    else:
+        session['fc_source_lang'] = source_lang
+        session['fc_target_lang'] = target_lang
+        flash(f'Paire active : {source_lang.upper()} → {target_lang.upper()}', 'success')
+
+    return redirect(url_for('flashcards.flashcards_home'))
 
 
 # ── Session (choose languages — only shown if not yet set) ───────────────────
