@@ -58,6 +58,9 @@ def init_db():
     cur.execute("""
         ALTER TABLE users ADD COLUMN IF NOT EXISTS app_icon VARCHAR(10) DEFAULT '💑';
     """)
+    cur.execute("""
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS lang VARCHAR(5);
+    """)
 
     # Add card_type to flashcards (listening support)
     cur.execute("""
