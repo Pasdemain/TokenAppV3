@@ -71,18 +71,6 @@
                 {{ t('scratch.propose_changes_hint', partner=partner.username) }}
             </p>
 
-            <div style="display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;margin-bottom:1.25rem;">
-                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;">
-                    <input type="radio" name="scope" value="my"> {{ t('scratch.scope_me_only') }}
-                </label>
-                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;">
-                    <input type="radio" name="scope" value="partner"> {{ t('scratch.scope_partner_only', partner=partner.username) }}
-                </label>
-                <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;font-weight:600;">
-                    <input type="radio" name="scope" value="both" checked> {{ t('scratch.scope_both') }}
-                </label>
-            </div>
-
             <button type="submit" class="btn btn-primary" style="width:100%;font-size:1rem;">
                 {{ t('scratch.btn_propose_changes') }}
             </button>
