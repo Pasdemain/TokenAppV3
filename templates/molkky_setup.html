@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Mölkky – Configuration{% endblock %}
+{% block title %}{{ t('molkky.setup_page_title') }}{% endblock %}
 
 {% block content %}
 <style>
@@ -36,27 +36,27 @@
         <div>
             <h1 class="card-title">🎯 {{ game.name }}</h1>
             <div style="color:#6b7280;font-size:.875rem;margin-top:.25rem;">
-                {{ 'Solo' if game.mode == 'solo' else 'Équipes' }} ·
-                {% if game.penalty_rule == 'elimination' %}Élimination
-                {% elif game.penalty_rule == 'halve' %}Score ÷ 2
-                {% else %}Conditionnel{% endif %} après 3 zéros
+                {{ t('molkky.mode_solo') if game.mode == 'solo' else t('molkky.mode_teams') }} ·
+                {% if game.penalty_rule == 'elimination' %}{{ t('molkky.penalty_elimination') }}
+                {% elif game.penalty_rule == 'halve' %}{{ t('molkky.penalty_halve') }}
+                {% else %}{{ t('molkky.penalty_conditional') }}{% endif %} {{ t('molkky.after_3_zeros') }}
             </div>
         </div>
-        <button id="startBtn" class="btn btn-success" onclick="startGame()">▶ Démarrer</button>
+        <button id="startBtn" class="btn btn-success" onclick="startGame()">{{ t('molkky.btn_start') }}</button>
     </div>
 
     {% if game.mode == 'teams' %}
     <div id="teamsList">
-        {% for t in teams %}
-        <div class="team-card" data-id="{{ t.id }}" style="border:2px solid {{ t.color }};">
+        {% for team in teams %}
+        <div class="team-card" data-id="{{ team.id }}" style="border:2px solid {{ team.color }};">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
-                <span class="team-name" style="font-weight:600;color:{{ t.color }};cursor:pointer;font-size:1.05rem;"
-                      ondblclick="renameTeam({{ t.id }}, this)">{{ t.name }}</span>
-                <button onclick="removeTeam({{ t.id }}, this.closest('.team-card'))"
+                <span class="team-name" style="font-weight:600;color:{{ team.color }};cursor:pointer;font-size:1.05rem;"
+                      ondblclick="renameTeam({{ team.id }}, this)">{{ team.name }}</span>
+                <button onclick="removeTeam({{ team.id }}, this.closest('.team-card'))"
                         style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:1rem;">✕</button>
             </div>
             <div class="member-list">
-                {% for m in (t.members if t.members is iterable and t.members is not string else []) %}
+                {% for m in (team.members if team.members is iterable and team.members is not string else []) %}
                 <div class="member-item" data-id="{{ m.id }}"{% if m.user_id %} data-user-id="{{ m.user_id }}"{% endif %}>
                     <span>{{ m.display_name }}{% if not m.user_id %} 👤{% endif %}</span>
                     <button onclick="removeMember({{ m.id }}, this)"
@@ -65,8 +65,8 @@
                 {% endfor %}
             </div>
             <div class="add-row">
-                <select onchange="addUserToTeam({{ t.id }}, this)">
-                    <option value="">+ Utilisateur…</option>
+                <select onchange="addUserToTeam({{ team.id }}, this)">
+                    <option value="">{{ t('molkky.add_user_placeholder') }}</option>
                     {% for u in all_users %}
                     {% if u.id not in in_game_ids %}
                     <option value="{{ u.id }}" data-name="{{ u.username }}">{{ u.username }}</option>
@@ -75,23 +75,23 @@
                 </select>
             </div>
             <div class="add-row" style="margin-top:.4rem;">
-                <input type="text" placeholder="Nom d'un invité…"
-                       onkeydown="if(event.key==='Enter') addGuestToTeam({{ t.id }}, this)">
+                <input type="text" placeholder="{{ t('molkky.guest_name_placeholder') }}"
+                       onkeydown="if(event.key==='Enter') addGuestToTeam({{ team.id }}, this)">
                 <button class="btn btn-secondary btn-sm"
-                        onclick="addGuestToTeam({{ t.id }}, this.previousElementSibling)">+ Invité</button>
+                        onclick="addGuestToTeam({{ team.id }}, this.previousElementSibling)">{{ t('molkky.btn_add_guest') }}</button>
             </div>
         </div>
         {% endfor %}
     </div>
-    <button class="btn btn-secondary btn-sm" onclick="addTeam()" style="margin-bottom:1.5rem;">+ Équipe</button>
+    <button class="btn btn-secondary btn-sm" onclick="addTeam()" style="margin-bottom:1.5rem;">{{ t('molkky.btn_add_team') }}</button>
 
     {% else %}
     <!-- Solo mode -->
     <div>
-        <h2 style="font-size:1rem;margin-bottom:1rem;">Joueurs</h2>
+        <h2 style="font-size:1rem;margin-bottom:1rem;">{{ t('molkky.players_label') }}</h2>
         <div class="add-row" style="margin-bottom:.5rem;">
             <select id="soloUserSelect" onchange="addSoloUser()">
-                <option value="">+ Utilisateur…</option>
+                <option value="">{{ t('molkky.add_user_placeholder') }}</option>
                 {% for u in all_users %}
                 {% if u.id not in in_game_ids %}
                 <option value="{{ u.id }}" data-name="{{ u.username }}">{{ u.username }}</option>
@@ -100,9 +100,9 @@
             </select>
         </div>
         <div class="add-row" style="margin-bottom:1.5rem;">
-            <input type="text" id="soloGuestInput" placeholder="Nom d'un invité…"
+            <input type="text" id="soloGuestInput" placeholder="{{ t('molkky.guest_name_placeholder') }}"
                    onkeydown="if(event.key==='Enter') addSoloGuest()">
-            <button class="btn btn-secondary btn-sm" onclick="addSoloGuest()">+ Invité</button>
+            <button class="btn btn-secondary btn-sm" onclick="addSoloGuest()">{{ t('molkky.btn_add_guest') }}</button>
         </div>
         <div id="soloMemberList">
             {% for m in unassigned %}
@@ -122,6 +122,20 @@
 <script>
 const GAME_ID = {{ game.id }};
 const GAME_MODE = '{{ game.mode }}';
+
+// i18n strings injected from the server so popups/prompts stay in the user's language
+const I18N = {
+    errorGeneric:     {{ t('common.error') | tojson }},
+    guestPlaceholder: {{ t('molkky.guest_name_placeholder') | tojson }},
+    addUser:          {{ t('molkky.add_user_placeholder') | tojson }},
+    addGuest:         {{ t('molkky.btn_add_guest') | tojson }},
+    teamDefault:      {{ t('molkky.team_default_name', n='__N__') | tojson }},
+    promptNewName:    {{ t('molkky.prompt_new_name') | tojson }},
+    confirmDeleteTeam:{{ t('molkky.confirm_delete_team') | tojson }},
+    btnStart:         {{ t('molkky.btn_start') | tojson }},
+    btnStarting:      {{ t('molkky.btn_starting') | tojson }},
+    errorStart:       {{ t('molkky.error_generic_dot') | tojson }}
+};
 
 const inGameUserIds = new Set([{{ in_game_ids | join(',') if in_game_ids else '' }}]);
 
@@ -184,14 +198,14 @@ function makeTeamCard(team) {
         <div class="member-list"></div>
         <div class="add-row">
             <select onchange="addUserToTeam(${team.id}, this)">
-                <option value="">+ Utilisateur…</option>
+                <option value="">${I18N.addUser}</option>
             </select>
         </div>
         <div class="add-row" style="margin-top:.4rem;">
-            <input type="text" placeholder="Nom d'un invité…"
+            <input type="text" placeholder="${I18N.guestPlaceholder}"
                    onkeydown="if(event.key==='Enter') addGuestToTeam(${team.id}, this)">
             <button class="btn btn-secondary btn-sm"
-                    onclick="addGuestToTeam(${team.id}, this.previousElementSibling)">+ Invité</button>
+                    onclick="addGuestToTeam(${team.id}, this.previousElementSibling)">${I18N.addGuest}</button>
         </div>
     `;
     return div;
@@ -209,7 +223,7 @@ async function addUserToTeam(teamId, sel) {
         const card = document.querySelector(`.team-card[data-id="${teamId}"]`);
         if (card) card.querySelector('.member-list').appendChild(makeMemberItem(resp.member));
     } else {
-        alert(resp.error || 'Erreur');
+        alert(resp.error || I18N.errorGeneric);
     }
 }
 
@@ -223,7 +237,7 @@ async function addGuestToTeam(teamId, inp) {
         const card = document.querySelector(`.team-card[data-id="${teamId}"]`);
         if (card) card.querySelector('.member-list').appendChild(makeMemberItem(resp.member));
     } else {
-        alert(resp.error || 'Erreur');
+        alert(resp.error || I18N.errorGeneric);
         inp.value = name;
     }
 }
@@ -240,7 +254,7 @@ async function addSoloUser() {
         updateAllDropdowns();
         document.getElementById('soloMemberList').appendChild(makeMemberItem(resp.member));
     } else {
-        alert(resp.error || 'Erreur');
+        alert(resp.error || I18N.errorGeneric);
     }
 }
 
@@ -254,7 +268,7 @@ async function addSoloGuest() {
     if (resp.ok) {
         document.getElementById('soloMemberList').appendChild(makeMemberItem(resp.member));
     } else {
-        alert(resp.error || 'Erreur');
+        alert(resp.error || I18N.errorGeneric);
         inp.value = name;
     }
 }
@@ -274,18 +288,19 @@ async function removeMember(memberId, btn) {
 
 async function addTeam() {
     const count = document.querySelectorAll('.team-card').length;
-    const resp = await api('add_team', {name: `Équipe ${count + 1}`});
+    const teamName = I18N.teamDefault.replace('__N__', String(count + 1));
+    const resp = await api('add_team', {name: teamName});
     if (resp.ok) {
         const card = makeTeamCard(resp.team);
         document.getElementById('teamsList').appendChild(card);
         updateAllDropdowns();
     } else {
-        alert(resp.error || 'Erreur');
+        alert(resp.error || I18N.errorGeneric);
     }
 }
 
 async function removeTeam(teamId, el) {
-    if (!confirm('Supprimer cette équipe ?')) return;
+    if (!confirm(I18N.confirmDeleteTeam)) return;
     const resp = await api('remove_team', {team_id: teamId});
     if (resp.ok) {
         el.querySelectorAll('.member-item[data-user-id]').forEach(item => {
@@ -298,7 +313,7 @@ async function removeTeam(teamId, el) {
 }
 
 async function renameTeam(teamId, el) {
-    const name = (prompt('Nouveau nom :', el.textContent.trim()) || '').trim();
+    const name = (prompt(I18N.promptNewName, el.textContent.trim()) || '').trim();
     if (!name) return;
     const resp = await api('rename_team', {team_id: teamId, name});
     if (resp.ok) el.textContent = name;
@@ -307,14 +322,14 @@ async function renameTeam(teamId, el) {
 async function startGame() {
     const btn = document.getElementById('startBtn');
     btn.disabled = true;
-    btn.textContent = 'Démarrage…';
+    btn.textContent = I18N.btnStarting;
     const resp = await api('start');
     if (resp.ok && resp.redirect) {
         window.location.href = resp.redirect;
     } else {
-        alert(resp.error || 'Erreur lors du démarrage.');
+        alert(resp.error || I18N.errorStart);
         btn.disabled = false;
-        btn.textContent = '▶ Démarrer';
+        btn.textContent = I18N.btnStart;
     }
 }
 </script>

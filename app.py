@@ -17,6 +17,7 @@ from flashcard_routes import flashcard_bp
 from competency_routes import competency_bp
 from santa_routes import santa_bp
 from molkky_routes import molkky_bp
+import i18n as i18n_module
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -37,6 +38,19 @@ app.register_blueprint(flashcard_bp)
 app.register_blueprint(competency_bp)
 app.register_blueprint(santa_bp)
 app.register_blueprint(molkky_bp)
+
+# Initialize i18n (exposes `t(key)` to templates)
+i18n_module.init_app(app)
+
+
+@app.route('/set-lang', methods=['POST'])
+def set_lang():
+    lang = request.form.get('lang', '').strip()
+    if lang in i18n_module.SUPPORTED_LANGS:
+        session['lang'] = lang
+    next_url = request.form.get('next') or request.referrer or url_for('dashboard')
+    return redirect(next_url)
+
 
 # Initialize database on startup
 with app.app_context():

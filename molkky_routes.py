@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from database import get_db_connection
 from auth import feature_required
 from psycopg2.extras import RealDictCursor
+from i18n import t as _t
 
 molkky_bp = Blueprint('molkky', __name__)
 
@@ -99,7 +100,7 @@ def molkky_home():
 @molkky_bp.route('/molkky/create', methods=['POST'])
 @feature_required('molkky')
 def molkky_create():
-    name = request.form.get('name', '').strip() or 'Mölkky'
+    name = request.form.get('name', '').strip() or _t('molkky.page_title')
     mode = request.form.get('mode', 'teams')
     if mode not in ('solo', 'teams'):
         mode = 'teams'
@@ -122,13 +123,13 @@ def molkky_create():
                 cur.execute("""
                     INSERT INTO molkky_teams (game_id, name, color, score, consecutive_zeros, is_eliminated, turn_order)
                     VALUES (%s, %s, %s, 0, 0, FALSE, %s)
-                """, (game_id, f'Équipe {i+1}', color, i))
+                """, (game_id, _t('molkky.team_default_name', n=i+1), color, i))
         conn.commit()
         return redirect(url_for('molkky.molkky_setup', game_id=game_id))
     except Exception as e:
         conn.rollback()
         print(f"Create game error: {e}")
-        flash("Erreur lors de la création.", 'error')
+        flash(_t('molkky.error_create'), 'error')
         return redirect(url_for('molkky.molkky_home'))
     finally:
         cur.close()
@@ -145,7 +146,7 @@ def molkky_setup(game_id):
                     (game_id, session['user_id']))
         game = cur.fetchone()
         if not game:
-            flash("Partie non trouvée.", 'error')
+            flash(_t('molkky.error_not_found'), 'error')
             return redirect(url_for('molkky.molkky_home'))
 
         cur.execute("""
@@ -177,7 +178,7 @@ def molkky_setup(game_id):
         in_game_ids = {r['user_id'] for r in cur.fetchall()}
     except Exception as e:
         print(f"Setup page error: {e}")
-        flash("Erreur.", 'error')
+        flash(_t('molkky.error_generic_dot'), 'error')
         return redirect(url_for('molkky.molkky_home'))
     finally:
         cur.close()
@@ -197,7 +198,7 @@ def molkky_setup_action(game_id):
                     (game_id, session['user_id']))
         game = cur.fetchone()
         if not game:
-            return jsonify({'ok': False, 'error': 'Partie non trouvée'}), 404
+            return jsonify({'ok': False, 'error': _t('molkky.error_not_found')}), 404
 
         data = request.get_json() or {}
         action = data.get('action')
@@ -206,7 +207,8 @@ def molkky_setup_action(game_id):
             cur.execute("SELECT COUNT(*) as cnt FROM molkky_teams WHERE game_id = %s", (game_id,))
             count = cur.fetchone()['cnt']
             color = TEAM_COLORS[count % len(TEAM_COLORS)]
-            name = data.get('name', f'Équipe {count + 1}').strip() or f'Équipe {count + 1}'
+            default_name = _t('molkky.team_default_name', n=count + 1)
+            name = data.get('name', default_name).strip() or default_name
             cur.execute("""
                 INSERT INTO molkky_teams (game_id, name, color, score, consecutive_zeros, is_eliminated, turn_order)
                 VALUES (%s, %s, %s, 0, 0, FALSE, %s) RETURNING id, name, color, turn_order
@@ -219,7 +221,7 @@ def molkky_setup_action(game_id):
             team_id = data.get('team_id')
             name = data.get('name', '').strip()
             if not name or not team_id:
-                return jsonify({'ok': False, 'error': 'Données invalides'})
+                return jsonify({'ok': False, 'error': _t('molkky.error_invalid_data')})
             cur.execute("UPDATE molkky_teams SET name = %s WHERE id = %s AND game_id = %s",
                         (name, team_id, game_id))
             conn.commit()
@@ -242,11 +244,11 @@ def molkky_setup_action(game_id):
                 cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
                 u = cur.fetchone()
                 if not u:
-                    return jsonify({'ok': False, 'error': 'Utilisateur introuvable'})
+                    return jsonify({'ok': False, 'error': _t('molkky.error_user_not_found')})
                 cur.execute("SELECT id FROM molkky_members WHERE game_id = %s AND user_id = %s",
                             (game_id, user_id))
                 if cur.fetchone():
-                    return jsonify({'ok': False, 'error': 'Joueur déjà dans la partie'})
+                    return jsonify({'ok': False, 'error': _t('molkky.error_player_already')})
                 display_name = u['username']
                 cur.execute("""
                     INSERT INTO molkky_members (game_id, team_id, user_id, display_name)
@@ -258,7 +260,7 @@ def molkky_setup_action(game_id):
                     VALUES (%s, %s, NULL, %s, %s) RETURNING id, display_name, user_id, team_id
                 """, (game_id, team_id, guest_name, guest_name))
             else:
-                return jsonify({'ok': False, 'error': 'Aucun joueur spécifié'})
+                return jsonify({'ok': False, 'error': _t('molkky.error_no_player')})
 
             member = cur.fetchone()
             conn.commit()
@@ -284,7 +286,7 @@ def molkky_setup_action(game_id):
                             (game_id,))
                 all_members = cur.fetchall()
                 if len(all_members) < 2:
-                    return jsonify({'ok': False, 'error': 'Au moins 2 joueurs requis.'})
+                    return jsonify({'ok': False, 'error': _t('molkky.error_min_2_players')})
                 cur.execute("DELETE FROM molkky_teams WHERE game_id = %s", (game_id,))
                 cur.execute("UPDATE molkky_members SET team_id = NULL WHERE game_id = %s", (game_id,))
                 for i, member in enumerate(all_members):
@@ -308,7 +310,7 @@ def molkky_setup_action(game_id):
                 non_empty = [t for t in all_teams if t['member_count'] > 0]
                 empty_ids = [t['id'] for t in all_teams if t['member_count'] == 0]
                 if len(non_empty) < 2:
-                    return jsonify({'ok': False, 'error': 'Au moins 2 équipes avec des joueurs requis.'})
+                    return jsonify({'ok': False, 'error': _t('molkky.error_min_2_teams')})
                 for tid in empty_ids:
                     cur.execute("DELETE FROM molkky_teams WHERE id = %s", (tid,))
                 for i, t in enumerate(non_empty):
@@ -322,7 +324,7 @@ def molkky_setup_action(game_id):
             conn.commit()
             return jsonify({'ok': True, 'redirect': url_for('molkky.molkky_game', game_id=game_id)})
 
-        return jsonify({'ok': False, 'error': 'Action inconnue'}), 400
+        return jsonify({'ok': False, 'error': _t('molkky.error_unknown_action')}), 400
 
     except Exception as e:
         conn.rollback()
@@ -347,7 +349,7 @@ def molkky_game(game_id):
         """, (session['user_id'], game_id, session['user_id']))
         game = cur.fetchone()
         if not game:
-            flash("Partie non trouvée.", 'error')
+            flash(_t('molkky.error_not_found'), 'error')
             return redirect(url_for('molkky.molkky_home'))
         if game['status'] == 'setup':
             return redirect(url_for('molkky.molkky_setup', game_id=game_id))
@@ -355,7 +357,7 @@ def molkky_game(game_id):
         is_controller = (game['created_by'] == session['user_id'])
     except Exception as e:
         print(f"Game page error: {e}")
-        flash("Erreur.", 'error')
+        flash(_t('molkky.error_generic_dot'), 'error')
         return redirect(url_for('molkky.molkky_home'))
     finally:
         cur.close()
@@ -396,7 +398,7 @@ def molkky_throw(game_id):
                     (game_id, session['user_id']))
         game = cur.fetchone()
         if not game:
-            return jsonify({'ok': False, 'error': 'Non autorisé ou partie non active'}), 403
+            return jsonify({'ok': False, 'error': _t('molkky.error_not_authorized_active')}), 403
 
         data = request.get_json() or {}
         raw_pins = data.get('pins', [])
@@ -524,14 +526,14 @@ def molkky_undo(game_id):
                     (game_id, session['user_id']))
         game = cur.fetchone()
         if not game:
-            return jsonify({'ok': False, 'error': 'Non autorisé'}), 403
+            return jsonify({'ok': False, 'error': _t('molkky.error_not_authorized')}), 403
 
         cur.execute("""
             SELECT * FROM molkky_throws WHERE game_id = %s ORDER BY threw_at DESC LIMIT 1
         """, (game_id,))
         last_throw = cur.fetchone()
         if not last_throw:
-            return jsonify({'ok': False, 'error': 'Aucun lancer à annuler'})
+            return jsonify({'ok': False, 'error': _t('molkky.error_no_throw')})
 
         cur.execute("""
             UPDATE molkky_teams
@@ -570,7 +572,7 @@ def molkky_rematch(game_id):
         cur.execute("SELECT * FROM molkky_games WHERE id = %s AND created_by = %s", (game_id, session['user_id']))
         old_game = cur.fetchone()
         if not old_game:
-            flash("Partie non trouvée.", 'error')
+            flash(_t('molkky.error_not_found'), 'error')
             return redirect(url_for('molkky.molkky_home'))
 
         cur.execute("""
@@ -608,7 +610,7 @@ def molkky_rematch(game_id):
     except Exception as e:
         conn.rollback()
         print(f"Rematch error: {e}")
-        flash("Erreur lors du rematch.", 'error')
+        flash(_t('molkky.error_rematch'), 'error')
         return redirect(url_for('molkky.molkky_home'))
     finally:
         cur.close()
