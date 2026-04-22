@@ -614,6 +614,9 @@ def admin_import():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     inserted_count = 0
     updated_count = 0
+    to_update = []
+    to_insert = []
+    seen_fps = set()
 
     try:
         # Build fingerprint → id map from all existing cards
@@ -669,31 +672,62 @@ def admin_import():
             cat_id = cat_map[category_name]
             fp = _translations_fingerprint(translations)
 
-            if fp in existing:
-                # Card already exists — update metadata, translations, and replace distractors
-                fid = existing[fp]
-                cur.execute("""
-                    UPDATE flashcards
-                    SET category_id = %s, translations = %s, difficulty = %s, card_type = %s
-                    WHERE id = %s
-                """, (cat_id, json.dumps(translations), difficulty, card_type, fid))
-                cur.execute("DELETE FROM flashcard_distractors WHERE flashcard_id = %s", (fid,))
-                updated_count += 1
-            else:
-                # New card — insert
-                cur.execute("""
-                    INSERT INTO flashcards (category_id, translations, difficulty, card_type)
-                    VALUES (%s, %s, %s, %s) RETURNING id
-                """, (cat_id, json.dumps(translations), difficulty, card_type))
-                fid = cur.fetchone()['id']
-                existing[fp] = fid  # prevent duplicates within the same import batch
-                inserted_count += 1
+            if fp in seen_fps:
+                continue  # duplicate within this import batch
+            seen_fps.add(fp)
 
-            rows = [(fid, lc, d_text) for lc, dlist in distractors.items() for d_text in dlist]
-            if rows:
-                execute_values(cur,
-                    "INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text) VALUES %s",
-                    rows)
+            trans_json = json.dumps(translations)
+            if fp in existing:
+                to_update.append((existing[fp], cat_id, trans_json, difficulty, card_type, distractors))
+            else:
+                to_insert.append((cat_id, trans_json, difficulty, card_type, distractors))
+
+        # Bulk UPDATE existing cards + clear their old distractors in one shot each
+        if to_update:
+            cur.execute(
+                "DELETE FROM flashcard_distractors WHERE flashcard_id = ANY(%s)",
+                ([u[0] for u in to_update],)
+            )
+            execute_values(cur, """
+                UPDATE flashcards SET
+                    category_id = data.category_id,
+                    translations = data.translations::jsonb,
+                    difficulty = data.difficulty,
+                    card_type = data.card_type
+                FROM (VALUES %s) AS data(id, category_id, translations, difficulty, card_type)
+                WHERE flashcards.id = data.id
+            """, [(fid, cat_id, t, d, ct) for (fid, cat_id, t, d, ct, _) in to_update])
+
+        # Bulk INSERT new cards and collect the generated ids
+        new_ids = []
+        if to_insert:
+            new_ids = execute_values(cur, """
+                INSERT INTO flashcards (category_id, translations, difficulty, card_type)
+                VALUES %s RETURNING id
+            """,
+                [(cat_id, t, d, ct) for (cat_id, t, d, ct, _) in to_insert],
+                fetch=True
+            )
+
+        # Bulk INSERT every distractor (for both updated and new cards)
+        all_distractors = []
+        for (fid, _, _, _, _, dist) in to_update:
+            for lc, dlist in dist.items():
+                for d_text in dlist:
+                    all_distractors.append((fid, lc, d_text))
+        for row, (_, _, _, _, dist) in zip(new_ids, to_insert):
+            fid = row['id']
+            for lc, dlist in dist.items():
+                for d_text in dlist:
+                    all_distractors.append((fid, lc, d_text))
+        if all_distractors:
+            execute_values(cur,
+                "INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text) VALUES %s",
+                all_distractors
+            )
+
+        inserted_count = len(to_insert)
+        updated_count = len(to_update)
 
         conn.commit()
         parts = []
