@@ -49,6 +49,15 @@ def set_lang():
     lang = request.form.get('lang', '').strip()
     if lang in i18n_module.SUPPORTED_LANGS:
         session['lang'] = lang
+        if 'user_id' in session:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            try:
+                cur.execute("UPDATE users SET lang = %s WHERE id = %s", (lang, session['user_id']))
+                conn.commit()
+            finally:
+                cur.close()
+                conn.close()
     next_url = request.form.get('next') or request.referrer or url_for('dashboard')
     return redirect(next_url)
 

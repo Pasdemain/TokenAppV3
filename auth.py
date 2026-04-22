@@ -26,7 +26,7 @@ def _restore_session_from_cookie():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute(
-            "SELECT id, username, is_admin, app_name, app_icon FROM users WHERE remember_token = %s", (token,)
+            "SELECT id, username, is_admin, app_name, app_icon, lang FROM users WHERE remember_token = %s", (token,)
         )
         user = cur.fetchone()
         if user:
@@ -36,6 +36,8 @@ def _restore_session_from_cookie():
             session['is_admin'] = bool(user.get('is_admin', False))
             session['app_name'] = user.get('app_name')
             session['app_icon'] = user.get('app_icon') or '💑'
+            if user.get('lang'):
+                session['lang'] = user['lang']
             return True
     except Exception as e:
         print(f"Remember me error: {e}")
@@ -200,7 +202,7 @@ def login():
 
         try:
             cur.execute(
-                "SELECT id, username, password_hash, is_admin, app_name, app_icon FROM users WHERE username = %s",
+                "SELECT id, username, password_hash, is_admin, app_name, app_icon, lang FROM users WHERE username = %s",
                 (username,)
             )
             user = cur.fetchone()
@@ -212,6 +214,8 @@ def login():
                 session['is_admin'] = bool(user.get('is_admin', False))
                 session['app_name'] = user.get('app_name')
                 session['app_icon'] = user.get('app_icon') or '💑'
+                if user.get('lang'):
+                    session['lang'] = user['lang']
 
                 response = make_response(redirect(url_for('dashboard')))
 
