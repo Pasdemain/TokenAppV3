@@ -31,13 +31,6 @@
                 <span style="color:#9ca3af;font-size:.82rem;margin-left:.5rem;">
                     {{ p.created_at.strftime(t('scratch.date_format_long')) if p.created_at else '' }}
                 </span>
-                <div style="font-size:.82rem;color:#6b7280;margin-top:.2rem;">
-                    {{ t('scratch.proposal_scope_label') }}
-                    {% if p.scope == 'my' %}{{ t('scratch.scope_my_prizes_of', name=p.proposer_username) | safe }}
-                    {% elif p.scope == 'partner' %}{{ t('scratch.scope_your_prizes') }}
-                    {% else %}{{ t('scratch.scope_prizes_both') }}
-                    {% endif %}
-                </div>
             </div>
             <span style="border-radius:20px;padding:.2rem .8rem;font-size:.8rem;font-weight:600;
                 {% if p.status == 'pending' %}background:#eef2ff;color:var(--primary);
@@ -133,12 +126,6 @@
             <span style="color:#9ca3af;font-size:.8rem;margin-left:.5rem;">
                 {{ p.created_at.strftime(t('scratch.date_format_short')) if p.created_at else '' }}
             </span>
-            <div style="font-size:.8rem;color:#6b7280;margin-top:.15rem;">
-                {% if p.scope == 'my' %}{{ t('scratch.scope_my_only') }}
-                {% elif p.scope == 'partner' %}{{ t('scratch.scope_partner_only_label', name=p.reviewer_username) }}
-                {% else %}{{ t('scratch.scope_both_label') }}
-                {% endif %}
-            </div>
         </div>
         <span style="border-radius:20px;padding:.2rem .8rem;font-size:.8rem;font-weight:600;
             {% if p.status == 'pending' %}background:#eef2ff;color:var(--primary);

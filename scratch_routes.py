@@ -129,9 +129,8 @@ def propose_prizes():
             flash(_t('scratch.flash_no_partner_configured'), 'error')
             return redirect(url_for('scratch.manage_prizes'))
 
-        scope = request.form.get('scope', 'both')
-        if scope not in ('my', 'partner', 'both'):
-            scope = 'both'
+        # A proposal always carries both pools; the reviewer sees everything at once.
+        scope = 'both'
 
         def prizes_from_form(prefix):
             prizes = []
@@ -151,8 +150,8 @@ def propose_prizes():
                     })
             return prizes
 
-        my_prizes = prizes_from_form('my') if scope in ('my', 'both') else None
-        partner_prizes = prizes_from_form('partner') if scope in ('partner', 'both') else None
+        my_prizes = prizes_from_form('my')
+        partner_prizes = prizes_from_form('partner')
 
         # Replace any pending proposal from this proposer to this reviewer
         cur.execute("""

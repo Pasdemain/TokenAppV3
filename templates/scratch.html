@@ -79,6 +79,12 @@
             <a href="{{ url_for('scratch.manage_prizes') }}" class="btn btn-primary btn-sm">{{ t('scratch.manage_prizes_btn') }}</a>
             {% endif %}
         </div>
+        {% if pending_scratch_proposals > 0 %}
+        <div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center;margin:0 1rem 1rem;">
+            <span>{{ t('scratch.pending_proposals_banner', n=pending_scratch_proposals) | safe }}</span>
+            <a href="{{ url_for('scratch.proposals_page') }}" style="white-space:nowrap;font-weight:600;">{{ t('scratch.btn_see_arrow') }}</a>
+        </div>
+        {% endif %}
         <div style="padding:1rem;">
             <form method="POST" action="{{ url_for('scratch.set_partner') }}" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
                 <select name="partner_id" style="flex:1;min-width:160px;">
