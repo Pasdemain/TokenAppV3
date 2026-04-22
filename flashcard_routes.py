@@ -673,12 +673,6 @@ def admin_import():
                     WHERE id = %s
                 """, (cat_id, difficulty, card_type, fid))
                 cur.execute("DELETE FROM flashcard_distractors WHERE flashcard_id = %s", (fid,))
-                for lc, dlist in distractors.items():
-                    for d_text in dlist:
-                        cur.execute(
-                            "INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text) VALUES (%s, %s, %s)",
-                            (fid, lc, d_text)
-                        )
                 updated_count += 1
             else:
                 # New card — insert
@@ -687,14 +681,14 @@ def admin_import():
                     VALUES (%s, %s, %s, %s) RETURNING id
                 """, (cat_id, json.dumps(translations), difficulty, card_type))
                 fid = cur.fetchone()['id']
-                for lc, dlist in distractors.items():
-                    for d_text in dlist:
-                        cur.execute(
-                            "INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text) VALUES (%s, %s, %s)",
-                            (fid, lc, d_text)
-                        )
                 existing[fp] = fid  # prevent duplicates within the same import batch
                 inserted_count += 1
+
+            rows = [(fid, lc, d_text) for lc, dlist in distractors.items() for d_text in dlist]
+            if rows:
+                execute_values(cur,
+                    "INSERT INTO flashcard_distractors (flashcard_id, language_code, distractor_text) VALUES %s",
+                    rows)
 
         conn.commit()
         parts = []
