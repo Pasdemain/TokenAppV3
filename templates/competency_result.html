@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Test Result{% endblock %}
+{% block title %}{{ t('competency.result_page_title') }}{% endblock %}
 
 {% block content %}
 <style>
@@ -45,50 +45,50 @@
 <div class="result-container">
     <div class="text-center mb-2">
         <div style="font-size:2.5rem;margin-bottom:0.25rem;">🎓</div>
-        <h1 class="mb-1">Test Complete!</h1>
-        <p class="text-muted">{{ test.target_lang|upper }} Competency — {{ test.questions_count }} questions</p>
+        <h1 class="mb-1">{{ t('competency.result_heading') }}</h1>
+        <p class="text-muted">{{ t('competency.result_sub', lang=test.target_lang|upper, n=test.questions_count) }}</p>
     </div>
 
     <!-- Level circle -->
     <div class="level-circle" style="background:{{ ls.bg }};color:{{ ls.color }};">
         <div class="level-label">{{ test.final_level or '?' }}</div>
-        <div class="level-score">Score: {{ test.estimated_score|int }} / 799</div>
+        <div class="level-score">{{ t('competency.result_score_label', n=test.estimated_score|int) }}</div>
     </div>
 
     <!-- Level description -->
     <div class="text-center mb-3" style="font-size:0.95rem;color:#374151;">
         {% if test.final_level == 'A1' %}
-            Beginner — You understand simple, familiar words and basic phrases.
+            {{ t('competency.level_a1_desc') }}
         {% elif test.final_level == 'A2' %}
-            Elementary — You can understand sentences about everyday topics.
+            {{ t('competency.level_a2_desc') }}
         {% elif test.final_level == 'B1' %}
-            Intermediate — You understand the main points of clear standard language.
+            {{ t('competency.level_b1_desc') }}
         {% elif test.final_level == 'B2' %}
-            Upper Intermediate — You can understand complex texts and abstract topics.
+            {{ t('competency.level_b2_desc') }}
         {% endif %}
     </div>
 
     <!-- Stats -->
     <div class="card mb-3">
-        <div class="card-header"><span class="card-title">📊 Summary</span></div>
+        <div class="card-header"><span class="card-title">{{ t('competency.summary_title') }}</span></div>
         <div class="stat-row">
-            <span class="stat-label">Questions answered</span>
+            <span class="stat-label">{{ t('competency.stat_questions') }}</span>
             <span class="stat-value">{{ test.questions_count }}</span>
         </div>
         <div class="stat-row">
-            <span class="stat-label">Correct answers</span>
-            <span class="stat-value" style="color:var(--success);">{{ test.correct_count }} ({{ ((test.correct_count / test.questions_count * 100) if test.questions_count else 0)|int }}%)</span>
+            <span class="stat-label">{{ t('competency.stat_correct') }}</span>
+            <span class="stat-value" style="color:var(--success);">{{ t('competency.stat_correct_value', n=test.correct_count, pct=((test.correct_count / test.questions_count * 100) if test.questions_count else 0)|int) }}</span>
         </div>
         <div class="stat-row">
-            <span class="stat-label">Final score</span>
+            <span class="stat-label">{{ t('competency.stat_final_score') }}</span>
             <span class="stat-value">{{ test.estimated_score|int }}</span>
         </div>
     </div>
 
     <!-- Per-skill breakdown -->
     <div class="card mb-3">
-        <div class="card-header"><span class="card-title">📖🎧 Skill Breakdown</span></div>
-        {% for skill_name, label, icon, bar_color in [('reading', 'Reading', '📖', '#3b82f6'), ('listening', 'Listening', '🎧', '#8b5cf6')] %}
+        <div class="card-header"><span class="card-title">{{ t('competency.skill_breakdown_title') }}</span></div>
+        {% for skill_name, label, icon, bar_color in [('reading', t('competency.skill_reading_label'), '📖', '#3b82f6'), ('listening', t('competency.skill_listening_label'), '🎧', '#8b5cf6')] %}
         {% set s = skill_stats.get(skill_name, {}) %}
         {% set total = s.get('total', s.get('cnt', 0)) if s else 0 %}
         {% set correct = s.get('correct', 0) if s else 0 %}
@@ -108,15 +108,15 @@
     <!-- Score progression chart -->
     {% if progression %}
     <div class="card mb-3">
-        <div class="card-header"><span class="card-title">📈 Score Progression</span></div>
+        <div class="card-header"><span class="card-title">{{ t('competency.score_progression_title') }}</span></div>
         <canvas id="progressionChart" class="progression-canvas"></canvas>
     </div>
     {% endif %}
 
     <!-- Actions -->
     <div class="flex gap-1" style="justify-content:center;">
-        <a href="{{ url_for('competency.competency_home') }}" class="btn btn-primary">📝 New Test</a>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">🏠 Dashboard</a>
+        <a href="{{ url_for('competency.competency_home') }}" class="btn btn-primary">{{ t('competency.new_test_btn') }}</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">{{ t('competency.dashboard_btn') }}</a>
     </div>
 </div>
 {% endblock %}
@@ -125,6 +125,9 @@
 {% if progression %}
 <script>
 (function() {
+    const I18N = {
+        chartXLabel: {{ t('competency.chart_x_label') | tojson }}
+    };
     const canvas = document.getElementById('progressionChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -201,7 +204,7 @@
     ctx.fillStyle = '#9ca3af';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Questions', W / 2, H - 2);
+    ctx.fillText(I18N.chartXLabel, W / 2, H - 2);
 })();
 </script>
 {% endif %}

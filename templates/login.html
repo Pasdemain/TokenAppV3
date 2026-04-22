@@ -1,32 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Login - CoupleApp{% endblock %}
+{% block title %}{{ t('auth.login_page_title') }} - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width: 400px; margin: 4rem auto;">
-    <h1 class="text-center mb-3">💑 Welcome to CoupleApp!</h1>
-    <p class="text-center text-muted mb-3">Log in to manage your shared activities</p>
-    
+    <h1 class="text-center mb-3">💑 {{ t('auth.login_welcome') }}</h1>
+    <p class="text-center text-muted mb-3">{{ t('auth.login_subtitle') }}</p>
+
     <form method="POST">
         <div class="form-group">
-            <label for="username">Username</label>
+            <label for="username">{{ t('auth.username_label') }}</label>
             <input type="text" id="username" name="username" required autofocus maxlength="20">
         </div>
-        
+
         <div class="form-group">
-            <label for="password">Password</label>
+            <label for="password">{{ t('auth.password_label') }}</label>
             <input type="password" id="password" name="password" required>
         </div>
-        
+
         <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
             <input type="checkbox" id="remember_me" name="remember_me" style="width: auto; margin: 0;">
-            <label for="remember_me" style="margin: 0; font-weight: normal;">Remember me for 30 days</label>
+            <label for="remember_me" style="margin: 0; font-weight: normal;">{{ t('auth.remember_me') }}</label>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Log In</button>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">{{ t('auth.login_btn') }}</button>
     </form>
-    
+
     <div class="text-center mt-3">
-        <p class="text-muted">Don't have an account? <a href="{{ url_for('auth.register') }}" style="color: var(--primary);">Register here</a></p>
+        <p class="text-muted">{{ t('auth.no_account') }} <a href="{{ url_for('auth.register') }}" style="color: var(--primary);">{{ t('auth.register_here') }}</a></p>
     </div>
 </div>
 {% endblock %}

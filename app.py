@@ -18,6 +18,7 @@ from competency_routes import competency_bp
 from santa_routes import santa_bp
 from molkky_routes import molkky_bp
 import i18n as i18n_module
+from i18n import t as _t
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -247,7 +248,7 @@ def admin():
             conn.commit()
             cur.close()
             conn.close()
-            flash('Toutes les données ont été supprimées !', 'success')
+            flash(_t('admin.flash_all_deleted'), 'success')
             session.clear()
             return redirect(url_for('auth.login'))
 
@@ -256,7 +257,7 @@ def admin():
             feature_name = request.form.get('feature_name', '').strip()
             is_enabled = request.form.get('is_enabled') == '1'
             if not target_user_id or not feature_name:
-                flash('Données invalides.', 'error')
+                flash(_t('admin.flash_invalid_data'), 'error')
             else:
                 conn = get_db_connection()
                 cur = conn.cursor()
@@ -268,11 +269,13 @@ def admin():
                         DO UPDATE SET is_enabled = EXCLUDED.is_enabled
                     """, (target_user_id, feature_name, is_enabled))
                     conn.commit()
-                    state = 'activée' if is_enabled else 'désactivée'
-                    flash(f'Feature "{feature_name}" {state} pour l\'utilisateur.', 'success')
+                    if is_enabled:
+                        flash(_t('admin.flash_feature_enabled', feature=feature_name), 'success')
+                    else:
+                        flash(_t('admin.flash_feature_disabled', feature=feature_name), 'success')
                 except Exception as e:
                     conn.rollback()
-                    flash('Erreur lors de la mise à jour.', 'error')
+                    flash(_t('admin.flash_update_error'), 'error')
                     print(f"Toggle feature error: {e}")
                 finally:
                     cur.close()
@@ -282,7 +285,7 @@ def admin():
             feature_name = request.form.get('feature_name', '').strip()
             is_enabled = request.form.get('is_enabled') == '1'
             if not feature_name:
-                flash('Feature invalide.', 'error')
+                flash(_t('admin.flash_invalid_feature'), 'error')
             else:
                 conn = get_db_connection()
                 cur = conn.cursor()
@@ -294,11 +297,13 @@ def admin():
                         DO UPDATE SET is_enabled = EXCLUDED.is_enabled
                     """, (feature_name, is_enabled))
                     conn.commit()
-                    state = 'activée' if is_enabled else 'désactivée'
-                    flash(f'Valeur par défaut de "{feature_name}" {state}.', 'success')
+                    if is_enabled:
+                        flash(_t('admin.flash_default_enabled', feature=feature_name), 'success')
+                    else:
+                        flash(_t('admin.flash_default_disabled', feature=feature_name), 'success')
                 except Exception as e:
                     conn.rollback()
-                    flash('Erreur lors de la mise à jour.', 'error')
+                    flash(_t('admin.flash_update_error'), 'error')
                     print(f"Set feature default error: {e}")
                 finally:
                     cur.close()
@@ -308,9 +313,9 @@ def admin():
             target_username = request.form.get('target_username', '').strip()
             new_password = request.form.get('new_password', '')
             if not target_username or not new_password:
-                flash('Username and new password are required.', 'error')
+                flash(_t('admin.flash_pwd_required'), 'error')
             elif len(new_password) < 6:
-                flash('Password must be at least 6 characters.', 'error')
+                flash(_t('admin.flash_pwd_too_short'), 'error')
             else:
                 conn = get_db_connection()
                 cur = conn.cursor()
@@ -321,20 +326,20 @@ def admin():
                         (new_hash, target_username)
                     )
                     if cur.rowcount == 0:
-                        flash(f'User "{target_username}" not found.', 'error')
+                        flash(_t('admin.flash_user_not_found', username=target_username), 'error')
                     else:
                         conn.commit()
-                        flash(f'Password changed for "{target_username}"!', 'success')
+                        flash(_t('admin.flash_password_changed', username=target_username), 'success')
                 except Exception as e:
                     conn.rollback()
-                    flash('Error changing password.', 'error')
+                    flash(_t('admin.flash_pwd_change_error'), 'error')
                     print(f"Change password error: {e}")
                 finally:
                     cur.close()
                     conn.close()
 
         else:
-            flash('Action invalide !', 'error')
+            flash(_t('admin.flash_invalid_action'), 'error')
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)

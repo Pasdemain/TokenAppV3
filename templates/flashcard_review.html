@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Review - Flashcards{% endblock %}
+{% block title %}{{ t('flashcards.review_title') }}{% endblock %}
 
 {% block content %}
 <style>
@@ -223,12 +223,12 @@
             <div class="text-center">
                 {% if total_in_pair > 0 %}
                     <div style="font-size:3.5rem;margin-bottom:0.75rem;">🎉</div>
-                    <h2 class="mb-1">Session Complete!</h2>
-                    <p class="text-muted mb-3">No more cards due today. You have {{ total_in_pair }} card{{ 's' if total_in_pair > 1 }} in {{ source_lang|upper }} → {{ target_lang|upper }}.</p>
+                    <h2 class="mb-1">{{ t('flashcards.session_complete') }}</h2>
+                    <p class="text-muted mb-3">{% if total_in_pair == 1 %}{{ t('flashcards.session_complete_sub_one', n=total_in_pair, source=source_lang|upper, target=target_lang|upper) }}{% else %}{{ t('flashcards.session_complete_sub_many', n=total_in_pair, source=source_lang|upper, target=target_lang|upper) }}{% endif %}</p>
                 {% else %}
                     <div style="font-size:3.5rem;margin-bottom:0.75rem;">📚</div>
-                    <h2 class="mb-1">No cards yet!</h2>
-                    <p class="text-muted mb-3">Add cards to start learning {{ source_lang|upper }} → {{ target_lang|upper }}.</p>
+                    <h2 class="mb-1">{{ t('flashcards.no_cards_yet') }}</h2>
+                    <p class="text-muted mb-3">{{ t('flashcards.no_cards_sub', source=source_lang|upper, target=target_lang|upper) }}</p>
                 {% endif %}
             </div>
 
@@ -236,7 +236,7 @@
             {% if avail_reading or avail_listening %}
             <div class="card mb-3">
                 <div class="card-header">
-                    <span class="card-title">➕ Add more cards</span>
+                    <span class="card-title">{{ t('flashcards.add_more_title') }}</span>
                 </div>
                 {% macro cat_rows(cats, ctype) %}
                 <div style="margin-top:0.75rem;">
@@ -244,7 +244,7 @@
                     <div style="padding:0.75rem 0;{% if not loop.last %}border-bottom:1px solid var(--border);{% endif %}">
                         <div class="flex flex-between flex-center mb-1">
                             <strong>{{ cat.icon or '📁' }} {{ cat.name }}</strong>
-                            <span class="text-muted" style="font-size:0.85rem;">{{ cat.available_count }} left</span>
+                            <span class="text-muted" style="font-size:0.85rem;">{{ t('flashcards.available_count', n=cat.available_count) }}</span>
                         </div>
                         <div style="display:flex;gap:0.4rem;align-items:center;">
                             {% for diff, bg, border, col in [('beginner','#d1fae5','#a7f3d0','#065f46'),('medium','#fef3c7','#fde68a','#92400e'),('confirmed','#fee2e2','#fecaca','#991b1b')] %}
@@ -265,26 +265,26 @@
 
                 {% if avail_reading %}
                 <div style="margin-top:0.5rem;">
-                    <div style="font-weight:600;color:#6366f1;font-size:0.9rem;padding:0.25rem 0;">📖 Reading</div>
+                    <div style="font-weight:600;color:#6366f1;font-size:0.9rem;padding:0.25rem 0;">{{ t('flashcards.reading_label') }}</div>
                     {{ cat_rows(avail_reading, 'reading') }}
                 </div>
                 {% endif %}
                 {% if avail_listening %}
                 <div style="margin-top:0.75rem;{% if avail_reading %}border-top:2px solid var(--border);padding-top:0.5rem;{% endif %}">
-                    <div style="font-weight:600;color:#0891b2;font-size:0.9rem;padding:0.25rem 0;">🎧 Listening</div>
+                    <div style="font-weight:600;color:#0891b2;font-size:0.9rem;padding:0.25rem 0;">{{ t('flashcards.listening_label') }}</div>
                     {{ cat_rows(avail_listening, 'listening') }}
                 </div>
                 {% endif %}
             </div>
             {% else %}
             <div class="alert alert-info">
-                All available cards for this language pair have been added to your collection.
+                {{ t('flashcards.all_cards_added') }}
             </div>
             {% endif %}
 
             <div class="flex gap-1" style="justify-content:center;">
-                <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-primary">📊 Dashboard</a>
-                <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-secondary">🌐 Change Languages</a>
+                <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-primary">{{ t('flashcards.dashboard_btn') }}</a>
+                <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-secondary">{{ t('flashcards.change_languages_btn') }}</a>
             </div>
         </div>
     {% else %}
@@ -293,7 +293,7 @@
             <span class="text-muted" style="font-size:0.85rem;">
                 {{ source_lang|upper }} → {{ target_lang|upper }}<span id="catInfo">{% if card.category_name %} · {{ card.category_icon or '📁' }} {{ card.category_name }}{% endif %}</span>
             </span>
-            <span class="text-muted" style="font-size:0.85rem;" id="remainingCount">{{ remaining }} left</span>
+            <span class="text-muted" style="font-size:0.85rem;" id="remainingCount">{{ t('flashcards.remaining', n=remaining) }}</span>
         </div>
         <div class="session-progress">
             <div class="session-progress-bar" style="width:0%" id="progressBar"></div>
@@ -303,14 +303,14 @@
         <div class="text-center mb-2" style="display:flex;justify-content:center;gap:0.5rem;">
             {% set colors = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'] %}
             <span class="leitner-badge" id="boxBadge" style="background:{{ colors[card.leitner_box - 1] }}20;color:{{ colors[card.leitner_box - 1] }};">
-                Box {{ card.leitner_box }} / 7
+                {{ t('flashcards.box_badge', n=card.leitner_box) }}
             </span>
             {% if card.difficulty == 'beginner' %}
-            <span class="leitner-badge" id="diffBadge" style="background:#d1fae5;color:#065f46;">🟢 Beginner</span>
+            <span class="leitner-badge" id="diffBadge" style="background:#d1fae5;color:#065f46;">{{ t('flashcards.diff_beginner') }}</span>
             {% elif card.difficulty == 'confirmed' %}
-            <span class="leitner-badge" id="diffBadge" style="background:#fee2e2;color:#991b1b;">🔴 Confirmed</span>
+            <span class="leitner-badge" id="diffBadge" style="background:#fee2e2;color:#991b1b;">{{ t('flashcards.diff_confirmed') }}</span>
             {% else %}
-            <span class="leitner-badge" id="diffBadge" style="background:#fef3c7;color:#92400e;">🟡 Medium</span>
+            <span class="leitner-badge" id="diffBadge" style="background:#fef3c7;color:#92400e;">{{ t('flashcards.diff_medium') }}</span>
             {% endif %}
         </div>
 
@@ -329,7 +329,7 @@
                     {% endif %}
                     <div class="tts-controls" onclick="event.stopPropagation();">
                         <button class="tts-btn" onclick="speakFront()">🔊</button>
-                        <button class="tts-speed-btn" id="speedBtnFront" onclick="toggleSpeed()">🐢 Slow</button>
+                        <button class="tts-speed-btn" id="speedBtnFront" onclick="toggleSpeed()">{{ t('flashcards.speed_slow') }}</button>
                     </div>
                 </div>
                 <div class="flip-face flip-back">
@@ -339,7 +339,7 @@
                     <div class="flip-word" id="backWord"></div>
                     <div class="tts-controls" onclick="event.stopPropagation();">
                         <button class="tts-btn" onclick="speakBack()">🔊</button>
-                        <button class="tts-speed-btn" id="speedBtnBack" onclick="toggleSpeed()">🐢 Slow</button>
+                        <button class="tts-speed-btn" id="speedBtnBack" onclick="toggleSpeed()">{{ t('flashcards.speed_slow') }}</button>
                     </div>
                 </div>
             </div>
@@ -350,13 +350,13 @@
             <div class="listening-card">
                 <div class="listening-lang">
                     {{ lang_info.get(target_lang, {}).get('flag_emoji', '') }} {{ target_lang|upper }}
-                    <span style="font-size:0.8rem;opacity:0.7;margin-left:0.5rem;">🎧 Listening</span>
+                    <span style="font-size:0.8rem;opacity:0.7;margin-left:0.5rem;">{{ t('flashcards.listening_badge') }}</span>
                 </div>
                 <button class="big-play-btn" id="playBtn" onclick="speakFront()">🔊</button>
                 <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem;">
-                    <button class="tts-speed-btn" id="speedBtnListen" onclick="toggleSpeed()">🐢 Slow</button>
+                    <button class="tts-speed-btn" id="speedBtnListen" onclick="toggleSpeed()">{{ t('flashcards.speed_slow') }}</button>
                 </div>
-                <div class="listening-hint">Tap to listen · you can replay anytime</div>
+                <div class="listening-hint">{{ t('flashcards.listen_hint') }}</div>
                 <!-- Revealed text shown after answer -->
                 <div id="listenReveal" style="display:none;margin-top:1rem;padding:0.75rem 1rem;background:rgba(255,255,255,0.9);border-radius:10px;color:#1e3a5f;font-weight:600;font-size:1.05rem;"></div>
             </div>
@@ -364,24 +364,24 @@
 
         <!-- Report button -->
         <div style="display:flex;justify-content:flex-start;max-width:420px;margin:-0.5rem auto 0.75rem;">
-            <button class="report-toggle-btn" id="reportToggleBtn" onclick="toggleReport()">🚩 Report</button>
+            <button class="report-toggle-btn" id="reportToggleBtn" onclick="toggleReport()">{{ t('flashcards.report_btn') }}</button>
         </div>
 
         <!-- Report form -->
         <div id="reportForm" style="display:none;max-width:420px;margin:0 auto 1rem;">
             <div style="background:var(--light);border-radius:10px;padding:1rem;">
-                <label style="font-size:0.85rem;font-weight:600;margin-bottom:0.4rem;">What's wrong with this card?</label>
-                <textarea id="reportComment" rows="2" placeholder="e.g. Wrong translation, bad distractors..." style="font-size:0.9rem;margin-bottom:0.5rem;"></textarea>
+                <label style="font-size:0.85rem;font-weight:600;margin-bottom:0.4rem;">{{ t('flashcards.report_prompt') }}</label>
+                <textarea id="reportComment" rows="2" placeholder="{{ t('flashcards.report_placeholder') }}" style="font-size:0.9rem;margin-bottom:0.5rem;"></textarea>
                 <div style="display:flex;gap:0.5rem;">
-                    <button class="btn btn-sm btn-danger" onclick="submitReport()">Send Report</button>
-                    <button class="btn btn-sm btn-secondary" onclick="toggleReport()">Cancel</button>
+                    <button class="btn btn-sm btn-danger" onclick="submitReport()">{{ t('flashcards.send_report_btn') }}</button>
+                    <button class="btn btn-sm btn-secondary" onclick="toggleReport()">{{ t('flashcards.cancel_btn') }}</button>
                 </div>
                 <div id="reportFeedback" style="display:none;margin-top:0.5rem;font-size:0.85rem;"></div>
             </div>
         </div>
 
         <p class="text-center text-muted mb-2" style="font-size:0.85rem;" id="cardHint">
-            {% if card_type == 'listening' %}Listen, then choose the correct translation:{% else %}Tap the card to flip, then choose your answer:{% endif %}
+            {% if card_type == 'listening' %}{{ t('flashcards.hint_listening') }}{% else %}{{ t('flashcards.hint_reading') }}{% endif %}
         </p>
 
         <!-- Answer options -->
@@ -398,7 +398,7 @@
             <div id="resultIcon" style="font-size:3rem;margin-bottom:0.5rem;"></div>
             <div id="resultText" style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;"></div>
             <div id="resultDetail" class="text-muted" style="font-size:0.9rem;margin-bottom:1rem;"></div>
-            <button class="btn btn-primary" onclick="nextCard()">Next Card →</button>
+            <button class="btn btn-primary" onclick="nextCard()">{{ t('flashcards.next_card_btn') }}</button>
         </div>
 
         <input type="hidden" id="userFlashcardId" value="{{ card.user_flashcard_id }}">
@@ -414,6 +414,26 @@
 {% block scripts %}
 {% if card %}
 <script>
+    // i18n strings injected from the server
+    const I18N = {
+        speedSlow:      {{ t('flashcards.speed_slow') | tojson }},
+        speedSlowOn:    {{ t('flashcards.speed_slow_on') | tojson }},
+        hintListening:  {{ t('flashcards.hint_listening') | tojson }},
+        hintReading:    {{ t('flashcards.hint_reading') | tojson }},
+        correct:        {{ t('flashcards.correct') | tojson }},
+        wrongAnswer:    {{ t('flashcards.wrong_answer', answer='__ANSWER__') | tojson }},
+        movedToBox:     {{ t('flashcards.moved_to_box', box='__BOX__', date='__DATE__') | tojson }},
+        backToBox1:     {{ t('flashcards.back_to_box_1', date='__DATE__') | tojson }},
+        reportComment:  {{ t('flashcards.report_please_comment') | tojson }},
+        reportSent:     {{ t('flashcards.report_sent') | tojson }},
+        reportError:    {{ t('flashcards.report_error') | tojson }},
+        boxBadge:       {{ t('flashcards.box_badge', n='__N__') | tojson }},
+        diffBeginner:   {{ t('flashcards.diff_beginner') | tojson }},
+        diffMedium:     {{ t('flashcards.diff_medium') | tojson }},
+        diffConfirmed:  {{ t('flashcards.diff_confirmed') | tojson }},
+        remaining:      {{ t('flashcards.remaining', n='__N__') | tojson }}
+    };
+
     const LANG_MAP = {
         'en': 'en-US', 'fr': 'fr-FR', 'es': 'es-ES', 'de': 'de-DE',
         'it': 'it-IT', 'pt': 'pt-BR', 'nl': 'nl-NL', 'ja': 'ja-JP',
@@ -427,9 +447,9 @@
     const TARGET_LANG = '{{ target_lang }}';
     const BOX_COLORS = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'];
     const DIFF_MAP = {
-        'beginner':  {label: '🟢 Beginner',  bg: '#d1fae5', color: '#065f46'},
-        'medium':    {label: '🟡 Medium',     bg: '#fef3c7', color: '#92400e'},
-        'confirmed': {label: '🔴 Confirmed',  bg: '#fee2e2', color: '#991b1b'}
+        'beginner':  {label: I18N.diffBeginner,  bg: '#d1fae5', color: '#065f46'},
+        'medium':    {label: I18N.diffMedium,    bg: '#fef3c7', color: '#92400e'},
+        'confirmed': {label: I18N.diffConfirmed, bg: '#fee2e2', color: '#991b1b'}
     };
 
     let answered       = false;
@@ -463,7 +483,7 @@
         slowMode = !slowMode;
         document.querySelectorAll('.tts-speed-btn').forEach(btn => {
             btn.classList.toggle('active', slowMode);
-            btn.textContent = slowMode ? '🐢 Slow ON' : '🐢 Slow';
+            btn.textContent = slowMode ? I18N.speedSlowOn : I18N.speedSlow;
         });
     }
 
@@ -489,8 +509,8 @@
         document.getElementById('flipContainer').style.display      = isListening ? 'none'  : 'block';
         document.getElementById('listeningContainer').style.display = isListening ? 'block' : 'none';
         document.getElementById('cardHint').textContent = isListening
-            ? 'Listen, then choose the correct translation:'
-            : 'Tap the card to flip, then choose your answer:';
+            ? I18N.hintListening
+            : I18N.hintReading;
     }
 
     // ── Initial render ────────────────────────────────────────────────────────
@@ -544,11 +564,13 @@
             const overlay = document.getElementById('resultOverlay');
             document.getElementById('resultIcon').textContent = data.correct ? '✅' : '❌';
             const txt = document.getElementById('resultText');
-            txt.textContent = data.correct ? 'Correct!' : `The answer was: ${data.correct_answer}`;
+            txt.textContent = data.correct
+                ? I18N.correct
+                : I18N.wrongAnswer.replace('__ANSWER__', data.correct_answer);
             txt.style.color = data.correct ? 'var(--success)' : 'var(--danger)';
-            document.getElementById('resultDetail').textContent =
-                data.correct ? `Moved to Box ${data.new_box}. Next review: ${data.next_review}`
-                             : `Back to Box 1. Next review: ${data.next_review}`;
+            document.getElementById('resultDetail').textContent = data.correct
+                ? I18N.movedToBox.replace('__BOX__', data.new_box).replace('__DATE__', data.next_review)
+                : I18N.backToBox1.replace('__DATE__', data.next_review);
             overlay.classList.add('show');
         });
     }
@@ -596,7 +618,7 @@
                 const c = BOX_COLORS[data.leitner_box - 1];
                 boxBadge.style.background = c + '20';
                 boxBadge.style.color = c;
-                boxBadge.textContent = `Box ${data.leitner_box} / 7`;
+                boxBadge.textContent = I18N.boxBadge.replace('__N__', data.leitner_box);
             }
 
             // Difficulty badge
@@ -611,7 +633,7 @@
             // Category + remaining
             const catInfo = document.getElementById('catInfo');
             if (catInfo) catInfo.textContent = data.category_name ? ` · ${data.category_icon || '📁'} ${data.category_name}` : '';
-            document.getElementById('remainingCount').textContent = `${data.remaining} left`;
+            document.getElementById('remainingCount').textContent = I18N.remaining.replace('__N__', data.remaining);
 
             // Rebuild options
             const grid = document.getElementById('optionsGrid');
@@ -649,7 +671,7 @@
             const fb = document.getElementById('reportFeedback');
             fb.style.display = 'block';
             fb.style.color = 'var(--danger)';
-            fb.textContent = 'Please enter a comment.';
+            fb.textContent = I18N.reportComment;
             return;
         }
         fetch('/flashcards/report', {
@@ -663,12 +685,12 @@
             fb.style.display = 'block';
             if (data.ok) {
                 fb.style.color = 'var(--success)';
-                fb.textContent = 'Report sent! Thank you.';
+                fb.textContent = I18N.reportSent;
                 document.getElementById('reportComment').value = '';
                 setTimeout(() => toggleReport(), 1500);
             } else {
                 fb.style.color = 'var(--danger)';
-                fb.textContent = data.error || 'Error sending report.';
+                fb.textContent = data.error || I18N.reportError;
             }
         });
     }

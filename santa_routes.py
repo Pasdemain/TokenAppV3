@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from database import get_db_connection
 from psycopg2.extras import RealDictCursor
 from auth import feature_required
+from i18n import t as _t
 
 santa_bp = Blueprint('santa', __name__)
 
@@ -66,9 +67,9 @@ def create_santa():
         member_ids = request.form.getlist('members')
 
         if not name:
-            flash('Group name is required!', 'error')
+            flash(_t('santa.flash_name_required'), 'error')
         elif len(name) > 100:
-            flash('Group name must be 100 characters or less!', 'error')
+            flash(_t('santa.flash_name_too_long'), 'error')
         else:
             try:
                 # Create group
@@ -102,12 +103,12 @@ def create_santa():
                     added.add(mid_int)
 
                 conn.commit()
-                flash(f'Secret Santa group "{name}" created!', 'success')
+                flash(_t('santa.flash_group_created', name=name), 'success')
                 return redirect(url_for('santa.santa_detail', group_id=group_id))
 
             except Exception as e:
                 conn.rollback()
-                flash('An error occurred while creating the group.', 'error')
+                flash(_t('santa.flash_create_error'), 'error')
                 print(f"Santa create error: {e}")
 
     # Get all other users for selection
@@ -135,14 +136,14 @@ def santa_detail(group_id):
     if not group:
         cur.close()
         conn.close()
-        flash('Group not found!', 'error')
+        flash(_t('santa.flash_group_not_found'), 'error')
         return redirect(url_for('santa.santa_home'))
 
     # Must be a member (creator is always a member)
     if not _user_is_member(cur, group_id, session['user_id']):
         cur.close()
         conn.close()
-        flash('You are not a member of this group!', 'error')
+        flash(_t('santa.flash_not_member'), 'error')
         return redirect(url_for('santa.santa_home'))
 
     # All members of the group
@@ -214,7 +215,7 @@ def update_wishlist(group_id):
 
     try:
         if not _user_is_member(cur, group_id, session['user_id']):
-            flash('You are not a member of this group!', 'error')
+            flash(_t('santa.flash_not_member'), 'error')
         else:
             cur.execute("""
                 UPDATE santa_members
@@ -222,10 +223,10 @@ def update_wishlist(group_id):
                 WHERE group_id = %s AND user_id = %s
             """, (wishlist or None, group_id, session['user_id']))
             conn.commit()
-            flash('Wishlist updated!', 'success')
+            flash(_t('santa.flash_wishlist_updated'), 'success')
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while updating your wishlist.', 'error')
+        flash(_t('santa.flash_wishlist_error'), 'error')
         print(f"Santa wishlist error: {e}")
     finally:
         cur.close()
@@ -245,13 +246,13 @@ def add_member(group_id):
     try:
         group = _fetch_group(cur, group_id)
         if not group:
-            flash('Group not found!', 'error')
+            flash(_t('santa.flash_group_not_found'), 'error')
         elif group['creator_id'] != session['user_id']:
-            flash('Only the creator can add members!', 'error')
+            flash(_t('santa.flash_only_creator_add'), 'error')
         elif group['status'] != 'open':
-            flash('Cannot add members after the draw!', 'warning')
+            flash(_t('santa.flash_no_add_after_draw'), 'warning')
         elif not new_user_id:
-            flash('Please select a user to add.', 'error')
+            flash(_t('santa.flash_select_user'), 'error')
         else:
             cur.execute("""
                 INSERT INTO santa_members (group_id, user_id)
@@ -259,10 +260,10 @@ def add_member(group_id):
                 ON CONFLICT (group_id, user_id) DO NOTHING
             """, (group_id, new_user_id))
             conn.commit()
-            flash('Member added!', 'success')
+            flash(_t('santa.flash_member_added'), 'success')
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while adding the member.', 'error')
+        flash(_t('santa.flash_add_member_error'), 'error')
         print(f"Santa add_member error: {e}")
     finally:
         cur.close()
@@ -280,23 +281,23 @@ def remove_member(group_id, user_id):
     try:
         group = _fetch_group(cur, group_id)
         if not group:
-            flash('Group not found!', 'error')
+            flash(_t('santa.flash_group_not_found'), 'error')
         elif group['creator_id'] != session['user_id']:
-            flash('Only the creator can remove members!', 'error')
+            flash(_t('santa.flash_only_creator_remove'), 'error')
         elif group['status'] != 'open':
-            flash('Cannot remove members after the draw!', 'warning')
+            flash(_t('santa.flash_no_remove_after_draw'), 'warning')
         elif user_id == group['creator_id']:
-            flash('The creator cannot be removed from the group.', 'warning')
+            flash(_t('santa.flash_creator_not_removable'), 'warning')
         else:
             cur.execute("""
                 DELETE FROM santa_members
                 WHERE group_id = %s AND user_id = %s
             """, (group_id, user_id))
             conn.commit()
-            flash('Member removed.', 'info')
+            flash(_t('santa.flash_member_removed'), 'info')
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while removing the member.', 'error')
+        flash(_t('santa.flash_remove_member_error'), 'error')
         print(f"Santa remove_member error: {e}")
     finally:
         cur.close()
@@ -314,15 +315,15 @@ def draw_santa(group_id):
     try:
         group = _fetch_group(cur, group_id)
         if not group:
-            flash('Group not found!', 'error')
+            flash(_t('santa.flash_group_not_found'), 'error')
             return redirect(url_for('santa.santa_home'))
 
         if group['creator_id'] != session['user_id']:
-            flash('Only the creator can trigger the draw!', 'error')
+            flash(_t('santa.flash_only_creator_draw'), 'error')
             return redirect(url_for('santa.santa_detail', group_id=group_id))
 
         if group['status'] != 'open':
-            flash('This group has already been drawn!', 'warning')
+            flash(_t('santa.flash_already_drawn'), 'warning')
             return redirect(url_for('santa.santa_detail', group_id=group_id))
 
         cur.execute("""
@@ -334,7 +335,7 @@ def draw_santa(group_id):
 
         if len(member_ids) < MIN_MEMBERS_FOR_DRAW:
             flash(
-                f'You need at least {MIN_MEMBERS_FOR_DRAW} members to draw!',
+                _t('santa.flash_need_min_members', n=MIN_MEMBERS_FOR_DRAW),
                 'warning'
             )
             return redirect(url_for('santa.santa_detail', group_id=group_id))
@@ -359,11 +360,11 @@ def draw_santa(group_id):
             WHERE id = %s
         """, (group_id,))
         conn.commit()
-        flash('🎅 The draw has been made! Check who you got!', 'success')
+        flash(_t('santa.flash_draw_done'), 'success')
 
     except Exception as e:
         conn.rollback()
-        flash('An error occurred during the draw.', 'error')
+        flash(_t('santa.flash_draw_error'), 'error')
         print(f"Santa draw error: {e}")
     finally:
         cur.close()
@@ -381,16 +382,16 @@ def delete_santa(group_id):
     try:
         group = _fetch_group(cur, group_id)
         if not group:
-            flash('Group not found!', 'error')
+            flash(_t('santa.flash_group_not_found'), 'error')
         elif group['creator_id'] != session['user_id']:
-            flash('Only the creator can delete this group!', 'error')
+            flash(_t('santa.flash_only_creator_delete'), 'error')
         else:
             cur.execute("DELETE FROM santa_groups WHERE id = %s", (group_id,))
             conn.commit()
-            flash(f'Group "{group["name"]}" deleted.', 'info')
+            flash(_t('santa.flash_group_deleted', name=group["name"]), 'info')
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while deleting the group.', 'error')
+        flash(_t('santa.flash_delete_error'), 'error')
         print(f"Santa delete error: {e}")
     finally:
         cur.close()

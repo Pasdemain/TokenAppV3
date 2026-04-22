@@ -1,25 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Propositions de prix — Scratch{% endblock %}
+{% block title %}{{ t('scratch.proposals_page_title') }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width:720px;margin:2rem auto;">
 
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;">
-        <h1 style="font-size:1.4rem;">📋 Propositions de prix</h1>
-        <a href="{{ url_for('scratch.manage_prizes') }}" class="btn btn-secondary btn-sm">← Gérer les prix</a>
+        <h1 style="font-size:1.4rem;">{{ t('scratch.proposals_heading') }}</h1>
+        <a href="{{ url_for('scratch.manage_prizes') }}" class="btn btn-secondary btn-sm">{{ t('scratch.btn_manage_prizes_link') }}</a>
     </div>
 
     <!-- ── Incoming ─────────────────────────────────────────────────────── -->
     <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;">
-        <h2 style="font-size:1rem;margin:0;">📥 Reçues</h2>
+        <h2 style="font-size:1rem;margin:0;">{{ t('scratch.incoming_heading') }}</h2>
         {% set pending_count = incoming | selectattr('status', 'equalto', 'pending') | list | length %}
         {% if pending_count > 0 %}
-        <span style="background:var(--danger);color:#fff;border-radius:20px;padding:.15rem .65rem;font-size:.78rem;font-weight:700;">{{ pending_count }} en attente</span>
+        <span style="background:var(--danger);color:#fff;border-radius:20px;padding:.15rem .65rem;font-size:.78rem;font-weight:700;">{{ t('scratch.badge_pending_count', n=pending_count) }}</span>
         {% endif %}
     </div>
 
     {% if not incoming %}
-    <p style="color:#9ca3af;font-size:.9rem;margin-bottom:2rem;">Aucune proposition reçue.</p>
+    <p style="color:#9ca3af;font-size:.9rem;margin-bottom:2rem;">{{ t('scratch.empty_incoming') }}</p>
     {% else %}
     {% for p in incoming %}
     <div style="border:2px solid {% if p.status == 'pending' %}var(--primary){% elif p.status == 'accepted' %}var(--success){% else %}var(--border){% endif %};border-radius:12px;padding:1.25rem;margin-bottom:1rem;">
@@ -29,13 +29,13 @@
             <div>
                 <strong>{{ p.proposer_username }}</strong>
                 <span style="color:#9ca3af;font-size:.82rem;margin-left:.5rem;">
-                    {{ p.created_at.strftime('%d/%m/%Y à %H:%M') if p.created_at else '' }}
+                    {{ p.created_at.strftime(t('scratch.date_format_long')) if p.created_at else '' }}
                 </span>
                 <div style="font-size:.82rem;color:#6b7280;margin-top:.2rem;">
-                    Portée :
-                    {% if p.scope == 'my' %}prix de <strong>{{ p.proposer_username }}</strong>
-                    {% elif p.scope == 'partner' %}vos prix
-                    {% else %}prix des deux
+                    {{ t('scratch.proposal_scope_label') }}
+                    {% if p.scope == 'my' %}{{ t('scratch.scope_my_prizes_of', name=p.proposer_username) | safe }}
+                    {% elif p.scope == 'partner' %}{{ t('scratch.scope_your_prizes') }}
+                    {% else %}{{ t('scratch.scope_prizes_both') }}
                     {% endif %}
                 </div>
             </div>
@@ -43,9 +43,9 @@
                 {% if p.status == 'pending' %}background:#eef2ff;color:var(--primary);
                 {% elif p.status == 'accepted' %}background:#d1fae5;color:#059669;
                 {% else %}background:#f3f4f6;color:#6b7280;{% endif %}">
-                {% if p.status == 'pending' %}⏳ En attente
-                {% elif p.status == 'accepted' %}✓ Acceptée
-                {% else %}✗ Refusée{% endif %}
+                {% if p.status == 'pending' %}{{ t('scratch.status_pending') }}
+                {% elif p.status == 'accepted' %}{{ t('scratch.status_accepted') }}
+                {% else %}{{ t('scratch.status_rejected') }}{% endif %}
             </span>
         </div>
 
@@ -53,7 +53,7 @@
         {% if p.my_prizes_grouped %}
         <div style="background:#f9fafb;border-radius:8px;padding:.85rem;margin-bottom:.75rem;">
             <p style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:.6rem;">
-                Prix proposés pour {{ p.proposer_username }} :
+                {{ t('scratch.proposed_for_label', name=p.proposer_username) }}
             </p>
             {% if p.my_prizes_grouped %}
             {% for g, items in p.my_prizes_grouped.items() %}
@@ -69,7 +69,7 @@
             </div>
             {% endfor %}
             {% else %}
-            <p style="color:#9ca3af;font-size:.85rem;">Tous les groupes vides.</p>
+            <p style="color:#9ca3af;font-size:.85rem;">{{ t('scratch.all_groups_empty') }}</p>
             {% endif %}
         </div>
         {% endif %}
@@ -78,7 +78,7 @@
         {% if p.partner_prizes_grouped %}
         <div style="background:#f9fafb;border-radius:8px;padding:.85rem;margin-bottom:.75rem;">
             <p style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:.6rem;">
-                Vos prix proposés :
+                {{ t('scratch.your_proposed_prizes_label') }}
             </p>
             {% if p.partner_prizes_grouped %}
             {% for g, items in p.partner_prizes_grouped.items() %}
@@ -94,7 +94,7 @@
             </div>
             {% endfor %}
             {% else %}
-            <p style="color:#9ca3af;font-size:.85rem;">Tous les groupes vides.</p>
+            <p style="color:#9ca3af;font-size:.85rem;">{{ t('scratch.all_groups_empty') }}</p>
             {% endif %}
         </div>
         {% endif %}
@@ -104,16 +104,16 @@
         <div style="display:flex;gap:.75rem;margin-top:1rem;">
             <form method="POST" action="{{ url_for('scratch.review_proposal', proposal_id=p.id) }}" style="flex:1;">
                 <input type="hidden" name="action" value="reject">
-                <button type="submit" class="btn btn-secondary" style="width:100%;">✗ Refuser</button>
+                <button type="submit" class="btn btn-secondary" style="width:100%;">{{ t('scratch.btn_reject') }}</button>
             </form>
             <form method="POST" action="{{ url_for('scratch.review_proposal', proposal_id=p.id) }}" style="flex:2;">
                 <input type="hidden" name="action" value="accept">
-                <button type="submit" class="btn btn-success" style="width:100%;font-weight:600;">✓ Accepter et appliquer</button>
+                <button type="submit" class="btn btn-success" style="width:100%;font-weight:600;">{{ t('scratch.btn_accept_apply') }}</button>
             </form>
         </div>
         {% elif p.reviewed_at %}
         <p style="font-size:.8rem;color:#9ca3af;margin-top:.5rem;">
-            Traitée le {{ p.reviewed_at.strftime('%d/%m/%Y à %H:%M') }}
+            {{ t('scratch.processed_on', date=p.reviewed_at.strftime(t('scratch.date_format_long'))) }}
         </p>
         {% endif %}
     </div>
@@ -121,22 +121,22 @@
     {% endif %}
 
     <!-- ── Outgoing ──────────────────────────────────────────────────────── -->
-    <h2 style="font-size:1rem;margin-bottom:1rem;margin-top:2rem;">📤 Envoyées</h2>
+    <h2 style="font-size:1rem;margin-bottom:1rem;margin-top:2rem;">{{ t('scratch.outgoing_heading') }}</h2>
 
     {% if not outgoing %}
-    <p style="color:#9ca3af;font-size:.9rem;">Aucune proposition envoyée.</p>
+    <p style="color:#9ca3af;font-size:.9rem;">{{ t('scratch.empty_outgoing') }}</p>
     {% else %}
     {% for p in outgoing %}
     <div style="border:1px solid var(--border);border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.65rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;">
         <div>
-            <strong style="font-size:.9rem;">Pour : {{ p.reviewer_username }}</strong>
+            <strong style="font-size:.9rem;">{{ t('scratch.outgoing_for_label', name=p.reviewer_username) }}</strong>
             <span style="color:#9ca3af;font-size:.8rem;margin-left:.5rem;">
-                {{ p.created_at.strftime('%d/%m/%Y %H:%M') if p.created_at else '' }}
+                {{ p.created_at.strftime(t('scratch.date_format_short')) if p.created_at else '' }}
             </span>
             <div style="font-size:.8rem;color:#6b7280;margin-top:.15rem;">
-                {% if p.scope == 'my' %}Mes prix seulement
-                {% elif p.scope == 'partner' %}Prix de {{ p.reviewer_username }} seulement
-                {% else %}Prix des deux
+                {% if p.scope == 'my' %}{{ t('scratch.scope_my_only') }}
+                {% elif p.scope == 'partner' %}{{ t('scratch.scope_partner_only_label', name=p.reviewer_username) }}
+                {% else %}{{ t('scratch.scope_both_label') }}
                 {% endif %}
             </div>
         </div>
@@ -144,9 +144,9 @@
             {% if p.status == 'pending' %}background:#eef2ff;color:var(--primary);
             {% elif p.status == 'accepted' %}background:#d1fae5;color:#059669;
             {% else %}background:#f3f4f6;color:#6b7280;{% endif %}">
-            {% if p.status == 'pending' %}⏳ En attente
-            {% elif p.status == 'accepted' %}✓ Acceptée
-            {% else %}✗ Refusée{% endif %}
+            {% if p.status == 'pending' %}{{ t('scratch.status_pending') }}
+            {% elif p.status == 'accepted' %}{{ t('scratch.status_accepted') }}
+            {% else %}{{ t('scratch.status_rejected') }}{% endif %}
         </span>
     </div>
     {% endfor %}

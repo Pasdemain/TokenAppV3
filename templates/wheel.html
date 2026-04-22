@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Country Wheel - CoupleApp{% endblock %}
+{% block title %}{{ t('wheel.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width: 640px; margin: 2rem auto;">
-    <h1 class="mb-1" style="text-align:center;">🌍 Country Wheel</h1>
-    <p class="text-muted mb-3" style="text-align:center;">Spin the wheel to discover your next destination!</p>
+    <h1 class="mb-1" style="text-align:center;">{{ t('wheel.title') }}</h1>
+    <p class="text-muted mb-3" style="text-align:center;">{{ t('wheel.subtitle') }}</p>
 
     {% if not countries %}
     <div class="alert alert-warning mb-3">
-        ⚠️ Tu n'as pas encore de pays. Sélectionnes-en ci-dessous et clique sur Enregistrer !
+        {{ t('wheel.no_countries_yet') }}
     </div>
     {% else %}
 
@@ -23,7 +23,7 @@
 
     <div style="text-align:center; margin-bottom: 1.5rem;">
         <button id="spinBtn" class="btn btn-primary" style="font-size: 1.2rem; padding: 0.85rem 3rem;">
-            🎰 Spin!
+            {{ t('wheel.spin_btn') }}
         </button>
     </div>
 
@@ -36,14 +36,14 @@
     <!-- ── Country Manager ────────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header" style="flex-wrap:wrap;gap:0.5rem;">
-            <span class="card-title">🗺️ Mes pays</span>
+            <span class="card-title">{{ t('wheel.my_countries') }}</span>
             <div style="display:flex;gap:0.5rem;align-items:center;">
                 <span id="selCount" class="badge badge-primary">{{ countries|length }}</span>
-                <button id="clearAllBtn" class="btn btn-sm btn-danger" title="Tout supprimer" style="display:{% if countries %}inline-block{% else %}none{% endif %};">
-                    🗑️ Tout supprimer
+                <button id="clearAllBtn" class="btn btn-sm btn-danger" title="{{ t('wheel.delete_all_title') }}" style="display:{% if countries %}inline-block{% else %}none{% endif %};">
+                    {{ t('wheel.delete_all_btn') }}
                 </button>
                 <button id="saveBtn" class="btn btn-sm btn-success" disabled>
-                    💾 Enregistrer
+                    {{ t('wheel.save_btn') }}
                 </button>
             </div>
         </div>
@@ -56,14 +56,14 @@
 
             <!-- Search + grid -->
             <input type="text" id="countrySearch"
-                   placeholder="🔍 Rechercher un pays…"
+                   placeholder="{{ t('wheel.search_placeholder') }}"
                    style="width:100%;margin-bottom:0.6rem;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);font-size:0.95rem;">
             <div id="countryGrid"
                  style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:0.4rem;max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:0.6rem;">
             </div>
 
             <!-- Save status -->
-            <p id="saveMsg" style="display:none;font-size:0.85rem;color:var(--success);margin-top:0.5rem;">✅ Modifications enregistrées !</p>
+            <p id="saveMsg" style="display:none;font-size:0.85rem;color:var(--success);margin-top:0.5rem;">{{ t('wheel.saved') }}</p>
         </div>
     </div>
 
@@ -71,16 +71,16 @@
     {% if other_users %}
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">📥 Importer la sélection d'un autre utilisateur</span>
+            <span class="card-title">{{ t('wheel.import_title') }}</span>
         </div>
         <div style="padding: 1rem;">
-            <p class="text-muted mb-2" style="font-size:0.9rem;">Remplace ta sélection actuelle par celle d'un autre utilisateur.</p>
+            <p class="text-muted mb-2" style="font-size:0.9rem;">{{ t('wheel.import_hint') }}</p>
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
                 {% for u in other_users %}
                 <form method="POST" action="{{ url_for('wheel.import_countries', source_user_id=u.id) }}"
-                      onsubmit="return confirm('Remplacer ta sélection par celle de {{ u.username }} ?')">
+                      onsubmit="return confirm({{ t('wheel.confirm_replace', username=u.username) | tojson }})">
                     <button type="submit" class="btn btn-secondary btn-sm">
-                        📥 Copier {{ u.username }}
+                        {{ t('wheel.import_copy_btn', username=u.username) }}
                     </button>
                 </form>
                 {% endfor %}
@@ -94,6 +94,21 @@
 {% block scripts %}
 <script>
 (function() {
+    // i18n strings injected from the server so popups/prompts stay in the user's language
+    const I18N = {
+        noCountrySelected: {{ t('wheel.no_country_selected') | tojson }},
+        saving:            {{ t('wheel.saving') | tojson }},
+        saveBtn:           {{ t('wheel.save_btn') | tojson }},
+        saveError:         {{ t('wheel.save_error') | tojson }},
+        networkError:      {{ t('wheel.network_error') | tojson }},
+        confirmClearAll:   {{ t('wheel.confirm_clear_all') | tojson }},
+        spinBtn:           {{ t('wheel.spin_btn') | tojson }},
+        spinAgain:         {{ t('wheel.spin_again') | tojson }},
+        spinning:          {{ t('wheel.spinning') | tojson }},
+        destinationSet:    {{ t('wheel.destination_set') | tojson }},
+        errorGeneric:      {{ t('wheel.error_generic', msg='__MSG__') | tojson }}
+    };
+
     // ── State ──────────────────────────────────────────────────────
     const INITIAL = {{ countries | tojson }};
     // selection: Map of name -> {name, flag}
@@ -112,7 +127,7 @@
     function renderChips() {
         chipsContainer.innerHTML = '';
         if (selection.size === 0) {
-            chipsContainer.innerHTML = '<span class="text-muted" style="font-size:0.9rem;">Aucun pays sélectionné.</span>';
+            chipsContainer.innerHTML = '<span class="text-muted" style="font-size:0.9rem;">' + I18N.noCountrySelected + '</span>';
         }
         selection.forEach(({name, flag}) => {
             const btn = document.createElement('button');
@@ -149,7 +164,7 @@
     // ── Save ───────────────────────────────────────────────────────
     saveBtn.addEventListener('click', () => {
         saveBtn.disabled = true;
-        saveBtn.textContent = '⏳ Enregistrement…';
+        saveBtn.textContent = I18N.saving;
         const payload = Array.from(selection.values());
         fetch('/wheel/countries/save', {
             method: 'POST',
@@ -160,25 +175,25 @@
         .then(data => {
             if (data.ok) {
                 dirty = false;
-                saveBtn.textContent = '💾 Enregistrer';
+                saveBtn.textContent = I18N.saveBtn;
                 saveMsg.style.display = 'block';
                 setTimeout(() => location.reload(), 800);
             } else {
                 saveBtn.disabled = false;
-                saveBtn.textContent = '💾 Enregistrer';
-                alert('Erreur lors de l\'enregistrement.');
+                saveBtn.textContent = I18N.saveBtn;
+                alert(I18N.saveError);
             }
         })
         .catch(() => {
             saveBtn.disabled = false;
-            saveBtn.textContent = '💾 Enregistrer';
-            alert('Erreur réseau.');
+            saveBtn.textContent = I18N.saveBtn;
+            alert(I18N.networkError);
         });
     });
 
     // ── Clear all ──────────────────────────────────────────────────
     clearAllBtn.addEventListener('click', () => {
-        if (!confirm('Supprimer tous les pays de ta roue ?')) return;
+        if (!confirm(I18N.confirmClearAll)) return;
         selection.clear();
         markDirty();
         renderChips();
@@ -319,9 +334,9 @@
             if (t<1) { animFrameId = requestAnimationFrame(animate); return; }
             animFrameId = null;
             currentAngle = startAngle+totalDelta; drawWheel(currentAngle);
-            spinning=false; spinBtn.disabled=false; spinBtn.textContent='🎰 Spin Again!';
+            spinning=false; spinBtn.disabled=false; spinBtn.textContent=I18N.spinAgain;
             const c=wheelCountries[targetIndex];
-            document.getElementById('resultContent').innerHTML=`<div style="padding:1.5rem;text-align:center;"><div style="font-size:4rem;margin-bottom:0.5rem;">${c.flag_emoji}</div><h2 style="color:var(--primary);margin-bottom:0.25rem;">${c.name}</h2><p class="text-muted">Your next destination is set! 🎉</p></div>`;
+            document.getElementById('resultContent').innerHTML=`<div style="padding:1.5rem;text-align:center;"><div style="font-size:4rem;margin-bottom:0.5rem;">${c.flag_emoji}</div><h2 style="color:var(--primary);margin-bottom:0.25rem;">${c.name}</h2><p class="text-muted">${I18N.destinationSet}</p></div>`;
             document.getElementById('result').style.display='block';
             document.getElementById('result').scrollIntoView({behavior:'smooth',block:'nearest'});
             launchConfetti();
@@ -347,21 +362,21 @@
         lastSpinAt = now;
         spinning = true;
         spinBtn.disabled = true;
-        spinBtn.textContent = '🌀 Spinning...';
+        spinBtn.textContent = I18N.spinning;
         document.getElementById('result').style.display = 'none';
         fetch('/wheel/spin', {method: 'POST'})
             .then(r => r.json())
             .then(data => {
                 if (data.error) {
-                    spinning = false; spinBtn.disabled = false; spinBtn.textContent = '🎰 Spin!';
-                    alert('Error: ' + data.error); return;
+                    spinning = false; spinBtn.disabled = false; spinBtn.textContent = I18N.spinBtn;
+                    alert(I18N.errorGeneric.replace('__MSG__', data.error)); return;
                 }
                 const idx = wheelCountries.findIndex(c => c.id === data.id);
                 doSpin(idx >= 0 ? idx : 0);
             })
             .catch(() => {
-                spinning = false; spinBtn.disabled = false; spinBtn.textContent = '🎰 Spin!';
-                alert('Network error.');
+                spinning = false; spinBtn.disabled = false; spinBtn.textContent = I18N.spinBtn;
+                alert(I18N.networkError);
             });
     });
 

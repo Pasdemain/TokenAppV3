@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Flashcards - CoupleApp{% endblock %}
+{% block title %}{{ t('flashcards.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper">
     <div class="flex flex-between flex-center mb-3">
-        <h1>🧠 Flashcards</h1>
-        <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-primary">▶️ Start Session</a>
+        <h1>{{ t('flashcards.title') }}</h1>
+        <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-primary">{{ t('flashcards.start_session_btn') }}</a>
     </div>
 
     <!-- Due today banner -->
@@ -13,15 +13,15 @@
     <div class="card mb-3" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); border: 2px solid var(--info);">
         <div class="flex flex-between flex-center">
             <div>
-                <h3 style="color: var(--info);">📚 {{ due_count }} card{{ 's' if due_count > 1 }} due today!</h3>
-                <p class="text-muted mt-1">Time to review and strengthen your memory.</p>
+                <h3 style="color: var(--info);">{% if due_count == 1 %}{{ t('flashcards.due_today_heading', n=due_count) }}{% else %}{{ t('flashcards.due_today_heading_plural', n=due_count) }}{% endif %}</h3>
+                <p class="text-muted mt-1">{{ t('flashcards.due_today_sub') }}</p>
             </div>
-            <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-sm" style="background:var(--info);color:#fff;">Review Now</a>
+            <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-sm" style="background:var(--info);color:#fff;">{{ t('flashcards.review_now_btn') }}</a>
         </div>
     </div>
     {% elif total_cards > 0 %}
     <div class="alert alert-success mb-3">
-        ✅ All caught up! No cards due for review today.
+        {{ t('flashcards.all_caught_up') }}
     </div>
     {% endif %}
 
@@ -29,8 +29,8 @@
     {% if total_cards > 0 %}
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">📊 Leitner Boxes</span>
-            <span class="badge badge-primary">{{ total_cards }} total</span>
+            <span class="card-title">{{ t('flashcards.leitner_boxes_title') }}</span>
+            <span class="badge badge-primary">{{ t('flashcards.total_count', n=total_cards) }}</span>
         </div>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:1rem;">
             {% set box_map = {} %}
@@ -42,7 +42,7 @@
                 {% set colors = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'] %}
                 <div style="flex:1;min-width:80px;text-align:center;padding:1rem 0.5rem;border-radius:12px;background:{{ colors[box-1] }}15;border:2px solid {{ colors[box-1] }}40;">
                     <div style="font-size:1.5rem;font-weight:700;color:{{ colors[box-1] }};">{{ cnt }}</div>
-                    <div style="font-size:0.75rem;color:#6b7280;margin-top:0.25rem;">Box {{ box }}</div>
+                    <div style="font-size:0.75rem;color:#6b7280;margin-top:0.25rem;">{{ t('flashcards.box_label', n=box) }}</div>
                 </div>
             {% endfor %}
         </div>
@@ -52,7 +52,7 @@
     <!-- Language Pair selector -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">🌐 Active Language Pair</span>
+            <span class="card-title">{{ t('flashcards.active_pair_title') }}</span>
             {% if current_source and current_target %}
             <span class="badge badge-primary" style="font-size:0.9rem;">
                 {{ current_source|upper }} → {{ current_target|upper }}
@@ -76,11 +76,11 @@
                 </option>
                 {% endfor %}
             </select>
-            <button type="submit" class="btn btn-sm btn-primary">Switch</button>
+            <button type="submit" class="btn btn-sm btn-primary">{{ t('flashcards.switch_btn') }}</button>
         </form>
         {% if lang_pairs %}
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem;">
-            <span class="text-muted" style="font-size:0.85rem;align-self:center;">Your pairs :</span>
+            <span class="text-muted" style="font-size:0.85rem;align-self:center;">{{ t('flashcards.your_pairs_label') }}</span>
             {% for pair in lang_pairs %}
             <form method="POST" action="{{ url_for('flashcards.switch_pair') }}" style="display:inline;">
                 <input type="hidden" name="source_lang" value="{{ pair.source_lang }}">
@@ -107,7 +107,7 @@
             <div style="border:1px solid var(--border);border-radius:10px;padding:1rem;">
                 <div class="flex flex-between flex-center mb-1">
                     <strong>{{ cat.icon or '📁' }} {{ cat.name }}</strong>
-                    <span class="text-muted">{{ cat.card_count }} cards</span>
+                    <span class="text-muted">{{ t('flashcards.cards_count', n=cat.card_count) }}</span>
                 </div>
                 <div style="display:flex;gap:0.4rem;">
                     <span style="font-size:0.75rem;padding:0.15rem 0.5rem;border-radius:6px;background:#d1fae5;color:#065f46;">🟢 {{ cat.beginner_count or 0 }}</span>
@@ -123,11 +123,11 @@
 
     {% if not reading_categories and not listening_categories %}
     <div class="card mb-3">
-        <p class="text-muted mt-2">No categories available yet. Ask an admin to import flashcards.</p>
+        <p class="text-muted mt-2">{{ t('flashcards.no_categories') }}</p>
     </div>
     {% endif %}
 
-    {{ cat_section(reading_categories,  '📖 Reading Categories',  '#6366f1') }}
-    {{ cat_section(listening_categories, '🎧 Listening Categories', '#0891b2') }}
+    {{ cat_section(reading_categories,  t('flashcards.reading_categories_title'),  '#6366f1') }}
+    {{ cat_section(listening_categories, t('flashcards.listening_categories_title'), '#0891b2') }}
 </div>
 {% endblock %}

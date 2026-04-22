@@ -1,101 +1,101 @@
 {% extends "base.html" %}
-{% block title %}Profil — {{ app_name }}{% endblock %}
+{% block title %}{{ t('profile.page_title') }} — {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width: 800px; margin: 2rem auto;">
-    <h1 class="mb-3">👤 User Profile</h1>
-    
+    <h1 class="mb-3">👤 {{ t('profile.heading') }}</h1>
+
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">Account Information</span>
+            <span class="card-title">{{ t('profile.account_info') }}</span>
         </div>
         <div style="padding: 1rem;">
-            <p><strong>Username:</strong> {{ username }}</p>
-            <p><strong>Member Since:</strong> {{ session.created_at|default('Recently joined', true) }}</p>
+            <p><strong>{{ t('profile.username_label') }}</strong> {{ username }}</p>
+            <p><strong>{{ t('profile.member_since_label') }}</strong> {{ session.created_at|default(t('profile.recently_joined'), true) }}</p>
         </div>
     </div>
 
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">📊 Your Statistics</span>
+            <span class="card-title">📊 {{ t('profile.stats_title') }}</span>
         </div>
         <div class="grid grid-2" style="padding: 1rem;">
             <div class="text-center" style="padding: 1rem; border-right: 1px solid var(--border);">
                 <h2 style="color: var(--primary); margin-bottom: 0.5rem;">{{ stats.tokens_created or 0 }}</h2>
-                <p class="text-muted">Tokens Created</p>
-                <small>Favors you've offered to others</small>
+                <p class="text-muted">{{ t('profile.tokens_created') }}</p>
+                <small>{{ t('profile.tokens_created_desc') }}</small>
             </div>
             <div class="text-center" style="padding: 1rem;">
                 <h2 style="color: var(--secondary); margin-bottom: 0.5rem;">{{ stats.tokens_received or 0 }}</h2>
-                <p class="text-muted">Tokens Received</p>
-                <small>Favors others have offered to you</small>
+                <p class="text-muted">{{ t('profile.tokens_received') }}</p>
+                <small>{{ t('profile.tokens_received_desc') }}</small>
             </div>
             <div class="text-center" style="padding: 1rem; border-right: 1px solid var(--border);">
                 <h2 style="color: var(--success); margin-bottom: 0.5rem;">{{ stats.tokens_completed or 0 }}</h2>
-                <p class="text-muted">Tokens Completed</p>
-                <small>Favors you've successfully redeemed</small>
+                <p class="text-muted">{{ t('profile.tokens_completed') }}</p>
+                <small>{{ t('profile.tokens_completed_desc') }}</small>
             </div>
             <div class="text-center" style="padding: 1rem;">
                 <h2 style="color: var(--info); margin-bottom: 0.5rem;">{{ stats.lists_created or 0 }}</h2>
-                <p class="text-muted">Shopping Lists</p>
-                <small>Lists you've created</small>
+                <p class="text-muted">{{ t('profile.shopping_lists') }}</p>
+                <small>{{ t('profile.shopping_lists_desc') }}</small>
             </div>
         </div>
     </div>
 
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">🏆 Achievements</span>
+            <span class="card-title">🏆 {{ t('profile.achievements') }}</span>
         </div>
         <div style="padding: 1rem;">
             <div class="grid grid-3" style="gap: 1rem;">
                 {% if stats.tokens_created >= 1 %}
                     <div class="text-center">
                         <div style="font-size: 3rem;">🎁</div>
-                        <p><strong>First Token</strong></p>
-                        <small class="text-muted">Created your first token</small>
+                        <p><strong>{{ t('profile.ach_first_token') }}</strong></p>
+                        <small class="text-muted">{{ t('profile.ach_first_token_desc') }}</small>
                     </div>
                 {% endif %}
                 {% if stats.tokens_completed >= 1 %}
                     <div class="text-center">
                         <div style="font-size: 3rem;">✅</div>
-                        <p><strong>Token Redeemer</strong></p>
-                        <small class="text-muted">Completed your first token</small>
+                        <p><strong>{{ t('profile.ach_token_redeemer') }}</strong></p>
+                        <small class="text-muted">{{ t('profile.ach_token_redeemer_desc') }}</small>
                     </div>
                 {% endif %}
                 {% if stats.lists_created >= 1 %}
                     <div class="text-center">
                         <div style="font-size: 3rem;">🛒</div>
-                        <p><strong>List Maker</strong></p>
-                        <small class="text-muted">Created your first shopping list</small>
+                        <p><strong>{{ t('profile.ach_list_maker') }}</strong></p>
+                        <small class="text-muted">{{ t('profile.ach_list_maker_desc') }}</small>
                     </div>
                 {% endif %}
                 {% if stats.tokens_created >= 5 %}
                     <div class="text-center">
                         <div style="font-size: 3rem;">⭐</div>
-                        <p><strong>Generous</strong></p>
-                        <small class="text-muted">Created 5+ tokens</small>
+                        <p><strong>{{ t('profile.ach_generous') }}</strong></p>
+                        <small class="text-muted">{{ t('profile.ach_generous_desc') }}</small>
                     </div>
                 {% endif %}
                 {% if stats.tokens_completed >= 5 %}
                     <div class="text-center">
                         <div style="font-size: 3rem;">🏅</div>
-                        <p><strong>Reliable</strong></p>
-                        <small class="text-muted">Completed 5+ tokens</small>
+                        <p><strong>{{ t('profile.ach_reliable') }}</strong></p>
+                        <small class="text-muted">{{ t('profile.ach_reliable_desc') }}</small>
                     </div>
                 {% endif %}
                 {% if stats.tokens_created >= 10 %}
                     <div class="text-center">
                         <div style="font-size: 3rem;">👑</div>
-                        <p><strong>Token Master</strong></p>
-                        <small class="text-muted">Created 10+ tokens</small>
+                        <p><strong>{{ t('profile.ach_token_master') }}</strong></p>
+                        <small class="text-muted">{{ t('profile.ach_token_master_desc') }}</small>
                     </div>
                 {% endif %}
             </div>
-            
+
             {% if stats.tokens_created == 0 and stats.tokens_received == 0 and stats.lists_created == 0 %}
                 <p class="text-center text-muted" style="padding: 2rem;">
-                    Utilise {{ app_name }} pour débloquer des succès !
+                    {{ t('profile.no_achievements', app=app_name) }}
                 </p>
             {% endif %}
         </div>
@@ -104,16 +104,16 @@
     <!-- App preferences -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">✨ Personnalisation de l'appli</span>
+            <span class="card-title">✨ {{ t('profile.prefs_title') }}</span>
         </div>
         <div style="padding:1.25rem;">
             <div class="form-group" style="margin-bottom:1rem;">
-                <label style="font-weight:600;font-size:.9rem;">Nom de l'appli</label>
+                <label style="font-weight:600;font-size:.9rem;">{{ t('profile.app_name_label') }}</label>
                 <input id="prefAppName" type="text" value="{{ app_name }}" maxlength="50"
-                       style="margin-top:.4rem;" placeholder="ex : LoveBirds">
+                       style="margin-top:.4rem;" placeholder="{{ t('profile.app_name_placeholder') }}">
             </div>
             <div style="margin-bottom:1.25rem;">
-                <label style="font-weight:600;font-size:.9rem;display:block;margin-bottom:.6rem;">Icône</label>
+                <label style="font-weight:600;font-size:.9rem;display:block;margin-bottom:.6rem;">{{ t('profile.icon_label') }}</label>
                 <div id="prefIconGrid" style="display:flex;flex-wrap:wrap;gap:.5rem;">
                     {% for ico in allowed_icons %}
                     <button type="button" onclick="prefSelectIcon('{{ ico }}', this)"
@@ -126,18 +126,18 @@
                     {% endfor %}
                 </div>
             </div>
-            <div id="prefFeedback" style="display:none;color:var(--success);font-size:.875rem;margin-bottom:.75rem;">✓ Préférences enregistrées !</div>
-            <button onclick="savePrefPrefs()" class="btn btn-primary">💾 Enregistrer</button>
+            <div id="prefFeedback" style="display:none;color:var(--success);font-size:.875rem;margin-bottom:.75rem;">✓ {{ t('profile.prefs_saved') }}</div>
+            <button onclick="savePrefPrefs()" class="btn btn-primary">💾 {{ t('profile.save_btn') }}</button>
         </div>
     </div>
 
     <div class="card">
         <div class="card-header">
-            <span class="card-title">⚙️ Actions</span>
+            <span class="card-title">⚙️ {{ t('profile.actions_title') }}</span>
         </div>
         <div style="padding: 1rem;">
-            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">📊 Tableau de bord</a>
-            <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary">🚪 Se déconnecter</a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">📊 {{ t('profile.dashboard_btn') }}</a>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary">🚪 {{ t('profile.logout_btn') }}</a>
         </div>
     </div>
 </div>
@@ -156,6 +156,10 @@
 
 {% block scripts %}
 <script>
+const PROFILE_I18N = {
+    titlePrefix: {{ t('profile.page_title') | tojson }}
+};
+
 let _prefIcon = '{{ app_icon }}';
 
 function prefSelectIcon(ico, btn) {
@@ -178,7 +182,7 @@ async function savePrefPrefs() {
     const data = await res.json();
     if (data.ok) {
         document.getElementById('navBrand').textContent = `${data.app_icon} ${data.app_name}`;
-        document.title = `Profil — ${data.app_name}`;
+        document.title = `${PROFILE_I18N.titlePrefix} — ${data.app_name}`;
         const fb = document.getElementById('prefFeedback');
         fb.style.display = '';
         setTimeout(() => { fb.style.display = 'none'; }, 3000);

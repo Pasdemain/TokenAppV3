@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Secret Santa - CoupleApp{% endblock %}
+{% block title %}{{ t('santa.page_title') }}{% endblock %}
 
 {% block content %}
 <style>
@@ -52,10 +52,10 @@
     <div class="santa-hero">
         <div class="flex flex-between flex-center">
             <div>
-                <h1>🎅 Secret Santa</h1>
-                <p style="opacity:0.9; margin-top:0.25rem;">Create groups, draw names, spread joy!</p>
+                <h1>{{ t('santa.title') }}</h1>
+                <p style="opacity:0.9; margin-top:0.25rem;">{{ t('santa.subtitle') }}</p>
             </div>
-            <a href="{{ url_for('santa.create_santa') }}" class="btn" style="background:#fff; color:var(--santa-red);">➕ New Group</a>
+            <a href="{{ url_for('santa.create_santa') }}" class="btn" style="background:#fff; color:var(--santa-red);">{{ t('santa.new_group_btn') }}</a>
         </div>
     </div>
 
@@ -66,33 +66,33 @@
                 <div class="card-header">
                     <span class="card-title">🎁 {{ g.name }}</span>
                     {% if g.status == 'open' %}
-                        <span class="badge badge-santa-open">Open</span>
+                        <span class="badge badge-santa-open">{{ t('santa.status_open') }}</span>
                     {% elif g.status == 'drawn' %}
-                        <span class="badge badge-santa-drawn">Drawn</span>
+                        <span class="badge badge-santa-drawn">{{ t('santa.status_drawn') }}</span>
                     {% else %}
-                        <span class="badge badge-santa-completed">Completed</span>
+                        <span class="badge badge-santa-completed">{{ t('santa.status_completed') }}</span>
                     {% endif %}
                 </div>
                 {% if g.description %}
                     <p class="mb-1">{{ g.description }}</p>
                 {% endif %}
                 <p class="text-muted mb-1">
-                    <small>👥 {{ g.member_count }} member{{ 's' if g.member_count > 1 }} • By <strong>{{ g.creator_username }}</strong></small>
+                    <small>{% if g.member_count == 1 %}{{ t('santa.members_count_one', n=g.member_count) }}{% else %}{{ t('santa.members_count_many', n=g.member_count) }}{% endif %} • {{ t('santa.by_creator', username=g.creator_username) }}</small>
                 </p>
                 {% if g.budget %}
-                    <p class="text-muted mb-1"><small>💰 Budget: {{ g.budget }}</small></p>
+                    <p class="text-muted mb-1"><small>{{ t('santa.budget_label', value=g.budget) }}</small></p>
                 {% endif %}
                 {% if g.event_date %}
-                    <p class="text-muted mb-1"><small>📅 {{ g.event_date.strftime('%b %d, %Y') }}</small></p>
+                    <p class="text-muted mb-1"><small>{{ t('santa.event_date_label', date=g.event_date.strftime('%b %d, %Y')) }}</small></p>
                 {% endif %}
-                <a href="{{ url_for('santa.santa_detail', group_id=g.id) }}" class="btn btn-sm btn-santa mt-1">Open Group</a>
+                <a href="{{ url_for('santa.santa_detail', group_id=g.id) }}" class="btn btn-sm btn-santa mt-1">{{ t('santa.open_group_btn') }}</a>
             </div>
             {% endfor %}
         </div>
     {% else %}
         <div class="card text-center">
-            <p class="text-muted mb-2">No Secret Santa groups yet.</p>
-            <a href="{{ url_for('santa.create_santa') }}" class="btn btn-santa">🎄 Create Your First Group</a>
+            <p class="text-muted mb-2">{{ t('santa.no_groups') }}</p>
+            <a href="{{ url_for('santa.create_santa') }}" class="btn btn-santa">{{ t('santa.create_first_btn') }}</a>
         </div>
     {% endif %}
 </div>

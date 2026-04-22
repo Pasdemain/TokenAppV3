@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, redirect, url_for, session, flash,
 from psycopg2.extras import RealDictCursor
 from database import get_db_connection
 from auth import feature_required, admin_required
+from i18n import t as _t
 
 GROUP_PCTS = {1: 15.0, 2: 7.5, 3: 4.5, 4: 2.0, 5: 1.0}
 
@@ -86,10 +87,10 @@ def set_partner():
             DO UPDATE SET partner_id = EXCLUDED.partner_id
         """, (session['user_id'], partner_id))
         conn.commit()
-        flash('Partenaire mis à jour !', 'success')
+        flash(_t('scratch.flash_partner_updated'), 'success')
     except Exception as e:
         conn.rollback()
-        flash('Erreur lors de la mise à jour.', 'error')
+        flash(_t('scratch.flash_partner_error'), 'error')
         print(f"Set partner error: {e}")
     finally:
         cur.close()
@@ -125,7 +126,7 @@ def propose_prizes():
     try:
         partner = _get_partner(cur, session['user_id'])
         if not partner:
-            flash('Aucun partenaire configuré.', 'error')
+            flash(_t('scratch.flash_no_partner_configured'), 'error')
             return redirect(url_for('scratch.manage_prizes'))
 
         scope = request.form.get('scope', 'both')
@@ -168,10 +169,10 @@ def propose_prizes():
               json.dumps(partner_prizes) if partner_prizes is not None else None))
 
         conn.commit()
-        flash(f'Proposition envoyée à {partner["username"]} — en attente de sa validation.', 'success')
+        flash(_t('scratch.flash_proposal_sent', name=partner["username"]), 'success')
     except Exception as e:
         conn.rollback()
-        flash("Erreur lors de l'envoi de la proposition.", 'error')
+        flash(_t('scratch.flash_propose_error'), 'error')
         print(f"Propose prizes error: {e}")
         import traceback; traceback.print_exc()
     finally:
@@ -239,7 +240,7 @@ def proposals_page():
 def review_proposal(proposal_id):
     action = request.form.get('action')
     if action not in ('accept', 'reject'):
-        flash('Action invalide.', 'error')
+        flash(_t('scratch.flash_invalid_action'), 'error')
         return redirect(url_for('scratch.proposals_page'))
 
     conn = get_db_connection()
@@ -251,7 +252,7 @@ def review_proposal(proposal_id):
         """, (proposal_id, session['user_id']))
         proposal = cur.fetchone()
         if not proposal:
-            flash('Proposition non trouvée ou déjà traitée.', 'error')
+            flash(_t('scratch.flash_proposal_not_found'), 'error')
             return redirect(url_for('scratch.proposals_page'))
 
         if action == 'accept':
@@ -291,19 +292,19 @@ def review_proposal(proposal_id):
                 WHERE id = %s
             """, (proposal_id,))
             conn.commit()
-            flash('Proposition acceptée — prix mis à jour !', 'success')
+            flash(_t('scratch.flash_proposal_accepted'), 'success')
         else:
             cur.execute("""
                 UPDATE scratch_prize_proposals SET status = 'rejected', reviewed_at = NOW()
                 WHERE id = %s
             """, (proposal_id,))
             conn.commit()
-            flash('Proposition refusée.', 'info')
+            flash(_t('scratch.flash_proposal_rejected'), 'info')
     except Exception as e:
         conn.rollback()
         print(f"Review proposal error: {e}")
         import traceback; traceback.print_exc()
-        flash('Erreur lors du traitement.', 'error')
+        flash(_t('scratch.flash_process_error'), 'error')
     finally:
         cur.close()
         conn.close()
@@ -326,7 +327,7 @@ def play_scratch():
         if cur.fetchone():
             cur.close()
             conn.close()
-            return jsonify({'error': "Ticket déjà utilisé aujourd'hui"}), 400
+            return jsonify({'error': _t('scratch.error_ticket_used_today')}), 400
 
     cur.execute("SELECT * FROM scratch_prizes WHERE user_id = %s", (session['user_id'],))
     prizes = cur.fetchall()
@@ -334,7 +335,7 @@ def play_scratch():
     if not prizes:
         cur.close()
         conn.close()
-        return jsonify({'error': 'Aucun prix configuré pour ce compte'}), 400
+        return jsonify({'error': _t('scratch.error_no_prizes_configured')}), 400
 
     # Weighted random selection
     total = sum(float(p['probability']) for p in prizes)
@@ -371,7 +372,7 @@ def play_scratch():
                 partner_id,
                 session['user_id'],
                 selected['token_name'] or selected['name'],
-                selected['token_description'] or '🎰 Token gagné par ticket à gratter !',
+                selected['token_description'] or _t('scratch.default_token_description'),
                 selected['token_duration_minutes'] or 30
             ))
             won_token = True
@@ -403,7 +404,7 @@ def admin_add_prize():
     is_loser = request.form.get('is_loser') == 'on'
 
     if not user_id or not name or probability <= 0:
-        flash('Données invalides : utilisateur, nom et pourcentage sont requis.', 'error')
+        flash(_t('scratch.flash_invalid_data_prize'), 'error')
         return redirect(url_for('admin'))
 
     conn = get_db_connection()
@@ -423,7 +424,7 @@ def admin_add_prize():
     cur.close()
     conn.close()
 
-    flash(f'Prix "{name}" ajouté pour l\'utilisateur !', 'success')
+    flash(_t('scratch.flash_prize_added', name=name), 'success')
     return redirect(url_for('admin'))
 
 
@@ -438,5 +439,5 @@ def admin_delete_prize(prize_id):
     cur.close()
     conn.close()
 
-    flash('Prix supprimé avec succès !', 'success')
+    flash(_t('scratch.flash_prize_deleted'), 'success')
     return redirect(url_for('admin'))

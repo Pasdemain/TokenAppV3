@@ -1,25 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Home - CoupleApp{% endblock %}
+{% block title %}{{ t('dashboard.page_title') }} - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper">
-    <h1 class="mb-3">👋 Welcome back, {{ username }}!</h1>
+    <h1 class="mb-3">👋 {{ t('dashboard.welcome_back', username=username) }}</h1>
 
     <!-- Quick Stats Overview -->
     <div class="grid grid-2 mb-3">
         <div class="card">
             <div class="card-header">
-                <span class="card-title">🛒 Shopping Activity</span>
+                <span class="card-title">🛒 {{ t('dashboard.shopping_activity') }}</span>
             </div>
-            <p class="mb-1">Active lists: <strong>{{ shopping_lists|length }}</strong></p>
-            <a href="{{ url_for('shopping.shopping_lists') }}" class="btn btn-sm btn-primary">Go to Shopping</a>
+            <p class="mb-1">{{ t('dashboard.active_lists') }} <strong>{{ shopping_lists|length }}</strong></p>
+            <a href="{{ url_for('shopping.shopping_lists') }}" class="btn btn-sm btn-primary">{{ t('dashboard.go_to_shopping') }}</a>
         </div>
         <div class="card">
             <div class="card-header">
-                <span class="card-title">🎟️ Token Activity</span>
+                <span class="card-title">🎟️ {{ t('dashboard.token_activity') }}</span>
             </div>
-            <p class="mb-1">Pending tokens: <strong>{{ received_tokens|selectattr('status', 'equalto', 'available')|list|length }}</strong></p>
-            <a href="{{ url_for('tokens.tokens_page') }}" class="btn btn-sm btn-primary">Go to Tokens</a>
+            <p class="mb-1">{{ t('dashboard.pending_tokens') }} <strong>{{ received_tokens|selectattr('status', 'equalto', 'available')|list|length }}</strong></p>
+            <a href="{{ url_for('tokens.tokens_page') }}" class="btn btn-sm btn-primary">{{ t('dashboard.go_to_tokens') }}</a>
         </div>
     </div>
 
@@ -27,19 +27,19 @@
     {% if fc_total > 0 or fc_due_count > 0 %}
     <div class="card mb-3" style="background: linear-gradient(135deg, #ede9fe, #ddd6fe); border: 2px solid #8b5cf6;">
         <div class="card-header" style="background:transparent;">
-            <span class="card-title">🧠 Flashcards</span>
+            <span class="card-title">🧠 {{ t('dashboard.flashcards') }}</span>
             {% if fc_due_count > 0 %}
-                <span class="badge" style="background:#8b5cf6;color:#fff;animation: pulse-badge 1.5s infinite;">{{ fc_due_count }} due</span>
+                <span class="badge" style="background:#8b5cf6;color:#fff;animation: pulse-badge 1.5s infinite;">{{ t('dashboard.fc_due_badge', n=fc_due_count) }}</span>
             {% else %}
-                <span class="badge badge-success">All done!</span>
+                <span class="badge badge-success">{{ t('dashboard.fc_all_done') }}</span>
             {% endif %}
         </div>
         {% if fc_due_count > 0 %}
-            <p class="mb-2" style="color:#5b21b6;">You have {{ fc_due_count }} card{{ 's' if fc_due_count > 1 }} to review today.</p>
-            <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-sm" style="background:#8b5cf6;color:#fff;">▶️ Start Review</a>
+            <p class="mb-2" style="color:#5b21b6;">{{ t('dashboard.fc_due_text', n=fc_due_count) }}</p>
+            <a href="{{ url_for('flashcards.flashcard_session') }}" class="btn btn-sm" style="background:#8b5cf6;color:#fff;">▶️ {{ t('dashboard.fc_start_review') }}</a>
         {% else %}
-            <p class="mb-2" style="color:#5b21b6;">No cards due today. {{ fc_total }} card{{ 's' if fc_total > 1 }} in your collection.</p>
-            <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-sm" style="background:#8b5cf6;color:#fff;">📊 View Dashboard</a>
+            <p class="mb-2" style="color:#5b21b6;">{{ t('dashboard.fc_no_due_text', n=fc_total) }}</p>
+            <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-sm" style="background:#8b5cf6;color:#fff;">📊 {{ t('dashboard.fc_view_dashboard') }}</a>
         {% endif %}
     </div>
     {% endif %}
@@ -47,39 +47,39 @@
     <!-- Competency Test Widget -->
     <div class="card mb-3" style="background: linear-gradient(135deg, #dbeafe, #c7d2fe); border: 2px solid #6366f1;">
         <div class="card-header" style="background:transparent;">
-            <span class="card-title">📝 Competency Test</span>
+            <span class="card-title">📝 {{ t('dashboard.competency_test') }}</span>
             {% if last_competency %}
                 {% set lc_colors = {'A1':'#10b981','A2':'#3b82f6','B1':'#8b5cf6','B2':'#f59e0b'} %}
                 <span class="badge" style="background:{{ lc_colors.get(last_competency.final_level, '#6b7280') }};color:#fff;">{{ last_competency.final_level }}</span>
             {% endif %}
         </div>
         {% if last_competency %}
-            <p class="mb-2" style="color:#312e81;">Last result: <strong>{{ last_competency.final_level }}</strong> ({{ last_competency.estimated_score|int }}) in {{ last_competency.target_lang|upper }}</p>
+            <p class="mb-2" style="color:#312e81;">{{ t('dashboard.cp_last_result') }} <strong>{{ last_competency.final_level }}</strong> ({{ last_competency.estimated_score|int }}) {{ t('dashboard.cp_in_lang') }} {{ last_competency.target_lang|upper }}</p>
         {% else %}
-            <p class="mb-2" style="color:#312e81;">Test your language level from A1 to B2.</p>
+            <p class="mb-2" style="color:#312e81;">{{ t('dashboard.cp_intro') }}</p>
         {% endif %}
-        <a href="{{ url_for('competency.competency_home') }}" class="btn btn-sm" style="background:#6366f1;color:#fff;">📝 Take a Test</a>
+        <a href="{{ url_for('competency.competency_home') }}" class="btn btn-sm" style="background:#6366f1;color:#fff;">📝 {{ t('dashboard.cp_take_test') }}</a>
     </div>
 
     <!-- Secret Santa Widget -->
     {% if santa_groups %}
     <div class="card mb-3" style="background: linear-gradient(135deg, #fde2e0, #d4edda); border: 2px solid #c0392b;">
         <div class="card-header" style="background:transparent;">
-            <span class="card-title">🎅 Secret Santa</span>
-            <a href="{{ url_for('santa.santa_home') }}" style="color:#c0392b;">View all →</a>
+            <span class="card-title">🎅 {{ t('dashboard.secret_santa') }}</span>
+            <a href="{{ url_for('santa.santa_home') }}" style="color:#c0392b;">{{ t('dashboard.view_all') }}</a>
         </div>
         {% for g in santa_groups %}
             <div class="flex flex-between flex-center" style="padding:0.5rem 0; border-bottom:1px solid rgba(192,57,43,0.1);">
                 <div>
                     <strong style="color:#922b21;">🎁 {{ g.name }}</strong>
-                    <span class="text-muted"> • {{ g.member_count }} member{{ 's' if g.member_count > 1 }}</span>
+                    <span class="text-muted"> • {{ t('dashboard.santa_member_count', n=g.member_count) }}</span>
                     {% if g.status == 'open' %}
-                        <span class="badge badge-warning" style="margin-left:0.5rem;">Open</span>
+                        <span class="badge badge-warning" style="margin-left:0.5rem;">{{ t('dashboard.santa_status_open') }}</span>
                     {% else %}
-                        <span class="badge badge-success" style="margin-left:0.5rem;">Drawn</span>
+                        <span class="badge badge-success" style="margin-left:0.5rem;">{{ t('dashboard.santa_status_drawn') }}</span>
                     {% endif %}
                 </div>
-                <a href="{{ url_for('santa.santa_detail', group_id=g.id) }}" class="btn btn-sm" style="background:#c0392b; color:#fff;">Open</a>
+                <a href="{{ url_for('santa.santa_detail', group_id=g.id) }}" class="btn btn-sm" style="background:#c0392b; color:#fff;">{{ t('dashboard.santa_open_btn') }}</a>
             </div>
         {% endfor %}
     </div>
@@ -89,18 +89,18 @@
     {% if has_scratch_prizes %}
     <div class="card mb-3" style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b;">
         <div class="card-header" style="background:transparent;">
-            <span class="card-title">🎰 Daily Scratch Ticket</span>
+            <span class="card-title">🎰 {{ t('dashboard.scratch_title') }}</span>
             {% if ticket_played_today %}
-                <span class="badge" style="background:#6b7280;color:#fff;">Already scratched</span>
+                <span class="badge" style="background:#6b7280;color:#fff;">{{ t('dashboard.scratch_already') }}</span>
             {% else %}
-                <span class="badge badge-warning" style="animation: pulse-badge 1.5s infinite;">Available!</span>
+                <span class="badge badge-warning" style="animation: pulse-badge 1.5s infinite;">{{ t('dashboard.scratch_available') }}</span>
             {% endif %}
         </div>
         {% if ticket_played_today %}
-            <p class="mb-2" style="color:#92400e;">You already scratched your ticket today. Come back tomorrow!</p>
+            <p class="mb-2" style="color:#92400e;">{{ t('dashboard.scratch_done_text') }}</p>
         {% else %}
-            <p class="mb-2" style="color:#92400e;">Your daily ticket is waiting! Scratch it to try to win a token.</p>
-            <a href="{{ url_for('scratch.scratch_page') }}" class="btn btn-sm" style="background:#f59e0b;color:#fff;">🎰 Scratch my ticket</a>
+            <p class="mb-2" style="color:#92400e;">{{ t('dashboard.scratch_waiting_text') }}</p>
+            <a href="{{ url_for('scratch.scratch_page') }}" class="btn btn-sm" style="background:#f59e0b;color:#fff;">🎰 {{ t('dashboard.scratch_btn') }}</a>
         {% endif %}
     </div>
     {% endif %}
@@ -109,8 +109,8 @@
     {% if shopping_lists %}
     <div class="mb-3">
         <div class="flex flex-between flex-center mb-2">
-            <h2>🛒 Recent Shopping Lists</h2>
-            <a href="{{ url_for('shopping.shopping_lists') }}" style="color: var(--primary);">View all →</a>
+            <h2>🛒 {{ t('dashboard.recent_shopping_lists') }}</h2>
+            <a href="{{ url_for('shopping.shopping_lists') }}" style="color: var(--primary);">{{ t('dashboard.view_all') }}</a>
         </div>
         <div class="grid grid-2">
             {% for list in shopping_lists[:4] %}
@@ -121,14 +121,14 @@
                 </div>
                 <div class="mb-2">
                     <div class="flex flex-between text-muted">
-                        <span>Progress</span>
-                        <span>{{ list.completed_count or 0 }}/{{ list.item_count or 0 }} items</span>
+                        <span>{{ t('dashboard.progress') }}</span>
+                        <span>{{ t('dashboard.items_count', completed=(list.completed_count or 0), total=(list.item_count or 0)) }}</span>
                     </div>
                     <div class="progress">
                         <div class="progress-bar" style="width: {% if list.item_count %}{{ (list.completed_count or 0) / list.item_count * 100 }}%{% else %}0%{% endif %}"></div>
                     </div>
                 </div>
-                <a href="{{ url_for('shopping.shopping_list_detail', list_id=list.id) }}" class="btn btn-sm btn-primary">View List</a>
+                <a href="{{ url_for('shopping.shopping_list_detail', list_id=list.id) }}" class="btn btn-sm btn-primary">{{ t('dashboard.view_list') }}</a>
             </div>
             {% endfor %}
         </div>
@@ -139,8 +139,8 @@
     {% if received_tokens %}
     <div class="mb-3">
         <div class="flex flex-between flex-center mb-2">
-            <h2>🎟️ Recent Tokens</h2>
-            <a href="{{ url_for('tokens.tokens_page') }}" style="color: var(--primary);">View all →</a>
+            <h2>🎟️ {{ t('dashboard.recent_tokens') }}</h2>
+            <a href="{{ url_for('tokens.tokens_page') }}" style="color: var(--primary);">{{ t('dashboard.view_all') }}</a>
         </div>
         <div class="grid grid-2">
             {% for token in received_tokens[:4] %}
@@ -148,27 +148,27 @@
                 <div class="card-header">
                     <span class="card-title">{{ token.name }}</span>
                     {% if token.status == 'available' %}
-                        <span class="badge badge-primary">Available</span>
+                        <span class="badge badge-primary">{{ t('dashboard.token_available') }}</span>
                     {% elif token.status == 'in_progress' %}
-                        <span class="badge badge-warning">In Progress</span>
+                        <span class="badge badge-warning">{{ t('dashboard.token_in_progress') }}</span>
                     {% else %}
-                        <span class="badge badge-success">Completed</span>
+                        <span class="badge badge-success">{{ t('dashboard.token_completed') }}</span>
                     {% endif %}
                 </div>
-                <p class="text-muted mb-1">From: <strong>{{ token.creator_username }}</strong></p>
+                <p class="text-muted mb-1">{{ t('dashboard.from_label') }} <strong>{{ token.creator_username }}</strong></p>
                 {% if token.description %}
                     <p class="mb-1">{{ token.description }}</p>
                 {% endif %}
                 <p class="text-muted">
-                    <small>⏱️ {{ token.duration_minutes }} minutes • Received {{ token.created_at|timeago }}</small>
+                    <small>⏱️ {{ t('dashboard.token_received_line', n=token.duration_minutes, when=(token.created_at|timeago)) }}</small>
                 </p>
                 {% if token.status == 'available' %}
                     <form method="POST" action="{{ url_for('tokens.start_token', token_id=token.id) }}" style="display: inline;">
-                        <button type="submit" class="btn btn-sm btn-primary">Start</button>
+                        <button type="submit" class="btn btn-sm btn-primary">{{ t('dashboard.token_start_btn') }}</button>
                     </form>
                 {% elif token.status == 'in_progress' %}
                     <form method="POST" action="{{ url_for('tokens.complete_token', token_id=token.id) }}" style="display: inline;">
-                        <button type="submit" class="btn btn-sm btn-success">Complete</button>
+                        <button type="submit" class="btn btn-sm btn-success">{{ t('dashboard.token_complete_btn') }}</button>
                     </form>
                 {% endif %}
             </div>
