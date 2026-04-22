@@ -583,7 +583,11 @@ def admin_export():
 # ── Admin: Import JSON ───────────────────────────────────────────────────────
 
 def _translations_fingerprint(translations):
-    """Canonical JSON string used as dedup key for a translations dict."""
+    """Dedup key for a translations dict: normalized French value when present,
+    otherwise a canonical JSON of the full dict as a fallback."""
+    fr = translations.get('fr')
+    if isinstance(fr, str) and fr.strip():
+        return 'fr:' + fr.strip().lower()
     return json.dumps(dict(sorted(translations.items())), ensure_ascii=False)
 
 
@@ -666,12 +670,13 @@ def admin_import():
             fp = _translations_fingerprint(translations)
 
             if fp in existing:
-                # Card already exists — update metadata and replace distractors
+                # Card already exists — update metadata, translations, and replace distractors
                 fid = existing[fp]
                 cur.execute("""
-                    UPDATE flashcards SET category_id = %s, difficulty = %s, card_type = %s
+                    UPDATE flashcards
+                    SET category_id = %s, translations = %s, difficulty = %s, card_type = %s
                     WHERE id = %s
-                """, (cat_id, difficulty, card_type, fid))
+                """, (cat_id, json.dumps(translations), difficulty, card_type, fid))
                 cur.execute("DELETE FROM flashcard_distractors WHERE flashcard_id = %s", (fid,))
                 updated_count += 1
             else:
