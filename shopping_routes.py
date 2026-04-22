@@ -3,6 +3,7 @@ from database import get_db_connection
 from psycopg2.extras import RealDictCursor
 from auth import feature_required
 from datetime import datetime
+from i18n import t as _t
 
 shopping_bp = Blueprint('shopping', __name__)
 
@@ -48,11 +49,11 @@ def create_shopping_list():
         share_with = request.form.getlist('share_with')
         
         if not name:
-            flash('List name is required!', 'error')
+            flash(_t('shopping.flash_name_required'), 'error')
             return redirect(url_for('shopping.create_shopping_list'))
-        
+
         if len(name) > 100:
-            flash('List name must be 100 characters or less!', 'error')
+            flash(_t('shopping.flash_name_too_long'), 'error')
             return redirect(url_for('shopping.create_shopping_list'))
         
         conn = get_db_connection()
@@ -84,12 +85,12 @@ def create_shopping_list():
                     """, (list_id, int(user_id)))
             
             conn.commit()
-            flash(f'Shopping list "{name}" created successfully!', 'success')
+            flash(_t('shopping.flash_created', name=name), 'success')
             return redirect(url_for('shopping.shopping_list_detail', list_id=list_id))
-            
+
         except Exception as e:
             conn.rollback()
-            flash('An error occurred while creating the list.', 'error')
+            flash(_t('shopping.flash_error_create'), 'error')
             print(f"Shopping list creation error: {e}")
         finally:
             cur.close()
@@ -129,7 +130,7 @@ def shopping_list_detail(list_id):
     shopping_list = cur.fetchone()
     
     if not shopping_list:
-        flash('Shopping list not found or you do not have access!', 'error')
+        flash(_t('shopping.flash_list_not_found'), 'error')
         return redirect(url_for('shopping.shopping_lists'))
     
     # Get items
@@ -176,7 +177,7 @@ def add_item(list_id):
     category = request.form.get('category', 'pcs')
     
     if not name:
-        flash('Item name is required!', 'error')
+        flash(_t('shopping.flash_item_name_required'), 'error')
         return redirect(url_for('shopping.shopping_list_detail', list_id=list_id))
     
     conn = get_db_connection()
@@ -192,21 +193,21 @@ def add_item(list_id):
         """, (list_id, session['user_id'], session['user_id']))
         
         if not cur.fetchone():
-            flash('You do not have access to this list!', 'error')
+            flash(_t('shopping.flash_no_access'), 'error')
             return redirect(url_for('shopping.shopping_lists'))
-        
+
         # Add item
         cur.execute("""
             INSERT INTO shopping_items (list_id, name, quantity, category, added_by)
             VALUES (%s, %s, %s, %s, %s)
         """, (list_id, name, quantity, category, session['user_id']))
-        
+
         conn.commit()
-        flash(f'"{name}" added to the list!', 'success')
-        
+        flash(_t('shopping.flash_item_added', name=name), 'success')
+
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while adding the item.', 'error')
+        flash(_t('shopping.flash_error_add_item'), 'error')
         print(f"Add item error: {e}")
     finally:
         cur.close()
@@ -234,32 +235,32 @@ def toggle_item(item_id):
         item = cur.fetchone()
         
         if not item:
-            flash('Item not found or you do not have access!', 'error')
+            flash(_t('shopping.flash_item_not_found'), 'error')
             return redirect(url_for('shopping.shopping_lists'))
-        
+
         is_completed, list_id, item_name = item
-        
+
         # Toggle completion status
         if is_completed:
             cur.execute("""
-                UPDATE shopping_items 
+                UPDATE shopping_items
                 SET is_completed = FALSE, completed_by = NULL, completed_at = NULL
                 WHERE id = %s
             """, (item_id,))
-            flash(f'"{item_name}" marked as incomplete.', 'info')
+            flash(_t('shopping.flash_item_incomplete', name=item_name), 'info')
         else:
             cur.execute("""
-                UPDATE shopping_items 
+                UPDATE shopping_items
                 SET is_completed = TRUE, completed_by = %s, completed_at = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (session['user_id'], item_id))
-            flash(f'"{item_name}" marked as complete!', 'success')
-        
+            flash(_t('shopping.flash_item_complete', name=item_name), 'success')
+
         conn.commit()
-        
+
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while updating the item.', 'error')
+        flash(_t('shopping.flash_error_toggle'), 'error')
         print(f"Toggle item error: {e}")
     finally:
         cur.close()
@@ -284,23 +285,23 @@ def delete_list(list_id):
         result = cur.fetchone()
         
         if not result:
-            flash('Shopping list not found!', 'error')
+            flash(_t('shopping.flash_list_not_found_simple'), 'error')
         elif result[1] != session['user_id']:  # created_by
-            flash('Only the list owner can delete the list!', 'error')
+            flash(_t('shopping.flash_only_owner_delete'), 'error')
         else:
             # Soft delete the list
             cur.execute("""
-                UPDATE shopping_lists 
-                SET is_active = FALSE 
+                UPDATE shopping_lists
+                SET is_active = FALSE
                 WHERE id = %s
             """, (list_id,))
             conn.commit()
-            flash(f'Shopping list "{result[0]}" has been deleted.', 'info')
+            flash(_t('shopping.flash_list_deleted', name=result[0]), 'info')
             return redirect(url_for('shopping.shopping_lists'))
-            
+
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while deleting the list.', 'error')
+        flash(_t('shopping.flash_error_delete'), 'error')
         print(f"Delete list error: {e}")
     finally:
         cur.close()

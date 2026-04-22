@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from database import get_db_connection
 from psycopg2.extras import RealDictCursor
+from i18n import t as _t
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -50,7 +51,7 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
             if not _restore_session_from_cookie():
-                flash('Please log in to access this page.', 'warning')
+                flash(_t('auth.please_login'), 'warning')
                 return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -62,7 +63,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
             if not _restore_session_from_cookie():
-                flash('Please log in to access this page.', 'warning')
+                flash(_t('auth.please_login'), 'warning')
                 return redirect(url_for('auth.login'))
         if not session.get('is_admin'):
             # Re-check DB in case is_admin was set after login
@@ -79,7 +80,7 @@ def admin_required(f):
                 cur.close()
                 conn.close()
         if not session.get('is_admin'):
-            flash("Accès réservé aux administrateurs.", 'error')
+            flash(_t('auth.admin_only'), 'error')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
@@ -92,7 +93,7 @@ def feature_required(feature_name):
         def decorated_function(*args, **kwargs):
             if 'user_id' not in session:
                 if not _restore_session_from_cookie():
-                    flash('Please log in to access this page.', 'warning')
+                    flash(_t('auth.please_login'), 'warning')
                     return redirect(url_for('auth.login'))
             conn = get_db_connection()
             cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -106,7 +107,7 @@ def feature_required(feature_name):
                 cur.close()
                 conn.close()
             if not row or not row['is_enabled']:
-                flash("Vous n'avez pas accès à cette fonctionnalité.", 'error')
+                flash(_t('auth.feature_not_allowed'), 'error')
                 return redirect(url_for('dashboard'))
             return f(*args, **kwargs)
         return decorated_function
@@ -121,19 +122,19 @@ def register():
         confirm_password = request.form.get('confirm_password', '')
 
         if not username or not password:
-            flash('Username and password are required!', 'error')
+            flash(_t('auth.err_username_password_required'), 'error')
             return render_template('register.html')
 
         if len(username) > 20:
-            flash('Username must be 20 characters or less!', 'error')
+            flash(_t('auth.err_username_too_long'), 'error')
             return render_template('register.html')
 
         if password != confirm_password:
-            flash('Passwords do not match!', 'error')
+            flash(_t('auth.err_passwords_mismatch'), 'error')
             return render_template('register.html')
 
         if len(password) < 6:
-            flash('Password must be at least 6 characters!', 'error')
+            flash(_t('auth.err_password_too_short'), 'error')
             return render_template('register.html')
 
         conn = get_db_connection()
@@ -142,7 +143,7 @@ def register():
         try:
             cur.execute("SELECT id FROM users WHERE username = %s", (username,))
             if cur.fetchone():
-                flash('Username already exists!', 'error')
+                flash(_t('auth.err_username_taken'), 'error')
                 return render_template('register.html')
 
             password_hash = generate_password_hash(password)
@@ -169,12 +170,12 @@ def register():
             session['app_name'] = None  # triggers first-visit popup
             session['app_icon'] = '💑'
 
-            flash('Inscription réussie ! Bienvenue !', 'success')
+            flash(_t('auth.register_success'), 'success')
             return redirect(url_for('dashboard'))
 
         except Exception as e:
             conn.rollback()
-            flash('An error occurred during registration. Please try again.', 'error')
+            flash(_t('auth.err_register_generic'), 'error')
             print(f"Registration error: {e}")
         finally:
             cur.close()
@@ -191,7 +192,7 @@ def login():
         remember = request.form.get('remember_me') == 'on'
 
         if not username or not password:
-            flash('Username and password are required!', 'error')
+            flash(_t('auth.err_username_password_required'), 'error')
             return render_template('login.html')
 
         conn = get_db_connection()
@@ -228,13 +229,13 @@ def login():
                         secure=IS_HTTPS
                     )
 
-                flash(f'Welcome back, {username}!', 'success')
+                flash(_t('auth.welcome_back', username=username), 'success')
                 return response
             else:
-                flash('Invalid username or password!', 'error')
+                flash(_t('auth.err_invalid_credentials'), 'error')
 
         except Exception as e:
-            flash('An error occurred during login. Please try again.', 'error')
+            flash(_t('auth.err_login_generic'), 'error')
             print(f"Login error: {e}")
         finally:
             cur.close()
@@ -264,5 +265,5 @@ def logout():
             cur.close()
             conn.close()
 
-    flash(f'Goodbye, {username}! You have been logged out.', 'info')
+    flash(_t('auth.goodbye', username=username), 'info')
     return response

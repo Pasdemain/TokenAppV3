@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Gérer les prix - Scratch{% endblock %}
+{% block title %}{{ t('scratch.manage_page_title') }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width:720px;margin:2rem auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;">
-        <h1>🎁 Gérer les prix du scratch</h1>
-        <a href="{{ url_for('scratch.scratch_page') }}" class="btn btn-secondary btn-sm">← Retour</a>
+        <h1>{{ t('scratch.manage_heading') }}</h1>
+        <a href="{{ url_for('scratch.scratch_page') }}" class="btn btn-secondary btn-sm">{{ t('scratch.btn_back_short') }}</a>
     </div>
 
     {% if not partner %}
     <div class="alert alert-warning">
-        ⚠️ Aucun partenaire sélectionné. <a href="{{ url_for('scratch.scratch_page') }}">Retourne sur la page scratch</a> pour en choisir un.
+        {{ t('scratch.no_partner_selected', url=url_for('scratch.scratch_page')) | safe }}
     </div>
     {% else %}
 
@@ -22,7 +22,7 @@
         G3 <strong>4.5%</strong> &nbsp;·&nbsp;
         G4 <strong>2%</strong> &nbsp;·&nbsp;
         G5 <strong>1%</strong>
-        &nbsp;— le % par prize = % du groupe ÷ nombre de prizes
+        &nbsp;{{ t('scratch.info_banner_note') }}
     </div>
 
     <form method="POST" action="{{ url_for('scratch.propose_prizes') }}" id="prizeForm">
@@ -61,35 +61,35 @@
 
             {% if pending_scratch_proposals > 0 %}
             <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;margin-bottom:1.25rem;font-size:.875rem;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
-                <span>⏳ <strong>{{ pending_scratch_proposals }}</strong> proposition(s) reçue(s) en attente de votre validation.</span>
-                <a href="{{ url_for('scratch.proposals_page') }}" style="white-space:nowrap;font-weight:600;">Voir →</a>
+                <span>{{ t('scratch.pending_proposals_banner', n=pending_scratch_proposals) | safe }}</span>
+                <a href="{{ url_for('scratch.proposals_page') }}" style="white-space:nowrap;font-weight:600;">{{ t('scratch.btn_see_arrow') }}</a>
             </div>
             {% endif %}
 
-            <p style="font-weight:600;margin-bottom:.5rem;text-align:center;">📤 Proposer des changements</p>
+            <p style="font-weight:600;margin-bottom:.5rem;text-align:center;">{{ t('scratch.propose_changes_title') }}</p>
             <p style="color:#6b7280;font-size:.85rem;text-align:center;margin-bottom:1.25rem;">
-                {{ partner.username }} devra valider avant que les prix soient appliqués.
+                {{ t('scratch.propose_changes_hint', partner=partner.username) }}
             </p>
 
             <div style="display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;margin-bottom:1.25rem;">
                 <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;">
-                    <input type="radio" name="scope" value="my"> Moi seulement
+                    <input type="radio" name="scope" value="my"> {{ t('scratch.scope_me_only') }}
                 </label>
                 <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;">
-                    <input type="radio" name="scope" value="partner"> {{ partner.username }} seulement
+                    <input type="radio" name="scope" value="partner"> {{ t('scratch.scope_partner_only', partner=partner.username) }}
                 </label>
                 <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.9rem;font-weight:600;">
-                    <input type="radio" name="scope" value="both" checked> Les deux
+                    <input type="radio" name="scope" value="both" checked> {{ t('scratch.scope_both') }}
                 </label>
             </div>
 
             <button type="submit" class="btn btn-primary" style="width:100%;font-size:1rem;">
-                📤 Proposer les changements
+                {{ t('scratch.btn_propose_changes') }}
             </button>
 
             <div style="text-align:center;margin-top:.75rem;">
                 <a href="{{ url_for('scratch.proposals_page') }}" style="font-size:.85rem;color:#6b7280;">
-                    Voir toutes les propositions →
+                    {{ t('scratch.see_all_proposals') }}
                 </a>
             </div>
         </div>
@@ -105,24 +105,24 @@
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
                 background:#fff;border-radius:16px;padding:1.5rem;width:min(90vw,380px);
                 box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-        <h3 style="margin-bottom:1rem;" id="modal-title">Ajouter un prix</h3>
+        <h3 style="margin-bottom:1rem;" id="modal-title">{{ t('scratch.modal_add_prize_title') }}</h3>
         <div class="form-group">
-            <label>Nom du token *</label>
-            <input id="modal-token-name" type="text" placeholder="ex: Massage 30 min" maxlength="50">
+            <label>{{ t('scratch.modal_token_name_label') }}</label>
+            <input id="modal-token-name" type="text" placeholder="{{ t('scratch.modal_token_name_placeholder') }}" maxlength="50">
         </div>
         <div class="form-group">
-            <label>Description</label>
-            <input id="modal-token-desc" type="text" placeholder="ex: Un massage relaxant" maxlength="200">
+            <label>{{ t('scratch.modal_token_desc_label') }}</label>
+            <input id="modal-token-desc" type="text" placeholder="{{ t('scratch.modal_token_desc_placeholder') }}" maxlength="200">
         </div>
         <div class="form-group">
-            <label>Durée (minutes)</label>
+            <label>{{ t('scratch.modal_duration_label') }}</label>
             <input id="modal-token-dur" type="number" value="30" min="1">
         </div>
         <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
             <button type="button" onclick="closeModal()"
-                    class="btn btn-secondary" style="flex:1;">Annuler</button>
+                    class="btn btn-secondary" style="flex:1;">{{ t('scratch.modal_btn_cancel') }}</button>
             <button type="button" onclick="confirmModal()"
-                    class="btn btn-primary" style="flex:2;" id="modal-confirm-btn">Ajouter</button>
+                    class="btn btn-primary" style="flex:2;" id="modal-confirm-btn">{{ t('scratch.modal_btn_add') }}</button>
         </div>
     </div>
 </div>
@@ -130,6 +130,14 @@
 {% block scripts %}
 <script>
 const GROUP_PCTS = {{ group_pcts | tojson }};
+
+const I18N = {
+    modalAddTitle:  {{ t('scratch.modal_add_prize_title') | tojson }},
+    modalEditTitle: {{ t('scratch.modal_edit_prize_title') | tojson }},
+    modalBtnAdd:    {{ t('scratch.modal_btn_add') | tojson }},
+    modalBtnEdit:   {{ t('scratch.modal_btn_edit') | tojson }}
+};
+
 let modalPrefix = null, modalGroup = null, modalEditEl = null;
 
 /* ── Tab switching ──────────────────────────────────────────────────────── */
@@ -151,8 +159,8 @@ function openModal(prefix, g, editEl) {
     document.getElementById('modal-token-name').value = editEl ? editEl.dataset.tname : '';
     document.getElementById('modal-token-desc').value = editEl ? editEl.dataset.tdesc : '';
     document.getElementById('modal-token-dur').value  = editEl ? editEl.dataset.tdur  : '30';
-    document.getElementById('modal-title').textContent = editEl ? 'Modifier le prix' : 'Ajouter un prix';
-    document.getElementById('modal-confirm-btn').textContent = editEl ? 'Modifier' : 'Ajouter';
+    document.getElementById('modal-title').textContent = editEl ? I18N.modalEditTitle : I18N.modalAddTitle;
+    document.getElementById('modal-confirm-btn').textContent = editEl ? I18N.modalBtnEdit : I18N.modalBtnAdd;
     document.getElementById('prize-modal').style.display = '';
     document.getElementById('modal-token-name').focus();
 }

@@ -3,6 +3,7 @@ from database import get_db_connection
 from psycopg2.extras import RealDictCursor
 from auth import feature_required
 from datetime import datetime
+from i18n import t as _t
 
 token_bp = Blueprint('tokens', __name__)
 
@@ -72,11 +73,11 @@ def create_token():
         
         # Validation
         if not recipient_id or not name or not duration_minutes:
-            flash('All fields are required!', 'error')
+            flash(_t('tokens.flash_fields_required'), 'error')
         elif duration_minutes < 1:
-            flash('Duration must be at least 1 minute!', 'error')
+            flash(_t('tokens.flash_duration_min'), 'error')
         elif len(name) > 50:
-            flash('Token name must be 50 characters or less!', 'error')
+            flash(_t('tokens.flash_name_too_long'), 'error')
         else:
             try:
                 # Create token
@@ -93,12 +94,12 @@ def create_token():
                 cur.execute("SELECT username FROM users WHERE id = %s", (recipient_id,))
                 recipient = cur.fetchone()
                 
-                flash(f'Token "{name}" created successfully for {recipient["username"]}!', 'success')
+                flash(_t('tokens.flash_created', name=name, recipient=recipient["username"]), 'success')
                 return redirect(url_for('tokens.tokens_page'))
-                
+
             except Exception as e:
                 conn.rollback()
-                flash('An error occurred while creating the token.', 'error')
+                flash(_t('tokens.flash_error_create'), 'error')
                 print(f"Token creation error: {e}")
     
     # Get list of users for recipient dropdown (exclude current user)
@@ -131,11 +132,11 @@ def start_token(token_id):
         token = cur.fetchone()
 
         if not token:
-            flash('Token not found!', 'error')
+            flash(_t('tokens.flash_not_found'), 'error')
         elif token['recipient_id'] != session['user_id']:
-            flash('You can only start tokens assigned to you!', 'error')
+            flash(_t('tokens.flash_only_recipient_start'), 'error')
         elif token['status'] != 'available':
-            flash('This token is already in use or completed!', 'warning')
+            flash(_t('tokens.flash_already_in_use'), 'warning')
         else:
             # Update token status
             cur.execute("""
@@ -144,11 +145,11 @@ def start_token(token_id):
                 WHERE id = %s
             """, (token_id,))
             conn.commit()
-            flash(f'Token "{token["name"]}" started!', 'success')
-            
+            flash(_t('tokens.flash_started', name=token["name"]), 'success')
+
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while starting the token.', 'error')
+        flash(_t('tokens.flash_error_start'), 'error')
         print(f"Token start error: {e}")
     finally:
         cur.close()
@@ -172,13 +173,13 @@ def complete_token(token_id):
         token = cur.fetchone()
 
         if not token:
-            flash('Token not found!', 'error')
+            flash(_t('tokens.flash_not_found'), 'error')
         elif token['recipient_id'] != session['user_id']:
-            flash('You can only complete tokens assigned to you!', 'error')
+            flash(_t('tokens.flash_only_recipient_complete'), 'error')
         elif token['status'] == 'completed':
-            flash('This token is already completed!', 'warning')
+            flash(_t('tokens.flash_already_completed'), 'warning')
         elif token['status'] != 'in_progress':
-            flash('You must start the token before completing it!', 'warning')
+            flash(_t('tokens.flash_must_start_first'), 'warning')
         else:
             # Update token status
             cur.execute("""
@@ -187,11 +188,11 @@ def complete_token(token_id):
                 WHERE id = %s
             """, (token_id,))
             conn.commit()
-            flash(f'Token "{token["name"]}" completed! Great job!', 'success')
-            
+            flash(_t('tokens.flash_completed', name=token["name"]), 'success')
+
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while completing the token.', 'error')
+        flash(_t('tokens.flash_error_complete'), 'error')
         print(f"Token complete error: {e}")
     finally:
         cur.close()
@@ -215,20 +216,20 @@ def cancel_token(token_id):
         token = cur.fetchone()
 
         if not token:
-            flash('Token not found!', 'error')
+            flash(_t('tokens.flash_not_found'), 'error')
         elif token['creator_id'] != session['user_id']:
-            flash('You can only cancel tokens you created!', 'error')
+            flash(_t('tokens.flash_only_creator_cancel'), 'error')
         elif token['status'] == 'completed':
-            flash('Cannot cancel a completed token!', 'warning')
+            flash(_t('tokens.flash_cannot_cancel_completed'), 'warning')
         else:
             # Delete token
             cur.execute("DELETE FROM tokens WHERE id = %s", (token_id,))
             conn.commit()
-            flash(f'Token "{token["name"]}" has been cancelled.', 'info')
-            
+            flash(_t('tokens.flash_cancelled', name=token["name"]), 'info')
+
     except Exception as e:
         conn.rollback()
-        flash('An error occurred while cancelling the token.', 'error')
+        flash(_t('tokens.flash_error_cancel'), 'error')
         print(f"Token cancel error: {e}")
     finally:
         cur.close()

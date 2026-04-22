@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Shopping Lists - CoupleApp{% endblock %}
+{% block title %}{{ t('shopping.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper">
     <div class="flex flex-between flex-center mb-3">
-        <h1>🛒 Shopping Lists</h1>
-        <a href="{{ url_for('shopping.create_shopping_list') }}" class="btn btn-primary">➕ Create List</a>
+        <h1>{{ t('shopping.heading') }}</h1>
+        <a href="{{ url_for('shopping.create_shopping_list') }}" class="btn btn-primary">{{ t('shopping.btn_create') }}</a>
     </div>
 
     {% if lists %}
@@ -16,27 +16,27 @@
                     <span class="card-title">{{ list.name }}</span>
                     <span class="text-muted">{{ list.created_at|timeago }}</span>
                 </div>
-                
+
                 <p class="text-muted mb-2">
-                    Created by: <strong>{{ list.creator_username }}</strong>
+                    {{ t('shopping.created_by') }} <strong>{{ list.creator_username }}</strong>
                 </p>
-                
+
                 <div class="mb-2">
                     <div class="flex flex-between text-muted">
-                        <span>Progress</span>
-                        <span>{{ list.completed_count or 0 }}/{{ list.item_count or 0 }} items</span>
+                        <span>{{ t('shopping.progress_label') }}</span>
+                        <span>{{ t('shopping.progress_items', completed=(list.completed_count or 0), total=(list.item_count or 0)) }}</span>
                     </div>
                     <div class="progress">
                         <div class="progress-bar" style="width: {{ list.progress }}%"></div>
                     </div>
                 </div>
-                
+
                 <div class="flex gap-1">
                     <a href="{{ url_for('shopping.shopping_list_detail', list_id=list.id) }}" class="btn btn-sm btn-primary">
-                        View List
+                        {{ t('shopping.btn_view_list') }}
                     </a>
                     {% if list.progress == 100 and list.item_count > 0 %}
-                        <span class="badge badge-success">✅ Complete</span>
+                        <span class="badge badge-success">{{ t('shopping.badge_complete') }}</span>
                     {% endif %}
                 </div>
             </div>
@@ -44,10 +44,10 @@
         </div>
     {% else %}
         <div class="card text-center" style="padding: 3rem;">
-            <h2 class="mb-2">No shopping lists yet</h2>
-            <p class="text-muted mb-3">Create your first shopping list to get started!</p>
+            <h2 class="mb-2">{{ t('shopping.empty_heading') }}</h2>
+            <p class="text-muted mb-3">{{ t('shopping.empty_hint') }}</p>
             <a href="{{ url_for('shopping.create_shopping_list') }}" class="btn btn-primary">
-                ➕ Create Your First List
+                {{ t('shopping.empty_cta') }}
             </a>
         </div>
     {% endif %}

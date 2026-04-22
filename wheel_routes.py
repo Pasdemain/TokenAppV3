@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from database import get_db_connection
 from auth import feature_required
 from psycopg2.extras import RealDictCursor
+from i18n import t as _t
 
 wheel_bp = Blueprint('wheel', __name__)
 
@@ -48,12 +49,12 @@ def spin_wheel():
         )
         countries = cur.fetchall()
         if not countries:
-            return jsonify({'error': 'No countries available'}), 400
+            return jsonify({'error': _t('wheel.error_no_countries')}), 400
         result = random.choice(countries)
         return jsonify({'id': result['id'], 'name': result['name'], 'flag': result['flag_emoji']})
     except Exception as e:
         print(f"Spin error: {e}")
-        return jsonify({'error': 'Spin failed'}), 500
+        return jsonify({'error': _t('wheel.error_spin_failed')}), 500
     finally:
         cur.close()
         conn.close()
@@ -64,7 +65,7 @@ def spin_wheel():
 def save_countries():
     data = request.get_json()
     if data is None:
-        return jsonify({'ok': False, 'error': 'No data'}), 400
+        return jsonify({'ok': False, 'error': _t('wheel.error_no_data')}), 400
     countries = data.get('countries', [])
     conn = get_db_connection()
     cur = conn.cursor()
@@ -101,7 +102,7 @@ def import_countries(source_user_id):
         )
         source = cur.fetchall()
         if not source:
-            flash("Cet utilisateur n'a aucun pays à importer.", 'warning')
+            flash(_t('wheel.import_user_empty'), 'warning')
         else:
             cur2 = conn.cursor()
             cur2.execute("DELETE FROM wheel_countries WHERE user_id = %s", (session['user_id'],))
@@ -112,10 +113,10 @@ def import_countries(source_user_id):
                 )
             cur2.close()
             conn.commit()
-            flash(f"{len(source)} pays importés !", 'success')
+            flash(_t('wheel.import_success', n=len(source)), 'success')
     except Exception as e:
         conn.rollback()
-        flash("Erreur lors de l'importation.", 'error')
+        flash(_t('wheel.import_error'), 'error')
         print(f"Import countries error: {e}")
     finally:
         cur.close()

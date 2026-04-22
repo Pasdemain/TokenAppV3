@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, session, flash,
 from psycopg2.extras import RealDictCursor, execute_values
 from database import get_db_connection
 from auth import feature_required, admin_required
+from i18n import t as _t
 
 competency_bp = Blueprint('competency', __name__)
 
@@ -111,7 +112,7 @@ def competency_home():
 def start_test():
     target_lang = request.form.get('target_lang', '').strip()
     if not target_lang:
-        flash('Please select a language.', 'error')
+        flash(_t('competency.flash_select_lang'), 'error')
         return redirect(url_for('competency.competency_home'))
 
     conn = get_db_connection()
@@ -123,7 +124,7 @@ def start_test():
         WHERE content->'question' ? %s
     """, (target_lang,))
     if cur.fetchone()['cnt'] == 0:
-        flash('No questions available for this language.', 'error')
+        flash(_t('competency.flash_no_questions_for_lang'), 'error')
         cur.close()
         conn.close()
         return redirect(url_for('competency.competency_home'))
@@ -167,7 +168,7 @@ def test_page(test_id):
     conn.close()
 
     if not test:
-        flash('Test not found.', 'error')
+        flash(_t('competency.flash_test_not_found'), 'error')
         return redirect(url_for('competency.competency_home'))
 
     if test['status'] != 'in_progress':
@@ -264,7 +265,7 @@ def next_question(test_id):
 def submit_answer(test_id):
     data = request.get_json()
     if not data:
-        return jsonify({'error': 'No data'}), 400
+        return jsonify({'error': _t('competency.error_no_data')}), 400
 
     question_db_id = data.get('question_id')
     chosen = data.get('answer', '')
@@ -281,7 +282,7 @@ def submit_answer(test_id):
     if not test:
         cur.close()
         conn.close()
-        return jsonify({'error': 'Test not found or already completed'}), 404
+        return jsonify({'error': _t('competency.error_test_not_found')}), 404
 
     # Get question
     cur.execute("SELECT * FROM competency_questions WHERE id = %s", (question_db_id,))
@@ -289,7 +290,7 @@ def submit_answer(test_id):
     if not question:
         cur.close()
         conn.close()
-        return jsonify({'error': 'Question not found'}), 404
+        return jsonify({'error': _t('competency.error_question_not_found')}), 404
 
     content = question['content'] if isinstance(question['content'], dict) else json.loads(question['content'])
     lang = test['target_lang']
@@ -377,7 +378,7 @@ def result_page(test_id):
     test = cur.fetchone()
 
     if not test:
-        flash('Test not found.', 'error')
+        flash(_t('competency.flash_test_not_found'), 'error')
         cur.close()
         conn.close()
         return redirect(url_for('competency.competency_home'))
@@ -426,17 +427,17 @@ def admin_import():
 
     json_data = request.form.get('json_data', '').strip()
     if not json_data:
-        flash('No JSON data provided.', 'error')
+        flash(_t('competency.admin_no_json'), 'error')
         return redirect(url_for('admin'))
 
     try:
         questions = json.loads(json_data)
     except json.JSONDecodeError as e:
-        flash(f'Invalid JSON: {e}', 'error')
+        flash(_t('competency.admin_invalid_json', err=str(e)), 'error')
         return redirect(url_for('admin'))
 
     if not isinstance(questions, list):
-        flash('JSON must be an array of question objects.', 'error')
+        flash(_t('competency.admin_json_must_be_array'), 'error')
         return redirect(url_for('admin'))
 
     conn = get_db_connection()
@@ -466,10 +467,10 @@ def admin_import():
             imported = len(rows)
 
         conn.commit()
-        flash(f'Successfully imported {imported} competency questions!', 'success')
+        flash(_t('competency.admin_import_success', n=imported), 'success')
     except Exception as e:
         conn.rollback()
-        flash(f'Import error: {e}', 'error')
+        flash(_t('competency.admin_import_error', err=str(e)), 'error')
     finally:
         cur.close()
         conn.close()

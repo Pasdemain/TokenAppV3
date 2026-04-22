@@ -398,48 +398,48 @@
             <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
             <ul class="nav-menu" id="navMenu">
                 {% if session.user_id %}
-                    <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">🏠 Home</a></li>
+                    <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">🏠 {{ t('nav.home') }}</a></li>
                     {% if user_features.get('shopping') %}
-                    <li><a href="{{ url_for('shopping.shopping_lists') }}" class="{% if 'shopping' in request.endpoint %}active{% endif %}">🛒 Shopping</a></li>
+                    <li><a href="{{ url_for('shopping.shopping_lists') }}" class="{% if 'shopping' in request.endpoint %}active{% endif %}">🛒 {{ t('nav.shopping') }}</a></li>
                     {% endif %}
                     {% if user_features.get('tokens') %}
-                    <li><a href="{{ url_for('tokens.tokens_page') }}" class="{% if 'token' in request.endpoint %}active{% endif %}">🎟️ Tokens</a></li>
+                    <li><a href="{{ url_for('tokens.tokens_page') }}" class="{% if 'token' in request.endpoint %}active{% endif %}">🎟️ {{ t('nav.tokens') }}</a></li>
                     {% endif %}
                     {% if user_features.get('santa') %}
-                    <li><a href="{{ url_for('santa.santa_home') }}" class="{% if 'santa' in request.endpoint %}active{% endif %}">🎅 Santa</a></li>
+                    <li><a href="{{ url_for('santa.santa_home') }}" class="{% if 'santa' in request.endpoint %}active{% endif %}">🎅 {{ t('nav.santa') }}</a></li>
                     {% endif %}
                     {% if user_features.get('scratch') %}
                     <li>
                         <a href="{{ url_for('scratch.scratch_page') }}" class="{% if 'scratch' in request.endpoint %}active{% endif %}">
-                            🎰 Ticket{% if pending_scratch_proposals > 0 %}<span style="background:var(--danger);color:#fff;border-radius:50%;padding:.05rem .38rem;font-size:.7rem;margin-left:.3rem;font-weight:700;vertical-align:middle;">{{ pending_scratch_proposals }}</span>{% endif %}
+                            🎰 {{ t('nav.ticket') }}{% if pending_scratch_proposals > 0 %}<span style="background:var(--danger);color:#fff;border-radius:50%;padding:.05rem .38rem;font-size:.7rem;margin-left:.3rem;font-weight:700;vertical-align:middle;">{{ pending_scratch_proposals }}</span>{% endif %}
                         </a>
                     </li>
                     {% endif %}
                     {% if user_features.get('wheel') %}
-                    <li><a href="{{ url_for('wheel.wheel_page') }}" class="{% if 'wheel' in request.endpoint %}active{% endif %}">🌍 Wheel</a></li>
+                    <li><a href="{{ url_for('wheel.wheel_page') }}" class="{% if 'wheel' in request.endpoint %}active{% endif %}">🌍 {{ t('nav.wheel') }}</a></li>
                     {% endif %}
                     {% if user_features.get('flashcards') %}
-                    <li><a href="{{ url_for('flashcards.flashcards_home') }}" class="{% if 'flashcard' in request.endpoint %}active{% endif %}">🧠 Cards</a></li>
+                    <li><a href="{{ url_for('flashcards.flashcards_home') }}" class="{% if 'flashcard' in request.endpoint %}active{% endif %}">🧠 {{ t('nav.cards') }}</a></li>
                     {% endif %}
                     {% if user_features.get('competency') %}
-                    <li><a href="{{ url_for('competency.competency_home') }}" class="{% if 'competency' in request.endpoint %}active{% endif %}">📝 Test</a></li>
+                    <li><a href="{{ url_for('competency.competency_home') }}" class="{% if 'competency' in request.endpoint %}active{% endif %}">📝 {{ t('nav.test') }}</a></li>
                     {% endif %}
                     {% if user_features.get('molkky') %}
-                    <li><a href="{{ url_for('molkky.molkky_home') }}" class="{% if 'molkky' in request.endpoint %}active{% endif %}">🎯 Mölkky</a></li>
+                    <li><a href="{{ url_for('molkky.molkky_home') }}" class="{% if 'molkky' in request.endpoint %}active{% endif %}">🎯 {{ t('nav.molkky') }}</a></li>
                     {% endif %}
                     <li class="dropdown">
                         <a href="#" onclick="event.preventDefault()">👤 {{ session.username }} ▼</a>
                         <div class="dropdown-content">
-                            <a href="{{ url_for('profile') }}">Profile</a>
+                            <a href="{{ url_for('profile') }}">{{ t('nav.profile') }}</a>
                             {% if session.is_admin %}
-                            <a href="{{ url_for('admin') }}">🔐 Admin</a>
+                            <a href="{{ url_for('admin') }}">🔐 {{ t('nav.admin') }}</a>
                             {% endif %}
-                            <a href="{{ url_for('auth.logout') }}">Logout</a>
+                            <a href="{{ url_for('auth.logout') }}">{{ t('nav.logout') }}</a>
                         </div>
                     </li>
                 {% else %}
-                    <li><a href="{{ url_for('auth.login') }}">Login</a></li>
-                    <li><a href="{{ url_for('auth.register') }}">Register</a></li>
+                    <li><a href="{{ url_for('auth.login') }}">{{ t('nav.login') }}</a></li>
+                    <li><a href="{{ url_for('auth.register') }}">{{ t('nav.register') }}</a></li>
                 {% endif %}
                 <li class="lang-switcher" style="display:flex;gap:0.3rem;align-items:center;">
                     {% for code in supported_langs %}
@@ -501,6 +501,11 @@
 
     <!-- PWA Service Worker Registration -->
     <script>
+        const BASE_I18N = {
+            pwaIosPrompt:     {{ t('base.pwa_ios_prompt') | tojson }},
+            pwaInstallPrompt: {{ t('base.pwa_install_prompt') | tojson }}
+        };
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
@@ -508,30 +513,30 @@
                     .catch(error => console.log('ServiceWorker registration failed:', error));
             });
         }
-        
+
         // iOS PWA Detection and Install Prompt
         if (window.navigator.standalone === false) {
             // iOS Safari but not in standalone mode
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             if (isIOS && !localStorage.getItem('iosInstallPromptShown')) {
                 setTimeout(() => {
-                    if (confirm('💑 Add CoupleApp to your home screen for the best experience!\n\nTap the share button and select "Add to Home Screen"')) {
+                    if (confirm(BASE_I18N.pwaIosPrompt)) {
                         localStorage.setItem('iosInstallPromptShown', 'true');
                     }
                 }, 2000);
             }
         }
-        
+
         // Android/Desktop PWA Install
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            
+
             // Show install button or prompt
             if (!localStorage.getItem('installPromptShown')) {
                 setTimeout(() => {
-                    if (confirm('💑 Install CoupleApp for quick access from your home screen!')) {
+                    if (confirm(BASE_I18N.pwaInstallPrompt)) {
                         deferredPrompt.prompt();
                         deferredPrompt.userChoice.then((choiceResult) => {
                             if (choiceResult.outcome === 'accepted') {
@@ -552,20 +557,20 @@
 <!-- ── First-visit app name popup ────────────────────────────────────────── -->
 <div id="appNameOverlay" style="position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:1rem;">
     <div style="background:#fff;border-radius:20px;padding:2rem;width:min(92vw,420px);box-shadow:0 24px 60px rgba(0,0,0,0.3);">
-        <h2 style="margin-bottom:.4rem;font-size:1.25rem;">✨ Personnalise ton appli</h2>
+        <h2 style="margin-bottom:.4rem;font-size:1.25rem;">✨ {{ t('base.popup_title') }}</h2>
         <p style="color:#6b7280;font-size:.875rem;margin-bottom:1.5rem;">
-            Comment veux-tu appeler cette appli ? Tu pourras changer ça plus tard dans ton profil.
+            {{ t('base.popup_intro') }}
         </p>
 
         <div class="form-group">
-            <label style="font-weight:600;font-size:.9rem;">Nom de l'appli</label>
+            <label style="font-weight:600;font-size:.9rem;">{{ t('base.popup_app_name_label') }}</label>
             <input id="popupAppName" type="text" value="LoveBirds" maxlength="50"
                    style="margin-top:.35rem;"
-                   placeholder="ex : LoveBirds, Notre App, Chez nous…">
+                   placeholder="{{ t('base.popup_app_name_placeholder') }}">
         </div>
 
         <div style="margin-top:1.1rem;margin-bottom:1.4rem;">
-            <label style="font-weight:600;font-size:.9rem;display:block;margin-bottom:.6rem;">Icône</label>
+            <label style="font-weight:600;font-size:.9rem;display:block;margin-bottom:.6rem;">{{ t('base.popup_icon_label') }}</label>
             <div id="iconGrid" style="display:flex;flex-wrap:wrap;gap:.5rem;">
                 {% set icons = ['💑','💕','🏠','🌟','🎯','🌸','🦋','🌈','🎮','🌙','⚡','🎵','🐱','🐶','🦊','🍀','🔥','💎','🎭','🎪'] %}
                 {% for ico in icons %}
@@ -579,7 +584,7 @@
         </div>
 
         <button onclick="saveAppPrefs()" class="btn btn-primary" style="width:100%;font-size:1rem;">
-            ✅ C'est parti !
+            ✅ {{ t('base.popup_submit') }}
         </button>
     </div>
 </div>

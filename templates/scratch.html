@@ -1,18 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Scratch Ticket - CoupleApp{% endblock %}
+{% block title %}{{ t('scratch.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width: 600px; margin: 2rem auto; text-align: center;">
-    <h1 class="mb-1">🎰 Daily Scratch Ticket</h1>
-    <p class="text-muted mb-3">Your daily ticket is waiting for you!</p>
+    <h1 class="mb-1">{{ t('scratch.heading') }}</h1>
+    <p class="text-muted mb-3">{{ t('scratch.subtitle') }}</p>
 
     {% if not has_prizes %}
     <div class="alert alert-warning">
-        ⚠️ Aucun prix configuré.
+        {{ t('scratch.no_prizes_warning') }}
         {% if partner %}
-        <a href="{{ url_for('scratch.manage_prizes') }}">Configurer les prix →</a>
+        <a href="{{ url_for('scratch.manage_prizes') }}">{{ t('scratch.configure_prizes_link') }}</a>
         {% else %}
-        Sélectionne d'abord un partenaire ci-dessous, puis configure les prix.
+        {{ t('scratch.select_partner_first') }}
         {% endif %}
     </div>
 
@@ -20,40 +20,40 @@
     <!-- Already played today -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">Today's Ticket</span>
-            <span class="badge" style="background:#6b7280;color:#fff;">Already scratched</span>
+            <span class="card-title">{{ t('scratch.todays_ticket') }}</span>
+            <span class="badge" style="background:#6b7280;color:#fff;">{{ t('scratch.badge_already_scratched') }}</span>
         </div>
         {% if ticket.is_loser %}
         <div class="result-panel result-lost">
             <div style="font-size:3.5rem;">😢</div>
-            <h2 class="mt-1">Better luck next time!</h2>
+            <h2 class="mt-1">{{ t('scratch.better_luck') }}</h2>
             <p class="text-muted">{{ ticket.prize_name }}</p>
         </div>
         {% else %}
         <div class="result-panel result-win">
             <div style="font-size:3.5rem;">🎉</div>
-            <h2 class="mt-1">You won!</h2>
+            <h2 class="mt-1">{{ t('scratch.you_won') }}</h2>
             <p><strong>{{ ticket.prize_name }}</strong></p>
-            <p class="text-muted">The token has been added to your received tokens!</p>
+            <p class="text-muted">{{ t('scratch.token_added_to_received') }}</p>
         </div>
         {% endif %}
-        <p class="text-muted mt-2" style="font-size:0.9rem;">🕛 Come back tomorrow for a new ticket!</p>
+        <p class="text-muted mt-2" style="font-size:0.9rem;">{{ t('scratch.come_back_tomorrow') }}</p>
     </div>
 
     {% else %}
     <!-- Interactive scratch card -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">🎰 Today's Ticket</span>
-            <span class="badge badge-primary">Available!</span>
+            <span class="card-title">{{ t('scratch.available_ticket') }}</span>
+            <span class="badge badge-primary">{{ t('scratch.badge_available') }}</span>
         </div>
-        <p class="mb-3 text-muted">Scratch the ticket to discover your prize!</p>
+        <p class="mb-3 text-muted">{{ t('scratch.scratch_to_discover') }}</p>
 
         <div id="scratch-container" style="position:relative;display:inline-block;margin:0 auto 1rem;">
             <!-- Prize shown underneath -->
             <div id="prize-reveal" style="width:300px;height:180px;border-radius:16px;background:linear-gradient(135deg,#ffd700,#ff8c00);display:flex;flex-direction:column;align-items:center;justify-content:center;user-select:none;">
                 <div id="prize-icon" style="font-size:3rem;margin-bottom:0.5rem;">🎁</div>
-                <div id="prize-text" style="font-size:1.1rem;font-weight:700;color:#7c3500;padding:0 1rem;">Scratch to reveal!</div>
+                <div id="prize-text" style="font-size:1.1rem;font-weight:700;color:#7c3500;padding:0 1rem;">{{ t('scratch.initial_prize_text') }}</div>
             </div>
             <!-- Canvas overlay -->
             <canvas id="scratch-canvas" width="300" height="180"
@@ -64,7 +64,7 @@
             <div class="progress">
                 <div id="progress-bar" class="progress-bar" style="width:0%;background:var(--warning);transition:width 0.1s;"></div>
             </div>
-            <small class="text-muted" id="progress-label">Scratch with your finger or mouse...</small>
+            <small class="text-muted" id="progress-label">{{ t('scratch.progress_hint') }}</small>
         </div>
 
         <div id="result-section" style="display:none;" class="mt-2"></div>
@@ -74,41 +74,52 @@
     <!-- Partner section (below ticket) -->
     <div class="card mt-3" style="text-align:left;">
         <div class="card-header">
-            <span class="card-title">👫 Partenaire</span>
+            <span class="card-title">{{ t('scratch.partner_heading') }}</span>
             {% if partner %}
-            <a href="{{ url_for('scratch.manage_prizes') }}" class="btn btn-primary btn-sm">🎁 Gérer les prix</a>
+            <a href="{{ url_for('scratch.manage_prizes') }}" class="btn btn-primary btn-sm">{{ t('scratch.manage_prizes_btn') }}</a>
             {% endif %}
         </div>
         <div style="padding:1rem;">
             <form method="POST" action="{{ url_for('scratch.set_partner') }}" style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
                 <select name="partner_id" style="flex:1;min-width:160px;">
-                    <option value="">— Aucun partenaire —</option>
+                    <option value="">{{ t('scratch.no_partner_option') }}</option>
                     {% for u in other_users %}
                     <option value="{{ u.id }}" {{ 'selected' if partner and partner.id == u.id else '' }}>
                         {{ u.username }}
                     </option>
                     {% endfor %}
                 </select>
-                <button type="submit" class="btn btn-secondary btn-sm">💾 Enregistrer</button>
+                <button type="submit" class="btn btn-secondary btn-sm">{{ t('scratch.btn_save') }}</button>
             </form>
             {% if partner %}
             <p class="text-muted mt-1" style="font-size:0.875rem;">
-                Partenaire actuel : <strong>{{ partner.username }}</strong>
-                — les tokens gagnés seront échangés avec lui/elle.
+                {{ t('scratch.partner_current', name=partner.username) | safe }}
             </p>
             {% else %}
             <p class="text-muted mt-1" style="font-size:0.875rem;">
-                Sélectionne un partenaire pour que les tokens gagnés au scratch lui soient attribués.
+                {{ t('scratch.partner_prompt') }}
             </p>
             {% endif %}
         </div>
     </div>
 
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-2">← Back to Dashboard</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-2">{{ t('scratch.back_to_dashboard') }}</a>
 </div>
 
 {% block scripts %}
 <script>
+const I18N = {
+    scratchHere:       {{ t('scratch.canvas_scratch_here') | tojson }},
+    canvasInstruction: {{ t('scratch.canvas_instruction') | tojson }},
+    revealing:         {{ t('scratch.revealing') | tojson }},
+    lostTitle:         {{ t('scratch.result_lost_title') | tojson }},
+    lostSubtitle:      {{ t('scratch.result_lost_subtitle') | tojson }},
+    wonTitle:          {{ t('scratch.result_won_title') | tojson }},
+    wonLine:           {{ t('scratch.result_won_line', name='__N__') | tojson }},
+    wonHint:           {{ t('scratch.result_won_hint') | tojson }},
+    networkError:      {{ t('scratch.result_network_error') | tojson }}
+};
+
 (function () {
     const canvas = document.getElementById('scratch-canvas');
     if (!canvas) return;
@@ -139,10 +150,10 @@
         ctx.fillStyle = '#777';
         ctx.font = 'bold 18px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('🎰 SCRATCH HERE 🎰', canvas.width / 2, canvas.height / 2 - 8);
+        ctx.fillText(I18N.scratchHere, canvas.width / 2, canvas.height / 2 - 8);
         ctx.font = '13px Arial';
         ctx.fillStyle = '#999';
-        ctx.fillText('Slide your finger over the ticket', canvas.width / 2, canvas.height / 2 + 18);
+        ctx.fillText(I18N.canvasInstruction, canvas.width / 2, canvas.height / 2 + 18);
     }
 
     function scratchAt(x, y) {
@@ -187,7 +198,7 @@
     function finishReveal() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         canvas.style.pointerEvents = 'none';
-        document.getElementById('progress-label').textContent = 'Revealing...';
+        document.getElementById('progress-label').textContent = I18N.revealing;
 
         fetch('/scratch/play', { method: 'POST' })
             .then(r => r.json())
@@ -203,23 +214,24 @@
                     document.getElementById('prize-reveal').style.background = 'linear-gradient(135deg,#e5e7eb,#d1d5db)';
                     document.getElementById('prize-text').style.color = '#4b5563';
                     showResult(`<div class="result-panel result-lost">
-                        <strong>😢 Better luck next time!</strong><br>
-                        <span class="text-muted">Come back tomorrow, maybe you'll be luckier!</span>
+                        <strong>${I18N.lostTitle}</strong><br>
+                        <span class="text-muted">${I18N.lostSubtitle}</span>
                     </div>`);
                 } else {
                     document.getElementById('prize-reveal').style.background = 'linear-gradient(135deg,#a7f3d0,#6ee7b7)';
                     document.getElementById('prize-text').style.color = '#065f46';
+                    const wonLine = I18N.wonLine.replace('__N__', data.token_name);
                     showResult(`<div class="result-panel result-win">
-                        🎉 <strong>Congratulations!</strong><br>
-                        You won the token <strong>"${data.token_name}"</strong>!<br>
-                        <span class="text-muted" style="font-size:0.9rem;">It has been added to your received tokens.</span>
+                        ${I18N.wonTitle}<br>
+                        ${wonLine}<br>
+                        <span class="text-muted" style="font-size:0.9rem;">${I18N.wonHint}</span>
                     </div>`);
                     launchConfetti();
                 }
                 document.getElementById('scratch-progress').style.display = 'none';
             })
             .catch(() => {
-                showResult('<div class="alert alert-error">❌ Network error. Please refresh the page.</div>');
+                showResult(`<div class="alert alert-error">${I18N.networkError}</div>`);
             });
     }
 

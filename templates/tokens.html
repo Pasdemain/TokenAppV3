@@ -1,30 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Tokens - CoupleApp{% endblock %}
+{% block title %}{{ t('tokens.page_title') }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper">
     <div class="flex flex-between flex-center mb-3">
-        <h1>🎟️ Token Management</h1>
-        <a href="{{ url_for('tokens.create_token') }}" class="btn btn-primary">➕ Create Token</a>
+        <h1>{{ t('tokens.heading') }}</h1>
+        <a href="{{ url_for('tokens.create_token') }}" class="btn btn-primary">{{ t('tokens.btn_create') }}</a>
     </div>
 
     <!-- Token Stats -->
     <div class="grid grid-3 mb-3">
         <div class="card">
             <div class="card-header">
-                <span class="card-title">🎁 Created</span>
+                <span class="card-title">{{ t('tokens.stat_created') }}</span>
             </div>
             <h2 style="color: var(--primary);">{{ active_created|length }}</h2>
         </div>
         <div class="card">
             <div class="card-header">
-                <span class="card-title">📥 Received</span>
+                <span class="card-title">{{ t('tokens.stat_received') }}</span>
             </div>
             <h2 style="color: var(--secondary);">{{ active_received|length }}</h2>
         </div>
         <div class="card">
             <div class="card-header">
-                <span class="card-title">✅ Completed</span>
+                <span class="card-title">{{ t('tokens.stat_completed') }}</span>
             </div>
             <h2 style="color: var(--success);">{{ completed_received|length }}</h2>
         </div>
@@ -34,76 +34,76 @@
     <div class="grid grid-2">
         <!-- Created Tokens -->
         <div>
-            <h2 class="mb-2">🎁 Tokens You Created</h2>
+            <h2 class="mb-2">{{ t('tokens.section_created') }}</h2>
             {% if active_created %}
                 {% for token in active_created %}
                 <div class="card">
                     <div class="card-header">
                         <span class="card-title">{{ token.name }}</span>
                         {% if token.status == 'available' %}
-                            <span class="badge badge-primary">Available</span>
+                            <span class="badge badge-primary">{{ t('tokens.badge_available') }}</span>
                         {% else %}
-                            <span class="badge badge-warning">In Progress</span>
+                            <span class="badge badge-warning">{{ t('tokens.badge_in_progress') }}</span>
                         {% endif %}
                     </div>
-                    <p class="text-muted mb-1">For: <strong>{{ token.recipient_username }}</strong></p>
+                    <p class="text-muted mb-1">{{ t('tokens.for_label') }} <strong>{{ token.recipient_username }}</strong></p>
                     {% if token.description %}
                         <p class="mb-1">{{ token.description }}</p>
                     {% endif %}
                     <p class="text-muted">
-                        <small>⏱️ {{ token.duration_minutes }} minutes • Created {{ token.created_at|timeago }}</small>
+                        <small>{{ t('tokens.duration_minutes_created', duration=token.duration_minutes, ago=token.created_at|timeago) }}</small>
                     </p>
                     {% if token.status == 'available' %}
-                        <form method="POST" action="{{ url_for('tokens.cancel_token', token_id=token.id) }}" style="display: inline;" onsubmit="return confirm('Cancel this token?')">
-                            <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+                        <form method="POST" action="{{ url_for('tokens.cancel_token', token_id=token.id) }}" style="display: inline;" onsubmit="return confirm({{ t('tokens.confirm_cancel') | tojson }})">
+                            <button type="submit" class="btn btn-sm btn-danger">{{ t('tokens.btn_cancel_token') }}</button>
                         </form>
                     {% endif %}
                 </div>
                 {% endfor %}
             {% else %}
                 <div class="card">
-                    <p class="text-muted text-center">No active tokens created</p>
-                    <a href="{{ url_for('tokens.create_token') }}" class="btn btn-primary mt-2">Create Your First Token</a>
+                    <p class="text-muted text-center">{{ t('tokens.empty_created') }}</p>
+                    <a href="{{ url_for('tokens.create_token') }}" class="btn btn-primary mt-2">{{ t('tokens.empty_created_cta') }}</a>
                 </div>
             {% endif %}
         </div>
 
         <!-- Received Tokens -->
         <div>
-            <h2 class="mb-2">📥 Tokens You Received</h2>
+            <h2 class="mb-2">{{ t('tokens.section_received') }}</h2>
             {% if active_received %}
                 {% for token in active_received %}
                 <div class="card">
                     <div class="card-header">
                         <span class="card-title">{{ token.name }}</span>
                         {% if token.status == 'available' %}
-                            <span class="badge badge-primary">Available</span>
+                            <span class="badge badge-primary">{{ t('tokens.badge_available') }}</span>
                         {% else %}
-                            <span class="badge badge-warning">In Progress</span>
+                            <span class="badge badge-warning">{{ t('tokens.badge_in_progress') }}</span>
                         {% endif %}
                     </div>
-                    <p class="text-muted mb-1">From: <strong>{{ token.creator_username }}</strong></p>
+                    <p class="text-muted mb-1">{{ t('tokens.from_label') }} <strong>{{ token.creator_username }}</strong></p>
                     {% if token.description %}
                         <p class="mb-1">{{ token.description }}</p>
                     {% endif %}
                     <p class="text-muted">
-                        <small>⏱️ {{ token.duration_minutes }} minutes • Received {{ token.created_at|timeago }}</small>
+                        <small>{{ t('tokens.duration_minutes_received', duration=token.duration_minutes, ago=token.created_at|timeago) }}</small>
                     </p>
                     {% if token.status == 'available' %}
                         <form method="POST" action="{{ url_for('tokens.start_token', token_id=token.id) }}" style="display: inline;">
-                            <button type="submit" class="btn btn-sm btn-primary">Start</button>
+                            <button type="submit" class="btn btn-sm btn-primary">{{ t('tokens.btn_start_token') }}</button>
                         </form>
                     {% elif token.status == 'in_progress' %}
                         <form method="POST" action="{{ url_for('tokens.complete_token', token_id=token.id) }}" style="display: inline;">
-                            <button type="submit" class="btn btn-sm btn-success">Complete</button>
+                            <button type="submit" class="btn btn-sm btn-success">{{ t('tokens.btn_complete_token') }}</button>
                         </form>
                     {% endif %}
                 </div>
                 {% endfor %}
             {% else %}
                 <div class="card">
-                    <p class="text-muted text-center">No active tokens received</p>
-                    <p class="text-muted text-center mt-2">Exchange tokens with your partner!</p>
+                    <p class="text-muted text-center">{{ t('tokens.empty_received') }}</p>
+                    <p class="text-muted text-center mt-2">{{ t('tokens.empty_received_hint') }}</p>
                 </div>
             {% endif %}
         </div>
@@ -113,37 +113,37 @@
     {% if completed_received or completed_created %}
     <details style="margin-top: 2rem;">
         <summary style="cursor:pointer;font-size:1.1rem;font-weight:600;color:#6b7280;margin-bottom:1rem;user-select:none;">
-            📜 History ({{ completed_received|length + completed_created|length }} completed)
+            {{ t('tokens.history_summary', n=completed_received|length + completed_created|length) }}
         </summary>
         <div class="grid grid-2" style="margin-top:1rem;">
             <div>
                 {% if completed_created %}
-                <h3 class="mb-2" style="color:#6b7280;">🎁 Created — completed</h3>
+                <h3 class="mb-2" style="color:#6b7280;">{{ t('tokens.history_created_heading') }}</h3>
                 {% for token in completed_created %}
                 <div class="card" style="opacity:0.75;">
                     <div class="card-header">
                         <span class="card-title" style="font-size:1rem;">{{ token.name }}</span>
-                        <span class="badge badge-success">Done</span>
+                        <span class="badge badge-success">{{ t('tokens.badge_done') }}</span>
                     </div>
-                    <p class="text-muted mb-1">For: <strong>{{ token.recipient_username }}</strong></p>
+                    <p class="text-muted mb-1">{{ t('tokens.for_label') }} <strong>{{ token.recipient_username }}</strong></p>
                     {% if token.description %}<p class="mb-1" style="font-size:0.9rem;">{{ token.description }}</p>{% endif %}
-                    <p class="text-muted"><small>⏱️ {{ token.duration_minutes }} min</small></p>
+                    <p class="text-muted"><small>{{ t('tokens.duration_minutes_short', duration=token.duration_minutes) }}</small></p>
                 </div>
                 {% endfor %}
                 {% endif %}
             </div>
             <div>
                 {% if completed_received %}
-                <h3 class="mb-2" style="color:#6b7280;">📥 Received — completed</h3>
+                <h3 class="mb-2" style="color:#6b7280;">{{ t('tokens.history_received_heading') }}</h3>
                 {% for token in completed_received %}
                 <div class="card" style="opacity:0.75;">
                     <div class="card-header">
                         <span class="card-title" style="font-size:1rem;">{{ token.name }}</span>
-                        <span class="badge badge-success">Done</span>
+                        <span class="badge badge-success">{{ t('tokens.badge_done') }}</span>
                     </div>
-                    <p class="text-muted mb-1">From: <strong>{{ token.creator_username }}</strong></p>
+                    <p class="text-muted mb-1">{{ t('tokens.from_label') }} <strong>{{ token.creator_username }}</strong></p>
                     {% if token.description %}<p class="mb-1" style="font-size:0.9rem;">{{ token.description }}</p>{% endif %}
-                    <p class="text-muted"><small>⏱️ {{ token.duration_minutes }} min</small></p>
+                    <p class="text-muted"><small>{{ t('tokens.duration_minutes_short', duration=token.duration_minutes) }}</small></p>
                 </div>
                 {% endfor %}
                 {% endif %}

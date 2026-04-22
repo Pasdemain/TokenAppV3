@@ -1,34 +1,34 @@
 {% extends "base.html" %}
-{% block title %}Admin Panel - CoupleApp{% endblock %}
+{% block title %}{{ t('admin.page_title') }} - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width: 750px; margin: 2rem auto;">
-    <h1 class="mb-3">🔐 Admin Panel</h1>
+    <h1 class="mb-3">🔐 {{ t('admin.heading') }}</h1>
     <div class="alert alert-warning mb-3">
-        ⚠️ <strong>Warning:</strong> Admin actions are permanent and cannot be undone!
+        ⚠️ <strong>{{ t('admin.warning_label') }}</strong> {{ t('admin.warning_text') }}
     </div>
 
     <!-- ── User Features ────────────────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">⚙️ Gestion des fonctionnalités par utilisateur</span>
+            <span class="card-title">⚙️ {{ t('admin.features_title') }}</span>
         </div>
         <div style="padding: 1.5rem;">
             {% set feature_labels = {
-                'tokens': '🎟️ Tokens',
-                'shopping': '🛒 Shopping',
-                'scratch': '🎰 Scratch',
-                'wheel': '🌍 Wheel',
-                'flashcards': '🧠 Flashcards',
-                'competency': '📝 Compétence',
-                'santa': '🎅 Santa'
+                'tokens': '🎟️ ' ~ t('admin.feat_tokens'),
+                'shopping': '🛒 ' ~ t('admin.feat_shopping'),
+                'scratch': '🎰 ' ~ t('admin.feat_scratch'),
+                'wheel': '🌍 ' ~ t('admin.feat_wheel'),
+                'flashcards': '🧠 ' ~ t('admin.feat_flashcards'),
+                'competency': '📝 ' ~ t('admin.feat_competency'),
+                'santa': '🎅 ' ~ t('admin.feat_santa')
             } %}
 
             <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
                     <thead>
                         <tr style="border-bottom:2px solid var(--border);">
-                            <th style="text-align:left;padding:0.5rem 0.75rem;">Utilisateur</th>
+                            <th style="text-align:left;padding:0.5rem 0.75rem;">{{ t('admin.th_user') }}</th>
                             {% for feat in all_features %}
                             <th style="text-align:center;padding:0.5rem 0.4rem;white-space:nowrap;">{{ feature_labels[feat] }}</th>
                             {% endfor %}
@@ -38,8 +38,8 @@
                         <!-- Default row -->
                         <tr style="border-bottom:2px solid var(--primary);background:#eef2ff;">
                             <td style="padding:0.6rem 0.75rem;font-weight:700;color:var(--primary);">
-                                ⭐ Défaut<br>
-                                <span style="font-size:0.75rem;font-weight:400;color:#6366f1;">Nouveaux comptes</span>
+                                ⭐ {{ t('admin.default_label') }}<br>
+                                <span style="font-size:0.75rem;font-weight:400;color:#6366f1;">{{ t('admin.default_sublabel') }}</span>
                             </td>
                             {% for feat in all_features %}
                             {% set is_on = feature_defaults.get(feat, True) %}
@@ -50,7 +50,7 @@
                                     <input type="hidden" name="is_enabled" value="{{ '0' if is_on else '1' }}">
                                     <button type="submit"
                                         style="background:none;border:none;cursor:pointer;font-size:1.4rem;line-height:1;"
-                                        title="{{ 'Désactiver par défaut' if is_on else 'Activer par défaut' }}">
+                                        title="{{ t('admin.disable_default') if is_on else t('admin.enable_default') }}">
                                         {{ '✅' if is_on else '❌' }}
                                     </button>
                                 </form>
@@ -71,7 +71,7 @@
                                     <input type="hidden" name="is_enabled" value="{{ '0' if feat_data.is_enabled else '1' }}">
                                     <button type="submit"
                                         style="background:none;border:none;cursor:pointer;font-size:1.4rem;line-height:1;"
-                                        title="{{ 'Désactiver' if feat_data.is_enabled else 'Activer' }}">
+                                        title="{{ t('admin.disable') if feat_data.is_enabled else t('admin.enable') }}">
                                         {{ '✅' if feat_data.is_enabled else '❌' }}
                                     </button>
                                 </form>
@@ -80,7 +80,7 @@
                         </tr>
                         {% endfor %}
                         {% else %}
-                        <tr><td colspan="{{ all_features | length + 1 }}" style="padding:1rem;text-align:center;color:#6b7280;">Aucun utilisateur enregistré.</td></tr>
+                        <tr><td colspan="{{ all_features | length + 1 }}" style="padding:1rem;text-align:center;color:#6b7280;">{{ t('admin.no_users') }}</td></tr>
                         {% endif %}
                     </tbody>
                 </table>
@@ -91,27 +91,27 @@
     <!-- ── Change Password ───────────────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">🔑 Change User Password</span>
+            <span class="card-title">🔑 {{ t('admin.change_pwd_title') }}</span>
         </div>
         <div style="padding: 1.5rem;">
             <form method="POST">
                 <input type="hidden" name="action" value="change_password">
                 <div class="grid grid-2" style="gap: 0.75rem;">
                     <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label>Username *</label>
+                        <label>{{ t('admin.username_required') }}</label>
                         <select name="target_username" required>
-                            <option value="">— Select user —</option>
+                            <option value="">{{ t('admin.select_user') }}</option>
                             {% for user in users %}
                             <option value="{{ user.username }}">{{ user.username }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label>New Password * (min 6 chars)</label>
-                        <input type="password" name="new_password" placeholder="New password" required minlength="6">
+                        <label>{{ t('admin.new_password_required') }}</label>
+                        <input type="password" name="new_password" placeholder="{{ t('admin.new_password_placeholder') }}" required minlength="6">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm">🔑 Change Password</button>
+                <button type="submit" class="btn btn-primary btn-sm">🔑 {{ t('admin.change_pwd_btn') }}</button>
             </form>
         </div>
     </div>
@@ -119,16 +119,16 @@
     <!-- ── Flashcard Languages ────────────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">🧠 Flashcard Languages</span>
+            <span class="card-title">🧠 {{ t('admin.fc_langs_title') }}</span>
         </div>
         <div style="padding: 1.5rem;">
             {% if fc_languages %}
             <table style="width:100%;border-collapse:collapse;margin-bottom:1.5rem;font-size:0.9rem;">
                 <thead>
                     <tr style="border-bottom:2px solid var(--border);">
-                        <th style="text-align:left;padding:0.4rem 0.5rem;">Flag</th>
-                        <th style="text-align:left;padding:0.4rem 0.5rem;">Code</th>
-                        <th style="text-align:left;padding:0.4rem 0.5rem;">Name</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">{{ t('admin.th_flag') }}</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">{{ t('admin.th_code') }}</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">{{ t('admin.th_name') }}</th>
                         <th style="padding:0.4rem 0.5rem;"></th>
                     </tr>
                 </thead>
@@ -139,7 +139,7 @@
                         <td style="padding:0.5rem;font-weight:600;">{{ lang.code }}</td>
                         <td style="padding:0.5rem;">{{ lang.name }}</td>
                         <td style="padding:0.5rem;text-align:right;">
-                            <form method="POST" action="{{ url_for('flashcards.admin_delete_language', lang_id=lang.id) }}" style="display:inline;" onsubmit="return confirm('Delete language {{ lang.code }}?')">
+                            <form method="POST" action="{{ url_for('flashcards.admin_delete_language', lang_id=lang.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('admin.confirm_delete_lang', code=lang.code) }}')">
                                 <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
                             </form>
                         </td>
@@ -148,27 +148,27 @@
                 </tbody>
             </table>
             {% else %}
-            <p class="text-muted mb-3">No languages added yet.</p>
+            <p class="text-muted mb-3">{{ t('admin.no_langs') }}</p>
             {% endif %}
 
             <details>
-                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">➕ Add a language</summary>
+                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">➕ {{ t('admin.add_language') }}</summary>
                 <form method="POST" action="{{ url_for('flashcards.admin_add_language') }}" style="margin-top:0.75rem;">
                     <div class="grid grid-3" style="gap:0.75rem;">
                         <div class="form-group" style="margin-bottom:0.75rem;">
-                            <label>Code * (e.g. fr)</label>
+                            <label>{{ t('admin.lang_code_label') }}</label>
                             <input type="text" name="code" placeholder="fr" required maxlength="10">
                         </div>
                         <div class="form-group" style="margin-bottom:0.75rem;">
-                            <label>Name *</label>
+                            <label>{{ t('admin.lang_name_label') }}</label>
                             <input type="text" name="name" placeholder="French" required maxlength="50">
                         </div>
                         <div class="form-group" style="margin-bottom:0.75rem;">
-                            <label>Flag emoji</label>
+                            <label>{{ t('admin.lang_flag_label') }}</label>
                             <input type="text" name="flag_emoji" placeholder="🇫🇷" maxlength="10">
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-sm">✅ Add Language</button>
+                    <button type="submit" class="btn btn-primary btn-sm">✅ {{ t('admin.add_language_btn') }}</button>
                 </form>
             </details>
         </div>
@@ -177,27 +177,25 @@
     <!-- ── Flashcard Import / Export ────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">📥 Import / Export Flashcards (JSON)</span>
+            <span class="card-title">📥 {{ t('admin.fc_import_export_title') }}</span>
             <a href="{{ url_for('flashcards.admin_export') }}" class="btn btn-sm btn-secondary">
-                📤 Exporter toutes les cartes
+                📤 {{ t('admin.fc_export_btn') }}
             </a>
         </div>
         <div style="padding: 1.5rem;">
             <p class="text-muted mb-2">
-                Import cards as JSON array. Categories are auto-created. Languages in translations are auto-registered.
-                Optional <code>difficulty</code>: <span style="color:#065f46">beginner</span>, <span style="color:#92400e">medium</span> (default), <span style="color:#991b1b">confirmed</span>.
-                Les cartes existantes (même traductions) sont <strong>mises à jour</strong> sans duplication.
+                {{ t('admin.fc_import_desc_1') }}
             </p>
             {% if fc_categories %}
             <p class="mb-3" style="font-size:0.9rem;">
-                <strong>Existing categories:</strong>
+                <strong>{{ t('admin.existing_categories') }}</strong>
                 {% for cat in fc_categories %}
                 <span class="badge badge-primary" style="margin-right:0.25rem;">{{ cat.icon or '📁' }} {{ cat.name }} ({{ cat.card_count }})</span>
                 {% endfor %}
             </p>
             {% endif %}
             <details>
-                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">📋 Show JSON format</summary>
+                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">📋 {{ t('admin.show_json_format') }}</summary>
                 <pre style="background:var(--light);padding:1rem;border-radius:8px;font-size:0.8rem;overflow-x:auto;margin-bottom:1rem;">[
   {
     "category": "Animals",
@@ -229,10 +227,10 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
             </details>
             <form method="POST" action="{{ url_for('flashcards.admin_import') }}">
                 <div class="form-group" style="margin-bottom:0.75rem;">
-                    <label>JSON Data *</label>
+                    <label>{{ t('admin.json_data_required') }}</label>
                     <textarea name="json_data" rows="8" required placeholder='[{"category":"...","translations":{...},"distractors":{...}}]' style="font-family:monospace;font-size:0.85rem;"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm">📥 Import Cards</button>
+                <button type="submit" class="btn btn-primary btn-sm">📥 {{ t('admin.import_cards_btn') }}</button>
             </form>
         </div>
     </div>
@@ -240,23 +238,23 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
     <!-- ── Leitner Intervals ─────────────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">⏱️ Leitner Intervals</span>
+            <span class="card-title">⏱️ {{ t('admin.leitner_title') }}</span>
         </div>
         <div style="padding: 1.5rem;">
-            <p class="text-muted mb-3">Configure the number of days before a card in each box is shown again.</p>
+            <p class="text-muted mb-3">{{ t('admin.leitner_desc') }}</p>
             <form method="POST" action="{{ url_for('flashcards.admin_intervals') }}">
                 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
                     {% for box in range(1, 8) %}
                     {% set colors = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#10b981'] %}
                     <div style="flex:1;min-width:75px;text-align:center;">
-                        <label style="font-size:0.8rem;color:{{ colors[box-1] }};font-weight:600;">Box {{ box }}</label>
+                        <label style="font-size:0.8rem;color:{{ colors[box-1] }};font-weight:600;">{{ t('admin.box_label', n=box) }}</label>
                         <input type="number" name="box_{{ box }}" value="{{ leitner_intervals.get(box, '') }}"
                                min="1" required style="text-align:center;padding:0.5rem;">
-                        <div style="font-size:0.75rem;color:#6b7280;">days</div>
+                        <div style="font-size:0.75rem;color:#6b7280;">{{ t('admin.days_label') }}</div>
                     </div>
                     {% endfor %}
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm">💾 Save Intervals</button>
+                <button type="submit" class="btn btn-primary btn-sm">💾 {{ t('admin.save_intervals_btn') }}</button>
             </form>
         </div>
     </div>
@@ -264,7 +262,7 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
     <!-- ── Flashcard Reports ────────────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">🚩 Flashcard Reports</span>
+            <span class="card-title">🚩 {{ t('admin.fc_reports_title') }}</span>
             {% if fc_reports %}
             <span class="badge badge-primary">{{ fc_reports|length }}</span>
             {% endif %}
@@ -274,11 +272,11 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
             <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
                 <thead>
                     <tr style="border-bottom:2px solid var(--border);">
-                        <th style="text-align:left;padding:0.4rem 0.5rem;">User</th>
-                        <th style="text-align:left;padding:0.4rem 0.5rem;">Card</th>
-                        <th style="text-align:left;padding:0.4rem 0.5rem;">Comment</th>
-                        <th style="text-align:center;padding:0.4rem 0.5rem;">Pair</th>
-                        <th style="text-align:right;padding:0.4rem 0.5rem;">Date</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">{{ t('admin.report_th_user') }}</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">{{ t('admin.report_th_card') }}</th>
+                        <th style="text-align:left;padding:0.4rem 0.5rem;">{{ t('admin.report_th_comment') }}</th>
+                        <th style="text-align:center;padding:0.4rem 0.5rem;">{{ t('admin.report_th_pair') }}</th>
+                        <th style="text-align:right;padding:0.4rem 0.5rem;">{{ t('admin.report_th_date') }}</th>
                         <th style="padding:0.4rem 0.5rem;"></th>
                     </tr>
                 </thead>
@@ -299,7 +297,7 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
                         </td>
                         <td style="padding:0.5rem;text-align:right;font-size:0.8rem;color:#6b7280;">{{ report.created_at.strftime('%Y-%m-%d') if report.created_at else '' }}</td>
                         <td style="padding:0.5rem;text-align:right;">
-                            <form method="POST" action="{{ url_for('flashcards.admin_delete_report', report_id=report.id) }}" style="display:inline;" onsubmit="return confirm('Delete this report?')">
+                            <form method="POST" action="{{ url_for('flashcards.admin_delete_report', report_id=report.id) }}" style="display:inline;" onsubmit="return confirm('{{ t('admin.confirm_delete_report') }}')">
                                 <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
                             </form>
                         </td>
@@ -308,7 +306,7 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
                 </tbody>
             </table>
             {% else %}
-            <p class="text-muted">No reports submitted yet.</p>
+            <p class="text-muted">{{ t('admin.no_reports') }}</p>
             {% endif %}
         </div>
     </div>
@@ -316,15 +314,15 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
     <!-- ── Competency Test Import ────────────────────────────────────────── -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">📝 Import Competency Questions (JSON)</span>
+            <span class="card-title">📝 {{ t('admin.cq_import_title') }}</span>
         </div>
         <div style="padding: 1.5rem;">
             <p class="text-muted mb-2">
-                Import reading &amp; listening questions as JSON array. Duplicate IDs are updated.
+                {{ t('admin.cq_import_desc') }}
             </p>
             {% if cq_stats %}
             <p class="mb-3" style="font-size:0.9rem;">
-                <strong>Current pool:</strong>
+                <strong>{{ t('admin.current_pool') }}</strong>
                 {% for s in cq_stats %}
                 <span class="badge" style="{% if s.skill == 'reading' %}background:#dbeafe;color:#1e40af{% else %}background:#ede9fe;color:#5b21b6{% endif %};margin-right:0.25rem;font-size:0.8rem;">
                     {% if s.skill == 'reading' %}📖{% else %}🎧{% endif %} {{ s.level_hint }} ({{ s.cnt }})
@@ -333,7 +331,7 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
             </p>
             {% endif %}
             <details>
-                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">📋 Show JSON format</summary>
+                <summary style="cursor:pointer;font-weight:600;color:var(--primary);margin-bottom:0.75rem;">📋 {{ t('admin.show_json_format') }}</summary>
                 <pre style="background:var(--light);padding:1rem;border-radius:8px;font-size:0.75rem;overflow-x:auto;margin-bottom:1rem;">[
   {"id":"READ_A1_001","skill":"reading","level_hint":"A1","difficulty_score":20,
    "text":{"en":"I eat bread.","fr":"Je mange du pain."},
@@ -349,10 +347,10 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
             </details>
             <form method="POST" action="{{ url_for('competency.admin_import') }}">
                 <div class="form-group" style="margin-bottom:0.75rem;">
-                    <label>JSON Data *</label>
+                    <label>{{ t('admin.json_data_required') }}</label>
                     <textarea name="json_data" rows="8" required placeholder='[{"id":"READ_A1_001","skill":"reading",...}]' style="font-family:monospace;font-size:0.85rem;"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm">📥 Import Questions</button>
+                <button type="submit" class="btn btn-primary btn-sm">📥 {{ t('admin.import_questions_btn') }}</button>
             </form>
         </div>
     </div>
@@ -360,22 +358,22 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
     <!-- ── Database management ───────────────────────────────────────────── -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">🗄️ Database Management</span>
+            <span class="card-title">🗄️ {{ t('admin.db_mgmt_title') }}</span>
         </div>
         <div style="padding: 1.5rem;">
-            <p class="mb-3">This action will delete ALL data from the database:</p>
+            <p class="mb-3">{{ t('admin.db_mgmt_desc') }}</p>
             <ul style="margin-left: 2rem; margin-bottom: 1.5rem;">
-                <li>All user accounts</li>
-                <li>All tokens (created and received)</li>
-                <li>All shopping lists and items</li>
-                <li>All prizes and scratch tickets</li>
+                <li>{{ t('admin.db_list_users') }}</li>
+                <li>{{ t('admin.db_list_tokens') }}</li>
+                <li>{{ t('admin.db_list_shopping') }}</li>
+                <li>{{ t('admin.db_list_prizes') }}</li>
             </ul>
 
             <form method="POST" onsubmit="return confirmClearAll()">
                 <input type="hidden" name="action" value="clear_all">
                 <div class="flex gap-1">
-                    <button type="submit" class="btn btn-danger">🗑️ Delete All Data</button>
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-danger">🗑️ {{ t('admin.delete_all_btn') }}</button>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">{{ t('admin.cancel_btn') }}</a>
                 </div>
             </form>
         </div>
@@ -383,10 +381,15 @@ Listening: user hears target audio (TTS) → picks source translation</pre>
 </div>
 
 <script>
+const ADMIN_I18N = {
+    confirmFirst: {{ t('admin.confirm_clear_first') | tojson }},
+    confirmFinal: {{ t('admin.confirm_clear_final') | tojson }}
+};
+
 function confirmClearAll() {
-    const first = confirm("⚠️ WARNING: This will delete ALL data!\n\nAre you absolutely sure you want to continue?");
+    const first = confirm(ADMIN_I18N.confirmFirst);
     if (first) {
-        return confirm("🚨 FINAL CONFIRMATION: This action is irreversible!\n\nClick OK to proceed with deletion.");
+        return confirm(ADMIN_I18N.confirmFinal);
     }
     return false;
 }

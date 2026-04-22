@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Choose Languages - Flashcards{% endblock %}
+{% block title %}{{ t('flashcards.choose_languages_title') }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width:500px;margin:2rem auto;">
-    <h1 class="mb-3">🌐 Choose Your Languages</h1>
-    <p class="text-muted mb-3">Select the language you know and the one you're learning.</p>
+    <h1 class="mb-3">{{ t('flashcards.choose_languages_heading') }}</h1>
+    <p class="text-muted mb-3">{{ t('flashcards.choose_languages_sub') }}</p>
 
     <form method="POST">
         <div class="form-group">
-            <label>🗣️ I know (source language)</label>
+            <label>{{ t('flashcards.source_label') }}</label>
             <select name="source_lang" required>
-                <option value="">— Select language —</option>
+                <option value="">{{ t('flashcards.select_language') }}</option>
                 {% for lang in languages %}
                 <option value="{{ lang.code }}" {% if session.get('fc_source_lang') == lang.code %}selected{% endif %}>
                     {{ lang.flag_emoji or '' }} {{ lang.name }} ({{ lang.code }})
@@ -20,9 +20,9 @@
         </div>
 
         <div class="form-group">
-            <label>🎯 I'm learning (target language)</label>
+            <label>{{ t('flashcards.target_label') }}</label>
             <select name="target_lang" required>
-                <option value="">— Select language —</option>
+                <option value="">{{ t('flashcards.select_language') }}</option>
                 {% for lang in languages %}
                 <option value="{{ lang.code }}" {% if session.get('fc_target_lang') == lang.code %}selected{% endif %}>
                     {{ lang.flag_emoji or '' }} {{ lang.name }} ({{ lang.code }})
@@ -32,8 +32,8 @@
         </div>
 
         <div class="flex gap-1">
-            <button type="submit" class="btn btn-primary">🚀 Start</button>
-            <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">{{ t('flashcards.start_btn') }}</button>
+            <a href="{{ url_for('flashcards.flashcards_home') }}" class="btn btn-secondary">{{ t('flashcards.cancel_btn') }}</a>
         </div>
     </form>
 </div>

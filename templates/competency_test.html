@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Test in Progress{% endblock %}
+{% block title %}{{ t('competency.test_page_title') }}{% endblock %}
 
 {% block content %}
 <style>
@@ -145,8 +145,8 @@
 <div class="ct-container">
     <!-- Header -->
     <div class="flex flex-between flex-center mb-1">
-        <span class="text-muted" style="font-size:0.85rem;">{{ test.target_lang|upper }} Competency Test</span>
-        <span class="text-muted" style="font-size:0.85rem;" id="questionCount">0 / 50</span>
+        <span class="text-muted" style="font-size:0.85rem;">{{ t('competency.test_header_label', lang=test.target_lang|upper) }}</span>
+        <span class="text-muted" style="font-size:0.85rem;" id="questionCount">{{ t('competency.question_counter', done=0, total=50) }}</span>
     </div>
     <div class="ct-progress">
         <div class="ct-progress-bar" id="progressBar" style="width:0%"></div>
@@ -154,14 +154,14 @@
 
     <!-- Skill badge -->
     <div class="text-center mb-2">
-        <span class="ct-skill-badge ct-skill-reading" id="skillBadge">📖 Reading</span>
+        <span class="ct-skill-badge ct-skill-reading" id="skillBadge">{{ t('competency.skill_reading') }}</span>
     </div>
 
     <!-- Content area (text or audio) -->
     <div id="contentCard" class="ct-content-card ct-reading-card">
         <div class="ct-loading">
             <div class="spinner"></div>
-            <p style="margin-top:0.75rem;">Loading first question...</p>
+            <p style="margin-top:0.75rem;">{{ t('competency.loading_first_question') }}</p>
         </div>
     </div>
 
@@ -175,6 +175,14 @@
 
 {% block scripts %}
 <script>
+    // i18n strings injected from the server
+    const I18N = {
+        skillReading:   {{ t('competency.skill_reading') | tojson }},
+        skillListening: {{ t('competency.skill_listening') | tojson }},
+        listenHint:     {{ t('competency.listen_hint') | tojson }},
+        counter:        {{ t('competency.question_counter', done='__DONE__', total='__TOTAL__') | tojson }}
+    };
+
     const TEST_ID = {{ test.test_id if test.test_id is defined else test.id }};
     const MAX_Q = 50;
 
@@ -218,18 +226,18 @@
         // Progress
         const pct = Math.min(100, (data.progress / MAX_Q) * 100);
         document.getElementById('progressBar').style.width = pct + '%';
-        document.getElementById('questionCount').textContent = `${data.progress} / ${MAX_Q}`;
+        document.getElementById('questionCount').textContent = I18N.counter.replace('__DONE__', data.progress).replace('__TOTAL__', MAX_Q);
 
         // Skill badge
         const badge = document.getElementById('skillBadge');
         const card = document.getElementById('contentCard');
         if (data.skill === 'reading') {
             badge.className = 'ct-skill-badge ct-skill-reading';
-            badge.textContent = '📖 Reading';
+            badge.textContent = I18N.skillReading;
             card.className = 'ct-content-card ct-reading-card';
         } else {
             badge.className = 'ct-skill-badge ct-skill-listening';
-            badge.textContent = '🎧 Listening';
+            badge.textContent = I18N.skillListening;
             card.className = 'ct-content-card ct-listening-card';
         }
 
@@ -239,7 +247,7 @@
         } else {
             card.innerHTML = `
                 <button class="ct-listen-btn" onclick="speak('${escapeJs(data.tts_text)}', '${escapeJs(data.tts_voice)}')">🔊</button>
-                <div class="ct-listen-hint">Tap to listen (you can replay)</div>
+                <div class="ct-listen-hint">${I18N.listenHint}</div>
             `;
             // Auto-play on first load
             setTimeout(() => speak(data.tts_text, data.tts_voice), 300);
@@ -289,7 +297,7 @@
             }
 
             // Update count
-            document.getElementById('questionCount').textContent = `${data.questions_done} / ${MAX_Q}`;
+            document.getElementById('questionCount').textContent = I18N.counter.replace('__DONE__', data.questions_done).replace('__TOTAL__', MAX_Q);
             const pct = Math.min(100, (data.questions_done / MAX_Q) * 100);
             document.getElementById('progressBar').style.width = pct + '%';
 

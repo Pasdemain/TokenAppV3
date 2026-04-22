@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Create Secret Santa - CoupleApp{% endblock %}
+{% block title %}{{ t('santa.create_page_title') }}{% endblock %}
 
 {% block content %}
 <style>
@@ -32,37 +32,37 @@
 </style>
 
 <div class="content-wrapper" style="max-width: 700px; margin: 2rem auto;">
-    <h1 class="santa-red mb-3">🎅 Create a Secret Santa Group</h1>
+    <h1 class="santa-red mb-3">{{ t('santa.create_title') }}</h1>
 
     <form method="POST">
         <div class="form-group">
-            <label for="name">Group Name *</label>
+            <label for="name">{{ t('santa.group_name_label') }}</label>
             <input type="text" id="name" name="name" required maxlength="100"
-                   placeholder="e.g., Family Christmas 2026">
+                   placeholder="{{ t('santa.group_name_placeholder') }}">
         </div>
 
         <div class="form-group">
-            <label for="description">Description (Optional)</label>
+            <label for="description">{{ t('santa.description_label') }}</label>
             <textarea id="description" name="description" rows="2"
-                      placeholder="Rules, theme, etc."></textarea>
+                      placeholder="{{ t('santa.description_placeholder') }}"></textarea>
         </div>
 
         <div class="grid grid-2">
             <div class="form-group">
-                <label for="budget">Budget (Optional)</label>
+                <label for="budget">{{ t('santa.budget_form_label') }}</label>
                 <input type="text" id="budget" name="budget" maxlength="50"
-                       placeholder="e.g., 20€">
+                       placeholder="{{ t('santa.budget_placeholder') }}">
             </div>
             <div class="form-group">
-                <label for="event_date">Event Date (Optional)</label>
+                <label for="event_date">{{ t('santa.event_date_form_label') }}</label>
                 <input type="date" id="event_date" name="event_date">
             </div>
         </div>
 
         <div class="form-group">
-            <label>Invite Members</label>
+            <label>{{ t('santa.invite_members_label') }}</label>
             <small class="text-muted" style="display:block; margin-bottom:0.5rem;">
-                You will be added automatically. Pick at least 2 others (minimum 3 total to draw).
+                {{ t('santa.invite_members_hint') }}
             </small>
             {% if users %}
                 {% for user in users %}
@@ -72,13 +72,13 @@
                 </label>
                 {% endfor %}
             {% else %}
-                <p class="text-muted">No other users available to invite yet.</p>
+                <p class="text-muted">{{ t('santa.no_other_users') }}</p>
             {% endif %}
         </div>
 
         <div class="flex gap-1">
-            <button type="submit" class="btn btn-santa">🎄 Create Group</button>
-            <a href="{{ url_for('santa.santa_home') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-santa">{{ t('santa.create_group_btn') }}</button>
+            <a href="{{ url_for('santa.santa_home') }}" class="btn btn-secondary">{{ t('santa.btn_cancel') }}</a>
         </div>
     </form>
 </div>

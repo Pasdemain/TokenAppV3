@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}{{ shopping_list.name }} - CoupleApp{% endblock %}
+{% block title %}{{ t('shopping.detail_page_title', name=shopping_list.name) }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper">
     <div class="flex flex-between flex-center mb-3">
         <div>
             <h1>🛒 {{ shopping_list.name }}</h1>
-            <p class="text-muted">Created by {{ shopping_list.creator_username }} • {{ shopping_list.created_at|timeago }}</p>
+            <p class="text-muted">{{ t('shopping.detail_created_by', user=shopping_list.creator_username, ago=shopping_list.created_at|timeago) }}</p>
         </div>
         <div class="flex gap-1">
-            <a href="{{ url_for('shopping.shopping_lists') }}" class="btn btn-secondary">← Back</a>
+            <a href="{{ url_for('shopping.shopping_lists') }}" class="btn btn-secondary">{{ t('shopping.btn_back') }}</a>
             {% if is_owner %}
                 <form method="POST" action="{{ url_for('shopping.delete_list', list_id=shopping_list.id) }}" style="display: inline;">
-                    <button type="submit" class="btn btn-danger" onclick="return confirm('Delete this shopping list? This action cannot be undone.')">
-                        🗑️ Delete List
+                    <button type="submit" class="btn btn-danger" onclick="return confirm({{ t('shopping.confirm_delete') | tojson }})">
+                        {{ t('shopping.btn_delete_list') }}
                     </button>
                 </form>
             {% endif %}
@@ -23,14 +23,14 @@
     <!-- Progress Overview -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">Progress</span>
-            <span>{{ progress }}% Complete</span>
+            <span class="card-title">{{ t('shopping.progress_label') }}</span>
+            <span>{{ t('shopping.progress_percent', n=progress) }}</span>
         </div>
         <div class="progress" style="height: 20px;">
             <div class="progress-bar" style="width: {{ progress }}%"></div>
         </div>
         <p class="text-muted mt-2">
-            {{ items|selectattr('is_completed')|list|length }} of {{ items|length }} items completed
+            {{ t('shopping.progress_summary', completed=items|selectattr('is_completed')|list|length, total=items|length) }}
         </p>
     </div>
 
@@ -38,12 +38,12 @@
     {% if members %}
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">👥 Members</span>
+            <span class="card-title">{{ t('shopping.members_heading') }}</span>
         </div>
         <div class="flex gap-1" style="flex-wrap: wrap;">
             {% for member in members %}
                 <span class="badge {% if member.role == 'owner' %}badge-primary{% else %}badge-secondary{% endif %}">
-                    {{ member.username }} {% if member.role == 'owner' %}(Owner){% endif %}
+                    {{ member.username }} {% if member.role == 'owner' %}{{ t('shopping.owner_suffix') }}{% endif %}
                 </span>
             {% endfor %}
         </div>
@@ -53,48 +53,48 @@
     <!-- Add Item Form -->
     <div class="card mb-3">
         <div class="card-header">
-            <span class="card-title">➕ Add Item</span>
+            <span class="card-title">{{ t('shopping.add_item_heading') }}</span>
         </div>
         <form method="POST" action="{{ url_for('shopping.add_item', list_id=shopping_list.id) }}">
             <div class="grid grid-3 gap-1">
                 <div class="form-group">
-                    <input type="text" name="name" placeholder="Item name" required>
+                    <input type="text" name="name" placeholder="{{ t('shopping.placeholder_item_name') }}" required>
                 </div>
                 <div class="form-group">
-                    <input type="text" name="quantity" placeholder="Quantity" value="1">
+                    <input type="text" name="quantity" placeholder="{{ t('shopping.placeholder_quantity') }}" value="1">
                 </div>
                 <div class="form-group">
                     <select name="category">
-                        <option value="pcs">Pieces</option>
-                        <option value="kg">Kilograms</option>
-                        <option value="g">Grams</option>
-                        <option value="L">Liters</option>
-                        <option value="mL">Milliliters</option>
-                        <option value="lbs">Pounds</option>
-                        <option value="oz">Ounces</option>
-                        <option value="box">Box</option>
-                        <option value="pack">Pack</option>
-                        <option value="bottle">Bottle</option>
-                        <option value="bag">Bag</option>
-                        <option value="jar">Jar</option>
-                        <option value="can">Can</option>
-                        <option value="bunch">Bunch</option>
-                        <option value="dozen">Dozen</option>
-                        <option value="slice">Slice</option>
+                        <option value="pcs">{{ t('shopping.category_pcs') }}</option>
+                        <option value="kg">{{ t('shopping.category_kg') }}</option>
+                        <option value="g">{{ t('shopping.category_g') }}</option>
+                        <option value="L">{{ t('shopping.category_L') }}</option>
+                        <option value="mL">{{ t('shopping.category_mL') }}</option>
+                        <option value="lbs">{{ t('shopping.category_lbs') }}</option>
+                        <option value="oz">{{ t('shopping.category_oz') }}</option>
+                        <option value="box">{{ t('shopping.category_box') }}</option>
+                        <option value="pack">{{ t('shopping.category_pack') }}</option>
+                        <option value="bottle">{{ t('shopping.category_bottle') }}</option>
+                        <option value="bag">{{ t('shopping.category_bag') }}</option>
+                        <option value="jar">{{ t('shopping.category_jar') }}</option>
+                        <option value="can">{{ t('shopping.category_can') }}</option>
+                        <option value="bunch">{{ t('shopping.category_bunch') }}</option>
+                        <option value="dozen">{{ t('shopping.category_dozen') }}</option>
+                        <option value="slice">{{ t('shopping.category_slice') }}</option>
                     </select>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">Add Item</button>
+            <button type="submit" class="btn btn-primary">{{ t('shopping.btn_add_item') }}</button>
         </form>
     </div>
 
     <!-- Items List -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">📋 Items</span>
-            <span class="text-muted">{{ items|length }} total</span>
+            <span class="card-title">{{ t('shopping.items_heading') }}</span>
+            <span class="text-muted">{{ t('shopping.items_total', n=items|length) }}</span>
         </div>
-        
+
         {% if items %}
             <div style="max-height: 500px; overflow-y: auto;">
                 {% for item in items %}
@@ -112,9 +112,9 @@
                             <span class="text-muted">{{ item.quantity }} {{ item.category }}</span>
                             <br>
                             <small class="text-muted">
-                                Added by {{ item.added_by_username }} • {{ item.added_at|timeago }}
+                                {{ t('shopping.added_by', user=item.added_by_username, ago=item.added_at|timeago) }}
                                 {% if item.is_completed %}
-                                    • Completed by {{ item.completed_by_username }}
+                                    {{ t('shopping.completed_by', user=item.completed_by_username) }}
                                 {% endif %}
                             </small>
                         </div>
@@ -124,7 +124,7 @@
             </div>
         {% else %}
             <p class="text-center text-muted" style="padding: 2rem;">
-                No items yet. Add your first item above!
+                {{ t('shopping.empty_items') }}
             </p>
         {% endif %}
     </div>
@@ -136,7 +136,7 @@
         grid-template-columns: 2fr 1fr 1fr;
         gap: 0.5rem;
     }
-    
+
     @media (max-width: 768px) {
         .grid-3 {
             grid-template-columns: 1fr;

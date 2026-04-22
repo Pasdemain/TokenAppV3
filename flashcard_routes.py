@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, redirect, url_for, session, flash,
 from psycopg2.extras import RealDictCursor, execute_values
 from database import get_db_connection
 from auth import feature_required, admin_required
+from i18n import t as _t
 
 flashcard_bp = Blueprint('flashcards', __name__)
 
@@ -102,13 +103,13 @@ def switch_pair():
     target_lang = request.form.get('target_lang', '').strip()
 
     if not source_lang or not target_lang:
-        flash('Please select both languages.', 'error')
+        flash(_t('flashcards.flash_select_both'), 'error')
     elif source_lang == target_lang:
-        flash('Source and target languages must be different.', 'error')
+        flash(_t('flashcards.flash_langs_different'), 'error')
     else:
         session['fc_source_lang'] = source_lang
         session['fc_target_lang'] = target_lang
-        flash(f'Paire active : {source_lang.upper()} → {target_lang.upper()}', 'success')
+        flash(_t('flashcards.flash_pair_switched', source=source_lang.upper(), target=target_lang.upper()), 'success')
 
     return redirect(url_for('flashcards.flashcards_home'))
 
@@ -133,9 +134,9 @@ def flashcard_session():
         target_lang = request.form.get('target_lang', '').strip()
 
         if not source_lang or not target_lang:
-            flash('Please select both languages.', 'error')
+            flash(_t('flashcards.flash_select_both'), 'error')
         elif source_lang == target_lang:
-            flash('Source and target languages must be different.', 'error')
+            flash(_t('flashcards.flash_langs_different'), 'error')
         else:
             session['fc_source_lang'] = source_lang
             session['fc_target_lang'] = target_lang
@@ -157,7 +158,7 @@ def review():
     target_lang = session.get('fc_target_lang')
 
     if not source_lang or not target_lang:
-        flash('Please start a session first.', 'warning')
+        flash(_t('flashcards.flash_start_session_first'), 'warning')
         return redirect(url_for('flashcards.flashcard_session'))
 
     conn = get_db_connection()
@@ -400,7 +401,7 @@ def answer(user_flashcard_id):
     if not uf:
         cur.close()
         conn.close()
-        return jsonify({'error': 'Card not found'}), 404
+        return jsonify({'error': _t('flashcards.error_card_not_found')}), 404
 
     chosen = request.form.get('answer', '').strip()
     translations = uf['translations'] if isinstance(uf['translations'], dict) else json.loads(uf['translations'])
@@ -446,13 +447,13 @@ def answer(user_flashcard_id):
 def report_card():
     data = request.get_json()
     if not data:
-        return jsonify({'error': 'No data'}), 400
+        return jsonify({'error': _t('flashcards.error_no_data')}), 400
 
     flashcard_id = data.get('flashcard_id')
     comment = (data.get('comment') or '').strip()
 
     if not flashcard_id or not comment:
-        return jsonify({'error': 'Card ID and comment are required'}), 400
+        return jsonify({'error': _t('flashcards.error_card_id_and_comment')}), 400
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -483,7 +484,7 @@ def admin_delete_report(report_id):
     cur.close()
     conn.close()
 
-    flash('Report deleted.', 'success')
+    flash(_t('flashcards.admin_report_deleted'), 'success')
     return redirect(url_for('admin'))
 
 
@@ -500,7 +501,7 @@ def add_cards(category_id):
         card_type = 'reading'
 
     if not source_lang or not target_lang:
-        flash('Please select languages first.', 'error')
+        flash(_t('flashcards.flash_select_langs_first'), 'error')
         return redirect(url_for('flashcards.flashcard_session'))
 
     conn = get_db_connection()
@@ -529,7 +530,7 @@ def add_cards(category_id):
     cards = cur.fetchall()
 
     if not cards:
-        flash('No new cards available in this category for your language pair.', 'info')
+        flash(_t('flashcards.flash_no_new_cards'), 'info')
     else:
         for card in cards:
             cur.execute("""
@@ -538,7 +539,10 @@ def add_cards(category_id):
             """, (session['user_id'], card['id'], source_lang, target_lang, today,
                   card['difficulty'], json.dumps(card['translations']) if isinstance(card['translations'], dict) else card['translations']))
         conn.commit()
-        flash(f'{len(cards)} cards added to your collection!', 'success')
+        if len(cards) == 1:
+            flash(_t('flashcards.flash_cards_added_one', n=len(cards)), 'success')
+        else:
+            flash(_t('flashcards.flash_cards_added_many', n=len(cards)), 'success')
 
     cur.close()
     conn.close()
@@ -595,7 +599,7 @@ def admin_export():
             headers={'Content-Disposition': 'attachment; filename=flashcards_export.json'}
         )
     except Exception as e:
-        flash(f'Export error: {e}', 'error')
+        flash(_t('flashcards.admin_export_error', err=str(e)), 'error')
         return redirect(url_for('admin'))
     finally:
         cur.close()
@@ -619,17 +623,17 @@ def admin_import():
 
     json_data = request.form.get('json_data', '').strip()
     if not json_data:
-        flash('No JSON data provided.', 'error')
+        flash(_t('flashcards.admin_no_json'), 'error')
         return redirect(url_for('admin'))
 
     try:
         cards = json.loads(json_data)
     except json.JSONDecodeError as e:
-        flash(f'Invalid JSON: {e}', 'error')
+        flash(_t('flashcards.admin_invalid_json', err=str(e)), 'error')
         return redirect(url_for('admin'))
 
     if not isinstance(cards, list):
-        flash('JSON must be an array of card objects.', 'error')
+        flash(_t('flashcards.admin_json_must_be_array'), 'error')
         return redirect(url_for('admin'))
 
     conn = get_db_connection()
@@ -754,13 +758,16 @@ def admin_import():
         conn.commit()
         parts = []
         if inserted_count:
-            parts.append(f'{inserted_count} ajoutée(s)')
+            key = 'flashcards.admin_import_added_one' if inserted_count == 1 else 'flashcards.admin_import_added_many'
+            parts.append(_t(key, n=inserted_count))
         if updated_count:
-            parts.append(f'{updated_count} mise(s) à jour')
-        flash(f'Import terminé : {", ".join(parts) if parts else "aucune modification"}.', 'success')
+            key = 'flashcards.admin_import_updated_one' if updated_count == 1 else 'flashcards.admin_import_updated_many'
+            parts.append(_t(key, n=updated_count))
+        parts_str = ", ".join(parts) if parts else _t('flashcards.admin_import_no_changes')
+        flash(_t('flashcards.admin_import_done', parts=parts_str), 'success')
     except Exception as e:
         conn.rollback()
-        flash(f'Import error: {e}', 'error')
+        flash(_t('flashcards.admin_import_error', err=str(e)), 'error')
     finally:
         cur.close()
         conn.close()
@@ -787,10 +794,10 @@ def admin_intervals():
                         ON CONFLICT (box_number) DO UPDATE SET days_interval = EXCLUDED.days_interval
                     """, (box, days))
             conn.commit()
-            flash('Leitner intervals updated!', 'success')
+            flash(_t('flashcards.admin_intervals_updated'), 'success')
         except Exception as e:
             conn.rollback()
-            flash(f'Error updating intervals: {e}', 'error')
+            flash(_t('flashcards.admin_intervals_error', err=str(e)), 'error')
         finally:
             cur.close()
             conn.close()
@@ -809,7 +816,7 @@ def admin_add_language():
     flag_emoji = request.form.get('flag_emoji', '').strip()
 
     if not code or not name:
-        flash('Language code and name are required.', 'error')
+        flash(_t('flashcards.admin_lang_required'), 'error')
         return redirect(url_for('admin'))
 
     conn = get_db_connection()
@@ -821,10 +828,10 @@ def admin_add_language():
             ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, flag_emoji = EXCLUDED.flag_emoji
         """, (code, name, flag_emoji or None))
         conn.commit()
-        flash(f'Language "{name}" added!', 'success')
+        flash(_t('flashcards.admin_lang_added', name=name), 'success')
     except Exception as e:
         conn.rollback()
-        flash(f'Error adding language: {e}', 'error')
+        flash(_t('flashcards.admin_lang_add_error', err=str(e)), 'error')
     finally:
         cur.close()
         conn.close()
@@ -843,5 +850,5 @@ def admin_delete_language(lang_id):
     cur.close()
     conn.close()
 
-    flash('Language deleted.', 'success')
+    flash(_t('flashcards.admin_lang_deleted'), 'success')
     return redirect(url_for('admin'))

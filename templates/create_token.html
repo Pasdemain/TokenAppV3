@@ -1,44 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Create Token - CoupleApp{% endblock %}
+{% block title %}{{ t('tokens.create_page_title') }}{% endblock %}
 
 {% block content %}
 <div class="content-wrapper" style="max-width: 600px; margin: 2rem auto;">
-    <h1 class="mb-3">🎁 Create a Favor Token</h1>
-    <p class="text-muted mb-3">Create a token for someone to redeem a favor from you</p>
-    
+    <h1 class="mb-3">{{ t('tokens.create_heading') }}</h1>
+    <p class="text-muted mb-3">{{ t('tokens.create_subtitle') }}</p>
+
     <form method="POST">
         <div class="form-group">
-            <label for="recipient_id">Recipient</label>
+            <label for="recipient_id">{{ t('tokens.field_recipient') }}</label>
             <select id="recipient_id" name="recipient_id" required>
-                <option value="">Select a user...</option>
+                <option value="">{{ t('tokens.field_recipient_placeholder') }}</option>
                 {% for user in users %}
                     <option value="{{ user.id }}">{{ user.username }}</option>
                 {% endfor %}
             </select>
         </div>
-        
+
         <div class="form-group">
-            <label for="name">Token Name</label>
-            <input type="text" id="name" name="name" required maxlength="50" 
-                   placeholder="e.g., Help with moving, Cook dinner, Study session">
-            <small class="text-muted">Max 50 characters</small>
+            <label for="name">{{ t('tokens.field_name') }}</label>
+            <input type="text" id="name" name="name" required maxlength="50"
+                   placeholder="{{ t('tokens.field_name_placeholder') }}">
+            <small class="text-muted">{{ t('tokens.field_name_max') }}</small>
         </div>
-        
+
         <div class="form-group">
-            <label for="description">Description (Optional)</label>
-            <textarea id="description" name="description" rows="3" 
-                      placeholder="Provide more details about what this token can be redeemed for..."></textarea>
+            <label for="description">{{ t('tokens.field_description') }}</label>
+            <textarea id="description" name="description" rows="3"
+                      placeholder="{{ t('tokens.field_description_placeholder') }}"></textarea>
         </div>
-        
+
         <div class="form-group">
-            <label for="duration_minutes">Duration (minutes)</label>
+            <label for="duration_minutes">{{ t('tokens.field_duration') }}</label>
             <input type="number" id="duration_minutes" name="duration_minutes" required min="1" value="60">
-            <small class="text-muted">How long will this favor take?</small>
+            <small class="text-muted">{{ t('tokens.field_duration_hint') }}</small>
         </div>
-        
+
         <div class="flex gap-1">
-            <button type="submit" class="btn btn-primary">Create Token</button>
-            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">{{ t('tokens.btn_create_submit') }}</button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">{{ t('tokens.btn_cancel') }}</a>
         </div>
     </form>
 </div>
