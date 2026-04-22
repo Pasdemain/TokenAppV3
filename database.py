@@ -151,6 +151,15 @@ def init_db():
             UNIQUE(user_id, ticket_date)
         )
     """)
+    # Migrate old FK (no ON DELETE clause) to ON DELETE SET NULL so replacing
+    # the prize pool (via the partner-approval workflow) doesn't fail when
+    # historical tickets still reference deleted rows.
+    cur.execute("ALTER TABLE scratch_tickets DROP CONSTRAINT IF EXISTS scratch_tickets_prize_id_fkey")
+    cur.execute("""
+        ALTER TABLE scratch_tickets
+        ADD CONSTRAINT scratch_tickets_prize_id_fkey
+        FOREIGN KEY (prize_id) REFERENCES scratch_prizes(id) ON DELETE SET NULL
+    """)
 
     # Scratch prize proposals (partner approval workflow)
     cur.execute("""
