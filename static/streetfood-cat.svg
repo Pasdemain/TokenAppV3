@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="White cat with blue eyes">
+  <defs>
+    <radialGradient id="catBody" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eef1f6"/>
+    </radialGradient>
+  </defs>
+  <!-- ears -->
+  <path d="M48 70 L40 28 L82 52 Z" fill="url(#catBody)" stroke="#d7dce5" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M152 70 L160 28 L118 52 Z" fill="url(#catBody)" stroke="#d7dce5" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M52 60 L48 38 L72 52 Z" fill="#ffb6c1"/>
+  <path d="M148 60 L152 38 L128 52 Z" fill="#ffb6c1"/>
+  <!-- head -->
+  <ellipse cx="100" cy="110" rx="72" ry="64" fill="url(#catBody)" stroke="#d7dce5" stroke-width="3"/>
+  <!-- eyes (blue) -->
+  <ellipse cx="74" cy="104" rx="15" ry="19" fill="#fff"/>
+  <ellipse cx="126" cy="104" rx="15" ry="19" fill="#fff"/>
+  <ellipse cx="74" cy="104" rx="12" ry="16" fill="#3b82f6"/>
+  <ellipse cx="126" cy="104" rx="12" ry="16" fill="#3b82f6"/>
+  <ellipse cx="74" cy="105" rx="5.5" ry="11" fill="#0f2a52"/>
+  <ellipse cx="126" cy="105" rx="5.5" ry="11" fill="#0f2a52"/>
+  <circle cx="70" cy="98" r="3.5" fill="#fff"/>
+  <circle cx="122" cy="98" r="3.5" fill="#fff"/>
+  <!-- nose + mouth -->
+  <path d="M94 128 L106 128 L100 136 Z" fill="#ffb6c1"/>
+  <path d="M100 136 Q100 144 90 146 M100 136 Q100 144 110 146" fill="none" stroke="#c2c8d2" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- whiskers -->
+  <g stroke="#c2c8d2" stroke-width="2.5" stroke-linecap="round">
+    <path d="M58 124 L24 116"/>
+    <path d="M58 132 L24 134"/>
+    <path d="M142 124 L176 116"/>
+    <path d="M142 132 L176 134"/>
+  </g>
+</svg>

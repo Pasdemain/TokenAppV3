@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}{{ cantine.name }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<!-- Branded header -->
+<div class="content-wrapper" style="background:linear-gradient(135deg, {{ cantine.color }}, {{ cantine.color }}cc);color:#fff;text-align:center;">
+    <div style="width:96px;height:96px;margin:0 auto 1rem;border-radius:24px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.2);">
+        {% if cantine.logo == 'cat' %}
+            <img src="/static/streetfood-cat.svg" alt="logo" style="width:72px;height:72px;">
+        {% else %}
+            <span style="font-size:60px;line-height:1;">{{ cantine.logo }}</span>
+        {% endif %}
+    </div>
+    <h1 style="font-size:2rem;">{{ cantine.name }}</h1>
+    <p style="opacity:.9;">{{ t('streetfood.by_owner', name=cantine.owner_username) }}</p>
+    {% if not cantine.is_open %}
+        <span class="badge" style="background:#1f2937;color:#fff;margin-top:.5rem;">{{ t('streetfood.closed') }}</span>
+    {% endif %}
+    <div style="margin-top:1rem;display:inline-block;background:rgba(255,255,255,.18);padding:.5rem 1.1rem;border-radius:999px;font-weight:600;">
+        💰 {{ t('streetfood.your_balance') }}:
+        <span style="color:{% if balance < 0 %}#fecaca{% else %}#fff{% endif %};">
+            {{ "%.2f"|format(balance) }} {{ currency_symbol }}
+        </span>
+    </div>
+    {% if can_manage %}
+    <div class="mt-2">
+        <a href="{{ url_for('streetfood.manage') }}" class="btn btn-sm" style="background:rgba(255,255,255,.25);color:#fff;">⚙️ {{ t('streetfood.manage') }}</a>
+        <a href="{{ url_for('streetfood.orders') }}" class="btn btn-sm" style="background:rgba(255,255,255,.25);color:#fff;">📋 {{ t('streetfood.orders_received') }}</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Dishes -->
+{% if dishes %}
+    {% for d in dishes %}
+    <div class="content-wrapper" style="border-left:5px solid {{ cantine.color }};">
+        <div class="flex flex-between flex-center mb-2" style="flex-wrap:wrap;gap:.5rem;">
+            <h2>{{ d.name }}</h2>
+            <span style="font-size:1.3rem;font-weight:700;color:{{ cantine.color }};">{{ "%.2f"|format(d.price) }} {{ currency_symbol }}</span>
+        </div>
+
+        <!-- spice -->
+        <div class="mb-2">
+            {% if d.spice_level and d.spice_level > 0 %}
+                <span title="{{ t('streetfood.spice_level') }}">{% for i in range(d.spice_level) %}🌶️{% endfor %}</span>
+                <span class="text-muted" style="font-size:.85rem;">{{ t('streetfood.spice_' ~ d.spice_level) }}</span>
+            {% else %}
+                <span class="text-muted" style="font-size:.85rem;">🟢 {{ t('streetfood.spice_0') }}</span>
+            {% endif %}
+        </div>
+
+        {% if d.description %}<p class="mb-2">{{ d.description }}</p>{% endif %}
+        {% if d.ingredients %}
+        <p class="text-muted mb-2" style="font-size:.9rem;">🧺 {{ t('streetfood.ingredients') }}: {{ d.ingredients }}</p>
+        {% endif %}
+
+        <!-- meta: deadline + slots -->
+        <div class="flex gap-2 mb-2" style="flex-wrap:wrap;">
+            {% if d.order_deadline %}
+            <span class="badge {% if d.deadline_passed %}badge-warning{% else %}badge-primary{% endif %}">
+                ⏰ {{ t('streetfood.deadline') }}: {{ d.order_deadline.strftime('%d/%m %H:%M') }}
+            </span>
+            {% endif %}
+            {% if d.slots_left is not none %}
+            <span class="badge {% if d.slots_left <= 0 %}badge-warning{% else %}badge-success{% endif %}">
+                🎫 {{ t('streetfood.slots_left', n=(d.slots_left if d.slots_left > 0 else 0)) }}
+            </span>
+            {% endif %}
+        </div>
+
+        {% set unavailable = (not cantine.is_open) or d.deadline_passed or (d.slots_left is not none and d.slots_left <= 0) %}
+        {% if unavailable %}
+            <div class="alert alert-warning">⚠️ {{ t('streetfood.order_unavailable') }}</div>
+        {% else %}
+        <form method="POST" action="{{ url_for('streetfood.place_order', cantine_id=cantine.id) }}" style="background:#f9fafb;padding:1rem;border-radius:12px;">
+            <input type="hidden" name="dish_id" value="{{ d.id }}">
+
+            {% if d.supplements %}
+            <div class="form-group">
+                <label>➕ {{ t('streetfood.supplements') }}</label>
+                {% for s in d.supplements %}
+                <label style="display:flex;align-items:center;gap:.5rem;font-weight:400;margin-bottom:.4rem;cursor:pointer;">
+                    <input type="checkbox" name="supplement_ids" value="{{ s.id }}" style="width:auto;">
+                    <span>{{ s.name }}</span>
+                    <span class="text-muted" style="margin-left:auto;">
+                        {% if s.price and s.price > 0 %}+{{ "%.2f"|format(s.price) }} {{ currency_symbol }}{% else %}{{ t('streetfood.free') }}{% endif %}
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label>{{ t('streetfood.quantity') }}</label>
+                    <input type="number" name="quantity" value="1" min="1" max="{{ d.slots_left if d.slots_left is not none else 99 }}">
+                </div>
+                <div class="form-group">
+                    <label>{{ t('streetfood.note') }}</label>
+                    <input type="text" name="note" maxlength="500" placeholder="{{ t('streetfood.note_ph') }}">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;background:{{ cantine.color }};">🛒 {{ t('streetfood.order_btn') }}</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="content-wrapper text-center">
+        <div style="font-size:2.5rem;">😿</div>
+        <p class="text-muted mt-2">{{ t('streetfood.no_dish_now') }}</p>
+    </div>
+{% endif %}
+
+<!-- My orders here -->
+{% if my_orders %}
+<div class="content-wrapper">
+    <h3 class="mb-2">🧾 {{ t('streetfood.my_orders') }}</h3>
+    {% for o in my_orders %}
+    <div class="flex flex-between flex-center" style="padding:.6rem 0;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.4rem;">
+        <div>
+            <strong>{{ o.dish_name }}</strong> ×{{ o.quantity }}
+            {% if o.supplements %}
+                <span class="text-muted" style="font-size:.85rem;">
+                    ({% for s in o.supplements %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %})
+                </span>
+            {% endif %}
+            <div class="text-muted" style="font-size:.8rem;">{{ o.created_at|timeago }}</div>
+        </div>
+        <div style="text-align:right;">
+            <div><strong>{{ "%.2f"|format(o.total) }} {{ currency_symbol }}</strong></div>
+            {% if o.payment_status == 'paid' %}
+                <span class="badge badge-success">✅ {{ t('streetfood.paid') }}</span>
+            {% else %}
+                <span class="badge badge-warning">⏳ {{ t('streetfood.pending') }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

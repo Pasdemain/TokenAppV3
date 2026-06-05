@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ t('streetfood.title') }} - {{ app_name }}{% endblock %}
+
+{% macro logo(c, size) %}
+    {% if c.logo == 'cat' %}
+        <img src="/static/streetfood-cat.svg" alt="logo" style="width:{{ size }};height:{{ size }};object-fit:contain;">
+    {% else %}
+        <span style="font-size:{{ size }};line-height:1;">{{ c.logo }}</span>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="flex flex-between flex-center mb-3" style="flex-wrap:wrap;gap:1rem;">
+        <h1>🍜 {{ t('streetfood.title') }}</h1>
+        <div class="flex gap-1" style="flex-wrap:wrap;">
+            {% if managed %}
+            <a href="{{ url_for('streetfood.orders') }}" class="btn btn-sm btn-secondary">📋 {{ t('streetfood.orders_received') }}</a>
+            {% endif %}
+            <a href="{{ url_for('streetfood.manage') }}" class="btn btn-sm btn-primary">
+                {% if my_cantine %}⚙️ {{ t('streetfood.my_cantine') }}{% else %}➕ {{ t('streetfood.open_cantine') }}{% endif %}
+            </a>
+        </div>
+    </div>
+
+    {% if cantines %}
+    <div class="grid grid-3">
+        {% for c in cantines %}
+        <a href="{{ url_for('streetfood.cantine', cantine_id=c.id) }}" class="card" style="text-decoration:none;color:inherit;display:block;border-top:4px solid {{ c.color }};">
+            <div class="flex flex-center gap-1 mb-2">
+                <div style="width:54px;height:54px;border-radius:14px;background:{{ c.color }}1a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    {{ logo(c, '38px') }}
+                </div>
+                <div>
+                    <div class="card-title">{{ c.name }}</div>
+                    <div class="text-muted" style="font-size:.85rem;">{{ t('streetfood.by_owner', name=c.owner_username) }}</div>
+                </div>
+            </div>
+            {% if c.active_dishes > 0 %}
+                <span class="badge badge-success">{{ t('streetfood.dishes_available', n=c.active_dishes) }}</span>
+            {% else %}
+                <span class="badge" style="background:#9ca3af;color:#fff;">{{ t('streetfood.no_dish_now') }}</span>
+            {% endif %}
+            <span class="badge badge-primary" style="margin-left:.3rem;">{{ currencies.get(c.currency, c.currency) }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center mt-3" style="padding:2rem;">
+        <div style="font-size:3rem;">🍽️</div>
+        <p class="text-muted mt-2">{{ t('streetfood.no_cantines') }}</p>
+        <a href="{{ url_for('streetfood.manage') }}" class="btn btn-primary mt-2">➕ {{ t('streetfood.open_cantine') }}</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
