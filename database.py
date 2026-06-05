@@ -31,7 +31,7 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
-    ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa', 'molkky']
+    ALL_FEATURES = ['tokens', 'shopping', 'scratch', 'wheel', 'flashcards', 'competency', 'santa', 'molkky', 'streetfood']
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -429,6 +429,99 @@ def init_db():
     cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS consecutive_zeros_before INTEGER NOT NULL DEFAULT 0")
     cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS is_eliminated_before BOOLEAN NOT NULL DEFAULT FALSE")
     cur.execute("ALTER TABLE molkky_throws ADD COLUMN IF NOT EXISTS member_idx_before INTEGER NOT NULL DEFAULT 0")
+
+    # ── Street Food / Cantine tables ──────────────────────────────────────────
+
+    # A cantine = a user's food stand (one per owner)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS streetfood_cantines (
+            id SERIAL PRIMARY KEY,
+            owner_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            name VARCHAR(100) NOT NULL,
+            logo VARCHAR(20) DEFAULT 'cat',
+            color VARCHAR(20) DEFAULT '#6366f1',
+            currency VARCHAR(3) DEFAULT 'EUR' CHECK (currency IN ('EUR', 'CHF')),
+            is_open BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Extra users allowed to validate payments / view the cantine balance
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS streetfood_managers (
+            id SERIAL PRIMARY KEY,
+            cantine_id INTEGER REFERENCES streetfood_cantines(id) ON DELETE CASCADE,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(cantine_id, user_id)
+        )
+    """)
+
+    # Dishes proposed by a cantine (the current offer, changeable anytime)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS streetfood_dishes (
+            id SERIAL PRIMARY KEY,
+            cantine_id INTEGER REFERENCES streetfood_cantines(id) ON DELETE CASCADE,
+            name VARCHAR(100) NOT NULL,
+            description TEXT,
+            ingredients TEXT,
+            spice_level INTEGER DEFAULT 0 CHECK (spice_level BETWEEN 0 AND 4),
+            price NUMERIC(10,2) NOT NULL DEFAULT 0,
+            max_orders INTEGER,
+            order_deadline TIMESTAMP,
+            status VARCHAR(10) DEFAULT 'active' CHECK (status IN ('active', 'closed')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Optional supplements for a dish (egg, extra chilli, ...) — price 0 = free
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS streetfood_supplements (
+            id SERIAL PRIMARY KEY,
+            dish_id INTEGER REFERENCES streetfood_dishes(id) ON DELETE CASCADE,
+            name VARCHAR(100) NOT NULL,
+            price NUMERIC(10,2) NOT NULL DEFAULT 0
+        )
+    """)
+
+    # Orders placed by users
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS streetfood_orders (
+            id SERIAL PRIMARY KEY,
+            dish_id INTEGER REFERENCES streetfood_dishes(id) ON DELETE CASCADE,
+            cantine_id INTEGER REFERENCES streetfood_cantines(id) ON DELETE CASCADE,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            quantity INTEGER NOT NULL DEFAULT 1,
+            base_price NUMERIC(10,2) NOT NULL DEFAULT 0,
+            supplements_total NUMERIC(10,2) NOT NULL DEFAULT 0,
+            total NUMERIC(10,2) NOT NULL DEFAULT 0,
+            note TEXT,
+            payment_status VARCHAR(10) DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            paid_at TIMESTAMP
+        )
+    """)
+
+    # Supplements chosen on a given order (snapshot of name + price)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS streetfood_order_supplements (
+            id SERIAL PRIMARY KEY,
+            order_id INTEGER REFERENCES streetfood_orders(id) ON DELETE CASCADE,
+            supplement_id INTEGER REFERENCES streetfood_supplements(id) ON DELETE SET NULL,
+            name VARCHAR(100) NOT NULL,
+            price NUMERIC(10,2) NOT NULL DEFAULT 0
+        )
+    """)
+
+    # Virtual wallet per (cantine, user) — can go negative (debt to the cantine)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS streetfood_wallets (
+            id SERIAL PRIMARY KEY,
+            cantine_id INTEGER REFERENCES streetfood_cantines(id) ON DELETE CASCADE,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            balance NUMERIC(10,2) NOT NULL DEFAULT 0,
+            UNIQUE(cantine_id, user_id)
+        )
+    """)
 
     # ── Feature defaults table ────────────────────────────────────────────────
 

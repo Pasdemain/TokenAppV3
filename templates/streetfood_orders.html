@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{{ t('streetfood.orders_received') }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="flex flex-between flex-center mb-3" style="flex-wrap:wrap;gap:.5rem;">
+        <h1>📋 {{ cantine.name }}</h1>
+        <a href="{{ url_for('streetfood.cantine', cantine_id=cantine.id) }}" class="btn btn-sm btn-secondary">{{ t('streetfood.view_storefront') }}</a>
+    </div>
+
+    <!-- Totals -->
+    <div class="grid grid-2 mb-2">
+        <div class="card" style="background:#d1fae5;">
+            <div class="text-muted">✅ {{ t('streetfood.total_received') }}</div>
+            <div style="font-size:1.6rem;font-weight:700;color:#065f46;">{{ "%.2f"|format(totals.received) }} {{ currency_symbol }}</div>
+        </div>
+        <div class="card" style="background:#fed7aa;">
+            <div class="text-muted">⏳ {{ t('streetfood.total_pending') }}</div>
+            <div style="font-size:1.6rem;font-weight:700;color:#92400e;">{{ "%.2f"|format(totals.pending) }} {{ currency_symbol }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Balances / wallets -->
+<div class="content-wrapper">
+    <h2 class="mb-2">💰 {{ t('streetfood.balances') }}</h2>
+    <p class="text-muted mb-2" style="font-size:.9rem;">{{ t('streetfood.balances_hint') }}</p>
+    {% if wallets %}
+    <div class="mb-3">
+        {% for w in wallets %}
+        <div class="flex flex-between flex-center" style="padding:.4rem 0;border-bottom:1px solid var(--border);">
+            <span>👤 {{ w.username }}</span>
+            <strong style="color:{% if w.balance < 0 %}var(--danger){% else %}var(--success){% endif %};">
+                {{ "%.2f"|format(w.balance) }} {{ currency_symbol }}
+                {% if w.balance < 0 %}<span class="text-muted" style="font-weight:400;font-size:.8rem;">({{ t('streetfood.owes') }})</span>{% endif %}
+            </strong>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted mb-2">{{ t('streetfood.no_balances') }}</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('streetfood.recharge_wallet') }}" class="grid grid-3" style="align-items:end;">
+        <div class="form-group" style="margin:0;">
+            <label>{{ t('streetfood.recharge_user') }}</label>
+            <select name="user_id" required>
+                <option value="">— {{ t('streetfood.choose_user') }} —</option>
+                {% for u in other_users %}<option value="{{ u.id }}">{{ u.username }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label>{{ t('streetfood.amount') }} ({{ currency_symbol }})</label>
+            <input type="number" step="0.01" name="amount" placeholder="0.00" required>
+        </div>
+        <button type="submit" class="btn btn-primary">💳 {{ t('streetfood.recharge') }}</button>
+    </form>
+</div>
+
+<!-- Orders -->
+<div class="content-wrapper">
+    <h2 class="mb-2">🧾 {{ t('streetfood.all_orders') }}</h2>
+    {% if all_orders %}
+    {% for o in all_orders %}
+    <div class="card mb-2" style="{% if o.payment_status == 'pending' %}border-left:4px solid var(--warning);{% else %}border-left:4px solid var(--success);{% endif %}">
+        <div class="flex flex-between flex-center" style="flex-wrap:wrap;gap:.4rem;">
+            <div>
+                <strong>👤 {{ o.username }}</strong> — {{ o.dish_name }} ×{{ o.quantity }}
+                <div class="text-muted" style="font-size:.8rem;">{{ o.created_at|timeago }}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:1.15rem;font-weight:700;">{{ "%.2f"|format(o.total) }} {{ currency_symbol }}</div>
+                {% if o.payment_status == 'paid' %}
+                    <span class="badge badge-success">✅ {{ t('streetfood.paid') }}</span>
+                {% else %}
+                    <span class="badge badge-warning">⏳ {{ t('streetfood.pending') }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% if o.supplements %}
+        <div class="mt-1 text-muted" style="font-size:.85rem;">
+            ➕ {% for s in o.supplements %}{{ s.name }}{% if s.price and s.price > 0 %} (+{{ "%.2f"|format(s.price) }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+        {% if o.note %}<div class="mt-1" style="font-size:.85rem;">📝 {{ o.note }}</div>{% endif %}
+        {% if o.payment_status == 'pending' %}
+        <form method="POST" action="{{ url_for('streetfood.validate_payment', order_id=o.id) }}" class="mt-2">
+            <button type="submit" class="btn btn-sm btn-success">✅ {{ t('streetfood.validate_payment') }}</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="text-muted">{{ t('streetfood.no_orders') }}</p>
+    {% endif %}
+</div>
+{% endblock %}

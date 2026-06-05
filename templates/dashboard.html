@@ -85,6 +85,20 @@
     </div>
     {% endif %}
 
+    <!-- Street Food Widget -->
+    {% if user_features.get('streetfood') %}
+    <div class="card mb-3" style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 2px solid #f97316;">
+        <div class="card-header" style="background:transparent;">
+            <span class="card-title">🍜 {{ t('streetfood.dash_title') }}</span>
+            {% if pending_streetfood_orders and pending_streetfood_orders > 0 %}
+                <span class="badge" style="background:#f97316;color:#fff;animation: pulse-badge 1.5s infinite;">{{ t('streetfood.dash_pending', n=pending_streetfood_orders) }}</span>
+            {% endif %}
+        </div>
+        <p class="mb-2" style="color:#9a3412;">{{ t('streetfood.dash_intro') }}</p>
+        <a href="{{ url_for('streetfood.home') }}" class="btn btn-sm" style="background:#f97316;color:#fff;">🍜 {{ t('streetfood.dash_btn') }}</a>
+    </div>
+    {% endif %}
+
     <!-- Daily Scratch Ticket -->
     {% if has_scratch_prizes %}
     <div class="card mb-3" style="background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b;">

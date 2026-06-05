@@ -17,6 +17,7 @@ from flashcard_routes import flashcard_bp
 from competency_routes import competency_bp
 from santa_routes import santa_bp
 from molkky_routes import molkky_bp
+from streetfood_routes import streetfood_bp
 import i18n as i18n_module
 from i18n import t as _t
 
@@ -39,6 +40,7 @@ app.register_blueprint(flashcard_bp)
 app.register_blueprint(competency_bp)
 app.register_blueprint(santa_bp)
 app.register_blueprint(molkky_bp)
+app.register_blueprint(streetfood_bp)
 
 # Initialize i18n (exposes `t(key)` to templates)
 i18n_module.init_app(app)
@@ -88,6 +90,20 @@ def inject_user_features():
                 WHERE reviewer_id = %s AND status = 'pending'
             """, (session['user_id'],))
             pending_proposals = cur.fetchone()['cnt']
+            # Pending street-food orders for cantines this user owns or co-manages
+            try:
+                cur.execute("""
+                    SELECT COUNT(*) as cnt FROM streetfood_orders o
+                    WHERE o.payment_status = 'pending'
+                      AND o.cantine_id IN (
+                        SELECT id FROM streetfood_cantines WHERE owner_id = %s
+                        UNION
+                        SELECT cantine_id FROM streetfood_managers WHERE user_id = %s
+                      )
+                """, (session['user_id'], session['user_id']))
+                pending_streetfood = cur.fetchone()['cnt']
+            except Exception:
+                pending_streetfood = 0
         finally:
             cur.close()
             conn.close()
@@ -96,11 +112,13 @@ def inject_user_features():
         return {
             'user_features': features,
             'pending_scratch_proposals': pending_proposals,
+            'pending_streetfood_orders': pending_streetfood,
             'app_name': app_name or 'LoveBirds',
             'app_icon': app_icon,
             'show_app_name_popup': app_name is None,
         }
     return {'user_features': {}, 'pending_scratch_proposals': 0,
+            'pending_streetfood_orders': 0,
             'app_name': 'LoveBirds', 'app_icon': '💑', 'show_app_name_popup': False}
 
 # PWA routes - serve manifest and service worker at root
@@ -253,6 +271,13 @@ def admin():
             cur.execute("DELETE FROM molkky_members")
             cur.execute("DELETE FROM molkky_teams")
             cur.execute("DELETE FROM molkky_games")
+            cur.execute("DELETE FROM streetfood_order_supplements")
+            cur.execute("DELETE FROM streetfood_orders")
+            cur.execute("DELETE FROM streetfood_supplements")
+            cur.execute("DELETE FROM streetfood_dishes")
+            cur.execute("DELETE FROM streetfood_wallets")
+            cur.execute("DELETE FROM streetfood_managers")
+            cur.execute("DELETE FROM streetfood_cantines")
             cur.execute("DELETE FROM users")
             conn.commit()
             cur.close()
