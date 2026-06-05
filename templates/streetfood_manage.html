@@ -21,7 +21,21 @@
         <label>🧺 {{ t('streetfood.ingredients') }}</label>
         <textarea name="ingredients" rows="2" placeholder="{{ t('streetfood.ingredients_ph') }}">{{ d.ingredients if d and d.ingredients else '' }}</textarea>
     </div>
-    <div class="grid grid-3">
+    <div class="grid grid-2">
+        <div class="form-group">
+            <label>📅 {{ t('streetfood.serve_date') }}</label>
+            <input type="date" name="serve_date" required onchange="syncDeadlineMax(this)"
+                   value="{{ d.serve_date.strftime('%Y-%m-%d') if d and d.serve_date else '' }}">
+            <small class="text-muted">{{ t('streetfood.serve_date_hint') }}</small>
+        </div>
+        <div class="form-group">
+            <label>⏰ {{ t('streetfood.deadline') }}</label>
+            <input type="datetime-local" name="order_deadline"
+                   value="{{ d.order_deadline.strftime('%Y-%m-%dT%H:%M') if d and d.order_deadline else '' }}">
+            <small class="text-muted">{{ t('streetfood.deadline_hint') }}</small>
+        </div>
+    </div>
+    <div class="grid grid-2">
         <div class="form-group">
             <label>🌶️ {{ t('streetfood.spice_level') }}</label>
             <select name="spice_level">
@@ -33,10 +47,6 @@
         <div class="form-group">
             <label>🎫 {{ t('streetfood.max_orders') }}</label>
             <input type="number" min="1" name="max_orders" placeholder="∞" value="{{ d.max_orders if d and d.max_orders else '' }}">
-        </div>
-        <div class="form-group">
-            <label>⏰ {{ t('streetfood.deadline') }}</label>
-            <input type="datetime-local" name="order_deadline" value="{{ d.order_deadline.strftime('%Y-%m-%dT%H:%M') if d and d.order_deadline else '' }}">
         </div>
     </div>
 
@@ -148,6 +158,12 @@
             <strong>{{ d.name }} — {{ '%.2f'|format(d.price) }} {{ currency_symbol }}</strong>
             <span class="text-muted">{{ t('streetfood.ordered_count', n=d.ordered_qty) }}</span>
         </div>
+        {% if d.serve_date %}
+        <div class="text-muted mb-1" style="font-size:.85rem;">
+            📅 {{ d.serve_date|serveday }}{% if d.order_deadline %} · ⏰ {{ d.order_deadline.strftime('%d/%m %H:%M') }}{% endif %}
+            {% if d.serve_passed %}<span class="badge badge-warning" style="margin-left:.3rem;">{{ t('streetfood.serve_passed') }}</span>{% endif %}
+        </div>
+        {% endif %}
         <details>
             <summary style="cursor:pointer;color:var(--primary);">✏️ {{ t('streetfood.edit') }}</summary>
             <div class="mt-2">{{ dish_form(url_for('streetfood.save_dish', dish_id=d.id), d) }}</div>
@@ -168,7 +184,16 @@
 
     <details {% if not dishes %}open{% endif %} style="margin-top:1rem;">
         <summary style="cursor:pointer;font-weight:600;color:var(--primary);">➕ {{ t('streetfood.new_dish') }}</summary>
-        <div class="mt-2">{{ dish_form(url_for('streetfood.save_dish'), none) }}</div>
+        <div id="newDishWrap" class="mt-2">
+            <div class="form-group" id="reusePickerWrap" style="display:none;">
+                <label>♻️ {{ t('streetfood.reuse_dish') }}</label>
+                <select id="dishTemplatePicker" onchange="applyDishTemplate(this.value)">
+                    <option value="">— {{ t('streetfood.choose_template') }} —</option>
+                </select>
+                <small class="text-muted">{{ t('streetfood.reuse_hint') }}</small>
+            </div>
+            {{ dish_form(url_for('streetfood.save_dish'), none) }}
+        </div>
     </details>
 </div>
 
@@ -189,6 +214,8 @@
 {% endif %}
 
 <script>
+const DISH_TEMPLATES = {{ dish_templates|tojson }};
+
 function selectLogo(val, btn) {
     document.getElementById('logoField').value = val;
     document.querySelectorAll('#logoGrid button').forEach(b => {
@@ -196,20 +223,54 @@ function selectLogo(val, btn) {
     });
     btn.style.borderColor = 'var(--primary)'; btn.style.background = '#eef2ff';
 }
-function addSupp(btn) {
-    const wrap = btn.previousElementSibling;
+function makeSuppRow(name, price) {
     const row = document.createElement('div');
     row.className = 'flex gap-1 mb-1 supp-row';
     row.innerHTML = `<input type="text" name="supp_name" placeholder="{{ t('streetfood.supp_name_ph') }}">
         <input type="number" step="0.01" min="0" name="supp_price" style="max-width:120px;" placeholder="0.00">
         <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.supp-row').remove()">✕</button>`;
-    wrap.appendChild(row);
+    if (name !== undefined) row.querySelector('input[name=supp_name]').value = name;
+    if (price !== undefined) row.querySelector('input[name=supp_price]').value = Number(price).toFixed(2);
+    return row;
 }
-// Highlight current logo
+function addSupp(btn) {
+    btn.previousElementSibling.appendChild(makeSuppRow());
+}
+function syncDeadlineMax(serveInput) {
+    const form = serveInput.closest('form');
+    const dl = form.querySelector('input[name=order_deadline]');
+    if (dl && serveInput.value) dl.max = serveInput.value + 'T23:59';
+}
+// Fill the new-dish form from a saved dish template
+function applyDishTemplate(idx) {
+    if (idx === '') return;
+    const t = DISH_TEMPLATES[idx];
+    if (!t) return;
+    const form = document.querySelector('#newDishWrap form');
+    form.querySelector('input[name=name]').value = t.name;
+    form.querySelector('textarea[name=description]').value = t.description;
+    form.querySelector('textarea[name=ingredients]').value = t.ingredients;
+    form.querySelector('select[name=spice_level]').value = t.spice_level;
+    form.querySelector('input[name=price]').value = Number(t.price).toFixed(2);
+    const rows = form.querySelector('.supp-rows');
+    rows.innerHTML = '';
+    (t.supplements || []).forEach(s => rows.appendChild(makeSuppRow(s.name, s.price)));
+}
 document.addEventListener('DOMContentLoaded', () => {
+    // Highlight current logo
     const cur = document.getElementById('logoField').value;
     const b = document.querySelector('#logoGrid button[data-logo="' + cur + '"]');
     if (b) { b.style.borderColor = 'var(--primary)'; b.style.background = '#eef2ff'; }
+    // Populate the reuse-dish picker
+    const picker = document.getElementById('dishTemplatePicker');
+    if (picker && DISH_TEMPLATES.length) {
+        DISH_TEMPLATES.forEach((t, i) => {
+            const opt = document.createElement('option');
+            opt.value = i; opt.textContent = t.name;
+            picker.appendChild(opt);
+        });
+        document.getElementById('reusePickerWrap').style.display = '';
+    }
 });
 </script>
 {% endblock %}

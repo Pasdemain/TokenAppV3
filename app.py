@@ -515,6 +515,34 @@ def save_app_prefs():
         conn.close()
 
 
+_SERVEDAY_NAMES = {
+    'fr': {
+        'days': ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'],
+        'months': ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+                   'août', 'septembre', 'octobre', 'novembre', 'décembre'],
+    },
+    'en': {
+        'days': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        'months': ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+                   'August', 'September', 'October', 'November', 'December'],
+    },
+}
+
+
+@app.template_filter('serveday')
+def serveday(d):
+    """Localized human date for a dish serve day, e.g. 'jeudi 11 juin'."""
+    if d is None:
+        return ''
+    lang = i18n_module.current_lang()
+    names = _SERVEDAY_NAMES.get(lang, _SERVEDAY_NAMES['en'])
+    day_name = names['days'][d.weekday()]
+    month_name = names['months'][d.month - 1]
+    if lang == 'en':
+        return f"{day_name} {month_name} {d.day}"
+    return f"{day_name} {d.day} {month_name}"
+
+
 @app.template_filter('timeago')
 def timeago(timestamp):
     if timestamp is None:
