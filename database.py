@@ -472,6 +472,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cur.execute("ALTER TABLE streetfood_dishes ADD COLUMN IF NOT EXISTS serve_date DATE")
 
     # Optional supplements for a dish (egg, extra chilli, ...) — price 0 = free
     cur.execute("""

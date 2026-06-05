@@ -86,6 +86,7 @@ def _dish_with_extras(cur, cantine_id):
         d['supplements'] = cur.fetchall()
         d['slots_left'] = (d['max_orders'] - d['ordered_qty']) if d['max_orders'] is not None else None
         d['deadline_passed'] = bool(d['order_deadline'] and d['order_deadline'] < datetime.now())
+        d['serve_passed'] = bool(d['serve_date'] and d['serve_date'] < datetime.now().date())
     return dishes
 
 
@@ -187,6 +188,10 @@ def place_order(cantine_id):
             flash(_t('streetfood.flash_deadline_passed'), 'error')
             return redirect(url_for('streetfood.cantine', cantine_id=cantine_id))
 
+        if dish['serve_date'] and dish['serve_date'] < datetime.now().date():
+            flash(_t('streetfood.flash_deadline_passed'), 'error')
+            return redirect(url_for('streetfood.cantine', cantine_id=cantine_id))
+
         quantity = max(1, request.form.get('quantity', 1, type=int))
 
         # Capacity check
@@ -275,6 +280,7 @@ def manage():
     dishes = []
     managers = []
     other_users = []
+    dish_templates = []
     if cantine:
         dishes = _dish_with_extras(cur, cantine['id'])
         # also show closed dishes for history/reactivation
@@ -292,6 +298,30 @@ def manage():
             JOIN users u ON m.user_id = u.id WHERE m.cantine_id = %s ORDER BY u.username
         """, (cantine['id'],))
         managers = cur.fetchall()
+
+        # Library of previously created dishes (deduped by name, latest version),
+        # used to pre-fill the new-dish form as a reusable template.
+        cur.execute("""
+            SELECT DISTINCT ON (name) id, name, description, ingredients, spice_level, price
+            FROM streetfood_dishes
+            WHERE cantine_id = %s
+            ORDER BY name, created_at DESC
+        """, (cantine['id'],))
+        for row in cur.fetchall():
+            cur.execute(
+                "SELECT name, price FROM streetfood_supplements WHERE dish_id = %s ORDER BY id",
+                (row['id'],)
+            )
+            supps = [{'name': s['name'], 'price': float(s['price'])} for s in cur.fetchall()]
+            dish_templates.append({
+                'name': row['name'],
+                'description': row['description'] or '',
+                'ingredients': row['ingredients'] or '',
+                'spice_level': row['spice_level'] or 0,
+                'price': float(row['price']),
+                'supplements': supps,
+            })
+        dish_templates.sort(key=lambda t: t['name'].lower())
     else:
         closed_dishes = []
 
@@ -304,6 +334,7 @@ def manage():
                            closed_dishes=closed_dishes, managers=managers,
                            other_users=other_users, currencies=CURRENCIES,
                            default_logos=DEFAULT_LOGOS,
+                           dish_templates=dish_templates,
                            currency_symbol=CURRENCIES.get(cantine['currency'], '') if cantine else '')
 
 
@@ -369,6 +400,14 @@ def save_dish(dish_id=None):
         if max_orders is not None and max_orders <= 0:
             max_orders = None
 
+        serve_raw = request.form.get('serve_date', '').strip()
+        serve_date = None
+        if serve_raw:
+            try:
+                serve_date = datetime.fromisoformat(serve_raw).date()
+            except ValueError:
+                serve_date = None
+
         deadline_raw = request.form.get('order_deadline', '').strip()
         order_deadline = None
         if deadline_raw:
@@ -376,6 +415,11 @@ def save_dish(dish_id=None):
                 order_deadline = datetime.fromisoformat(deadline_raw)
             except ValueError:
                 order_deadline = None
+
+        # The order deadline must leave time to cook: it cannot fall after the serve day.
+        if order_deadline and serve_date and order_deadline.date() > serve_date:
+            flash(_t('streetfood.flash_deadline_after_serve'), 'error')
+            return redirect(url_for('streetfood.manage'))
 
         if dish_id:
             cur.execute(
@@ -388,18 +432,18 @@ def save_dish(dish_id=None):
             cur.execute("""
                 UPDATE streetfood_dishes
                 SET name=%s, description=%s, ingredients=%s, spice_level=%s,
-                    price=%s, max_orders=%s, order_deadline=%s
+                    price=%s, max_orders=%s, order_deadline=%s, serve_date=%s
                 WHERE id=%s
             """, (name, description, ingredients, spice_level, price,
-                  max_orders, order_deadline, dish_id))
+                  max_orders, order_deadline, serve_date, dish_id))
         else:
             cur.execute("""
                 INSERT INTO streetfood_dishes
                     (cantine_id, name, description, ingredients, spice_level,
-                     price, max_orders, order_deadline)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+                     price, max_orders, order_deadline, serve_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             """, (cantine['id'], name, description, ingredients, spice_level,
-                  price, max_orders, order_deadline))
+                  price, max_orders, order_deadline, serve_date))
             dish_id = cur.fetchone()['id']
 
         # Replace supplements with the submitted set

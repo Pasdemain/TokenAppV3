@@ -54,11 +54,16 @@
         <p class="text-muted mb-2" style="font-size:.9rem;">🧺 {{ t('streetfood.ingredients') }}: {{ d.ingredients }}</p>
         {% endif %}
 
-        <!-- meta: deadline + slots -->
+        <!-- meta: serve day + deadline + slots -->
         <div class="flex gap-2 mb-2" style="flex-wrap:wrap;">
+            {% if d.serve_date %}
+            <span class="badge" style="background:{{ cantine.color }};color:#fff;">
+                📅 {{ t('streetfood.served_on') }} {{ d.serve_date|serveday }}
+            </span>
+            {% endif %}
             {% if d.order_deadline %}
             <span class="badge {% if d.deadline_passed %}badge-warning{% else %}badge-primary{% endif %}">
-                ⏰ {{ t('streetfood.deadline') }}: {{ d.order_deadline.strftime('%d/%m %H:%M') }}
+                ⏰ {{ t('streetfood.order_until') }} {{ d.order_deadline.strftime('%d/%m %H:%M') }}
             </span>
             {% endif %}
             {% if d.slots_left is not none %}
@@ -68,7 +73,7 @@
             {% endif %}
         </div>
 
-        {% set unavailable = (not cantine.is_open) or d.deadline_passed or (d.slots_left is not none and d.slots_left <= 0) %}
+        {% set unavailable = (not cantine.is_open) or d.deadline_passed or d.serve_passed or (d.slots_left is not none and d.slots_left <= 0) %}
         {% if unavailable %}
             <div class="alert alert-warning">⚠️ {{ t('streetfood.order_unavailable') }}</div>
         {% else %}
