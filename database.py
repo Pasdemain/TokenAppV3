@@ -524,6 +524,33 @@ def init_db():
         )
     """)
 
+    # ── Trip (public, account-less activity sign-up page) ─────────────────────
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trip_activities (
+            id SERIAL PRIMARY KEY,
+            title VARCHAR(120) NOT NULL,
+            description TEXT,
+            category VARCHAR(20) DEFAULT 'autre',
+            activity_date DATE,
+            start_time VARCHAR(20),
+            location VARCHAR(120),
+            capacity INTEGER,
+            created_by VARCHAR(60),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trip_signups (
+            id SERIAL PRIMARY KEY,
+            activity_id INTEGER REFERENCES trip_activities(id) ON DELETE CASCADE,
+            name VARCHAR(60) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(activity_id, name)
+        )
+    """)
+
     # ── Feature defaults table ────────────────────────────────────────────────
 
     cur.execute("""
