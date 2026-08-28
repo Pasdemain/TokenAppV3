@@ -105,6 +105,17 @@
         .flash.warning { background:#fdf0d5; color:#8a5a00; }
         .flash.info    { background:#e3eef5; color:#1a5b82; }
 
+        /* Useful links */
+        .links-card { background:#fff; border:1px solid var(--border); border-radius:16px; padding:1rem 1.15rem; margin-bottom:1.4rem; box-shadow:0 3px 10px rgba(10,61,95,.05); }
+        .links-head { font-weight:700; color:var(--sea-dark); margin-bottom:.6rem; }
+        .links-list { display:flex; flex-direction:column; gap:.35rem; margin-bottom:.8rem; }
+        .link-row { display:flex; align-items:center; gap:.5rem; background:var(--sand); border:1px solid var(--border); border-radius:10px; padding:.45rem .7rem; }
+        .link-a { flex:1; text-decoration:none; font-weight:600; color:var(--sea); word-break:break-word; }
+        .link-a:hover { text-decoration:underline; }
+        .link-add { display:flex; gap:.5rem; flex-wrap:wrap; }
+        .link-add input[name=label] { flex:1; min-width:130px; }
+        .link-add input[name=url] { flex:2; min-width:170px; }
+
         .footnote { text-align:center; font-size:.8rem; color:#8aa0aa; margin-top:2rem; }
         @media (max-width:560px){ .row2 { grid-template-columns:1fr; } .hero h1{font-size:1.7rem;} }
     </style>
@@ -147,6 +158,34 @@
         <div class="stats">
             <div class="stat"><b>{{ total_activities }}</b><span>activité{{ 's' if total_activities != 1 else '' }}</span></div>
             <div class="stat"><b>{{ total_people }}</b><span>participant{{ 's' if total_people != 1 else '' }}</span></div>
+        </div>
+
+        <!-- Useful links -->
+        <div class="links-card">
+            <div class="links-head">🔗 Liens utiles</div>
+            {% if links %}
+            <div class="links-list">
+                {% for l in links %}
+                <div class="link-row">
+                    <a class="link-a" href="{{ l.url }}" target="_blank" rel="noopener noreferrer">
+                        🔗 {{ l.label or l.url }}
+                    </a>
+                    <form method="POST" action="{{ url_for('trip.delete_link', link_id=l.id) }}"
+                          onsubmit="return confirm('Supprimer ce lien ?');">
+                        <button class="del" type="submit" title="Supprimer">✕</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-people" style="margin:.2rem 0 .6rem;">Aucun lien pour l'instant — ajoute Tricount, un doc, une carte…</div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('trip.add_link') }}" class="link-add">
+                <input type="text" name="label" maxlength="80" placeholder="Nom (ex. Tricount)">
+                <input type="url" name="url" required placeholder="https://…" inputmode="url">
+                <button class="btn btn-teal btn-sm" type="submit">Ajouter</button>
+            </form>
         </div>
 
         <!-- Activities grouped by day -->

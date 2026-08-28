@@ -282,6 +282,7 @@ def admin():
             cur.execute("DELETE FROM streetfood_cantines")
             cur.execute("DELETE FROM trip_signups")
             cur.execute("DELETE FROM trip_activities")
+            cur.execute("DELETE FROM trip_links")
             cur.execute("DELETE FROM users")
             conn.commit()
             cur.close()
