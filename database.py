@@ -551,6 +551,16 @@ def init_db():
         )
     """)
 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trip_links (
+            id SERIAL PRIMARY KEY,
+            label VARCHAR(80),
+            url TEXT NOT NULL,
+            added_by VARCHAR(60),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # ── Feature defaults table ────────────────────────────────────────────────
 
     cur.execute("""
