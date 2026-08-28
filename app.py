@@ -18,6 +18,7 @@ from competency_routes import competency_bp
 from santa_routes import santa_bp
 from molkky_routes import molkky_bp
 from streetfood_routes import streetfood_bp
+from trip_routes import trip_bp
 import i18n as i18n_module
 from i18n import t as _t
 
@@ -41,6 +42,7 @@ app.register_blueprint(competency_bp)
 app.register_blueprint(santa_bp)
 app.register_blueprint(molkky_bp)
 app.register_blueprint(streetfood_bp)
+app.register_blueprint(trip_bp)
 
 # Initialize i18n (exposes `t(key)` to templates)
 i18n_module.init_app(app)
@@ -278,6 +280,8 @@ def admin():
             cur.execute("DELETE FROM streetfood_wallets")
             cur.execute("DELETE FROM streetfood_managers")
             cur.execute("DELETE FROM streetfood_cantines")
+            cur.execute("DELETE FROM trip_signups")
+            cur.execute("DELETE FROM trip_activities")
             cur.execute("DELETE FROM users")
             conn.commit()
             cur.close()
